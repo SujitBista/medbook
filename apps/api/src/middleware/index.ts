@@ -3,6 +3,7 @@
  * All Express middleware will be exported from here
  */
 
+export { corsMiddleware } from './cors.middleware';
 // TODO: Add middleware exports as they are created
 // export { authMiddleware } from './auth.middleware';
 // export { errorHandler } from './error.middleware';

@@ -15,6 +15,7 @@ export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '4000', 10),
   apiUrl: process.env.API_URL || `http://localhost:${process.env.PORT || '4000'}`,
+  corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:3000',
 } as const;
 
 export const isDevelopment = env.nodeEnv === 'development';
