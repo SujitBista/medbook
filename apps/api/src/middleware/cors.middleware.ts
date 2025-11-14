@@ -1,17 +1,27 @@
 import cors, { CorsOptions } from 'cors';
 import { Request, Response, NextFunction } from 'express';
 import { env, isDevelopment } from '../config/env';
+import { logger } from '../utils/logger';
 
 /**
- * Normalizes an origin URL (lowercase, no trailing slash)
+ * Creates a standardized CORS error response
  */
-function normalizeOrigin(origin: string): string {
-  return origin.toLowerCase().replace(/\/$/, '');
+function createCorsErrorResponse(message: string) {
+  return {
+    success: false,
+    error: {
+      code: 'CORS_ERROR',
+      message: 'Origin not allowed by CORS policy',
+      // Only expose details in development
+      ...(isDevelopment && { details: message }),
+    },
+  };
 }
 
 /**
  * CORS configuration for Express app
  * Strict whitelist-based CORS with proper error handling
+ * Origins are normalized once during env parsing
  */
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
@@ -21,24 +31,34 @@ const corsOptions: CorsOptions = {
         return callback(null, true);
       }
       // Log and deny no-origin requests by default
-      console.warn('[CORS] Request denied: No origin header');
+      logger.warn('CORS: Request denied - No origin header');
       return callback(new Error('CORS: Origin header required'), false);
     }
 
-    const normalizedOrigin = normalizeOrigin(origin);
-    const normalizedAllowedOrigins = env.corsOrigins.map(normalizeOrigin);
+    // Handle explicit "null" origin (e.g., from file:// protocol)
+    if (origin === 'null') {
+      if (env.corsAllowNullOrigin) {
+        return callback(null, true);
+      }
+      logger.warn('CORS: Request denied - Null origin not allowed');
+      return callback(new Error('CORS: Null origin not allowed'), false);
+    }
+
+    // Origins are already normalized in env.corsOrigins
+    // Normalize the incoming origin for comparison
+    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
 
     // Check if origin is in whitelist
-    if (normalizedAllowedOrigins.includes(normalizedOrigin)) {
+    if (env.corsOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
     }
 
     // Log denied origin (without exposing full origin in production)
     if (isDevelopment) {
-      console.warn(`[CORS] Request denied: Origin "${origin}" not in whitelist`);
-      console.warn(`[CORS] Allowed origins: ${env.corsOrigins.join(', ')}`);
+      logger.warn(`CORS: Request denied - Origin "${origin}" not in whitelist`);
+      logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(', ')}`);
     } else {
-      console.warn(`[CORS] Request denied: Origin not in whitelist`);
+      logger.warn('CORS: Request denied - Origin not in whitelist');
     }
 
     // Return error that will be handled by error middleware
@@ -54,6 +74,7 @@ const corsOptions: CorsOptions = {
 /**
  * CORS middleware with error handling
  * Returns 403 Forbidden for denied origins instead of bubbling errors
+ * Handles both regular requests and OPTIONS preflight requests
  */
 export function corsMiddleware(
   req: Request,
@@ -63,21 +84,24 @@ export function corsMiddleware(
   cors(corsOptions)(req, res, (err) => {
     if (err) {
       // Log the CORS error
-      console.error('[CORS Error]', err.message);
+      const isPreflight = req.method === 'OPTIONS';
+      if (isPreflight) {
+        logger.error(`CORS: Preflight request denied - ${err.message}`);
+      } else {
+        logger.error(`CORS: Request denied - ${err.message}`);
+      }
 
       // Return 403 Forbidden with proper error response
-      res.status(403).json({
-        success: false,
-        error: {
-          code: 'CORS_ERROR',
-          message: 'Origin not allowed by CORS policy',
-          // Only expose details in development
-          ...(isDevelopment && { details: err.message }),
-        },
-      });
+      // This works for both regular requests and OPTIONS preflight
+      res.status(403).json(createCorsErrorResponse(err.message));
       return;
     }
-    next();
+
+    // For OPTIONS preflight requests, cors middleware sends the response
+    // For regular requests, continue to next middleware
+    if (req.method !== 'OPTIONS') {
+      next();
+    }
   });
 }
 

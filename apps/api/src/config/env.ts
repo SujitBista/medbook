@@ -29,14 +29,17 @@ function parseCorsOrigins(origins: string): string[] {
     .map(normalizeOrigin);
 }
 
+const port = parseInt(process.env.PORT || '4000', 10);
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '4000', 10),
-  apiUrl: process.env.API_URL || `http://localhost:${process.env.PORT || '4000'}`,
+  port,
+  apiUrl: process.env.API_URL || `http://localhost:${port}`,
   corsOrigins: parseCorsOrigins(
     process.env.CORS_ORIGIN || 'http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000'
   ),
   corsAllowNoOrigin: process.env.CORS_ALLOW_NO_ORIGIN === 'true',
+  corsAllowNullOrigin: process.env.CORS_ALLOW_NULL_ORIGIN === 'true',
 } as const;
 
 export const isDevelopment = env.nodeEnv === 'development';
