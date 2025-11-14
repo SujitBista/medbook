@@ -3,6 +3,8 @@
  * Shared utilities for the backend API
  */
 
+export * from './logger';
+
 /**
  * Creates a standardized API response
  */
