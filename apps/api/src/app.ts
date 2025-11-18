@@ -1,7 +1,12 @@
 import express, { Express } from 'express';
 import { env } from './config/env';
 import routes from './routes';
-import { corsMiddleware, errorHandler, notFoundHandler } from './middleware';
+import {
+  corsMiddleware,
+  errorHandler,
+  notFoundHandler,
+  requestLogger,
+} from './middleware';
 
 /**
  * Creates and configures the Express application
@@ -12,6 +17,9 @@ export function createApp(): Express {
 
   // CORS middleware - must be before other middleware
   app.use(corsMiddleware);
+
+  // Request logging - should be early but after CORS
+  app.use(requestLogger);
 
   // Basic middleware
   app.use(express.json());
