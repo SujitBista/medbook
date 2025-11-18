@@ -5,6 +5,7 @@
 
 export { corsMiddleware } from './cors.middleware';
 export { errorHandler, notFoundHandler } from './error.middleware';
+export { requestLogger } from './request-logger.middleware';
 // TODO: Add middleware exports as they are created
 // export { authMiddleware } from './auth.middleware';
 // export { validateRequest } from './validation.middleware';
