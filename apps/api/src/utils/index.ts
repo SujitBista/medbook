@@ -4,6 +4,7 @@
  */
 
 export * from './logger';
+export * from './errors';
 
 /**
  * Creates a standardized API response
