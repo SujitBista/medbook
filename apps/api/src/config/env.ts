@@ -14,7 +14,7 @@ function getEnvVar(key: string, defaultValue?: string): string {
 /**
  * Normalizes an origin URL (lowercase, no trailing slash)
  */
-function normalizeOrigin(origin: string): string {
+export function normalizeOrigin(origin: string): string {
   return origin.toLowerCase().replace(/\/$/, '');
 }
 

@@ -1,6 +1,6 @@
 import cors, { CorsOptions } from 'cors';
 import { Request, Response, NextFunction } from 'express';
-import { env, isDevelopment } from '../config/env';
+import { env, isDevelopment, normalizeOrigin } from '../config/env';
 import { logger } from '../utils/logger';
 
 /**
@@ -45,8 +45,8 @@ const corsOptions: CorsOptions = {
     }
 
     // Origins are already normalized in env.corsOrigins
-    // Normalize the incoming origin for comparison
-    const normalizedOrigin = origin.toLowerCase().replace(/\/$/, '');
+    // Normalize the incoming origin for comparison using the same function
+    const normalizedOrigin = normalizeOrigin(origin);
 
     // Check if origin is in whitelist
     if (env.corsOrigins.includes(normalizedOrigin)) {
