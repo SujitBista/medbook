@@ -8,7 +8,7 @@ CREATE TABLE "users" (
     "password" TEXT NOT NULL,
     "role" "UserRole" NOT NULL DEFAULT 'PATIENT',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "users_pkey" PRIMARY KEY ("id")
 );
