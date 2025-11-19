@@ -92,6 +92,9 @@ importers:
       prisma:
         specifier: ^5.19.0
         version: 5.22.0
+      typescript:
+        specifier: ^5.3.3
+        version: 5.9.3
 
 packages:
 
