@@ -47,6 +47,14 @@ Then apply it later with:
 pnpm db:migrate:deploy
 ```
 
+**Important:** After applying the migration with `db:migrate:deploy`, you must regenerate the Prisma Client to sync types:
+
+```bash
+pnpm db:generate
+```
+
+**Note:** If you need the Prisma Client regenerated immediately, consider using `pnpm db:migrate` instead, which creates, applies, and regenerates the client in one step.
+
 ### Applying Migrations (Production)
 
 To apply pending migrations in production:
@@ -59,12 +67,21 @@ pnpm db:migrate:deploy
 
 1. **Development:**
    - Modify `schema.prisma`
-   - Run `pnpm db:migrate` (creates and applies migration)
+   - Run `pnpm db:migrate` (creates, applies migration, and regenerates Prisma Client)
+   - Commit both `schema.prisma` and migration files
+
+   **Alternative workflow (create-only):**
+   - Modify `schema.prisma`
+   - Run `pnpm db:migrate:create` (creates migration file only)
+   - Review the migration file
+   - Run `pnpm db:migrate:deploy` (applies migration)
+   - Run `pnpm db:generate` (regenerates Prisma Client)
    - Commit both `schema.prisma` and migration files
 
 2. **Production:**
    - Deploy code with new migrations
    - Run `pnpm db:migrate:deploy` to apply pending migrations
+   - Run `pnpm db:generate` to regenerate Prisma Client (if schema changed)
 
 ### Resetting Database (Development Only)
 
