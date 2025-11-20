@@ -7,7 +7,10 @@
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:migrate:deploy": "prisma migrate deploy",
+    "db:migrate:create": "prisma migrate dev --create-only"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0"
@@ -17,4 +20,3 @@
     "typescript": "^5.3.3"
   }
 }
-
