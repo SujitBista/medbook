@@ -342,7 +342,7 @@ node_modules/                # Dependencies (all levels)
     "paths": {
       "@/*": ["./src/*"],
       "@medbook/types": ["../../packages/types/src"],
-      "@medbook/db": ["../../packages/db/src"]
+      "@app/db": ["../../packages/db/src"]
     }
   }
 }

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from 'express';
+import { checkDatabaseHealth } from '@app/db';
 
 /**
  * Main router aggregator
@@ -7,10 +8,15 @@ import { Router, type IRouter } from 'express';
 const router: IRouter = Router();
 
 // Health check route (can also be in app.ts, but keeping here for future expansion)
-router.get('/health', (req, res) => {
-  res.status(200).json({
-    status: 'ok',
+router.get('/health', async (req, res) => {
+  const dbHealthy = await checkDatabaseHealth();
+  
+  const status = dbHealthy ? 200 : 503;
+  
+  res.status(status).json({
+    status: dbHealthy ? 'ok' : 'degraded',
     timestamp: new Date().toISOString(),
+    database: dbHealthy ? 'connected' : 'disconnected',
   });
 });
 
