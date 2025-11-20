@@ -23,6 +23,9 @@ importers:
 
   apps/api:
     dependencies:
+      '@app/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       cors:
         specifier: ^2.8.5
         version: 2.8.5

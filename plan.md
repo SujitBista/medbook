@@ -3,6 +3,7 @@
 ## Overview
 
 This document outlines the phase-wise implementation plan for the Doctor Appointment Booking App. Each phase builds upon the previous one, ensuring a solid foundation before adding complexity.
+After each task typecheck, lint, build and commit
 
 ## Phase 1: Project Setup & Infrastructure
 
@@ -47,7 +48,7 @@ This document outlines the phase-wise implementation plan for the Doctor Appoint
 
 - [ ] Initialize Prisma in shared package
 - [ ] Create initial Prisma schema with User model
-- [ ] Set up database connection configuration
+- [x] Set up database connection configuration
 - [ ] Create migration system
 - [ ] Set up database seeding script (optional)
 
