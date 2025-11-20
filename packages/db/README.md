@@ -5,11 +5,13 @@ This package contains the Prisma schema, migrations, and database client for the
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Set up environment variables:
+
    ```bash
    DATABASE_URL=postgresql://user:password@localhost:5432/medbook
    ```
@@ -30,6 +32,7 @@ pnpm db:migrate
 ```
 
 This will:
+
 - Create a new migration file in `prisma/migrations/`
 - Apply the migration to your database
 - Regenerate Prisma Client
@@ -43,6 +46,7 @@ pnpm db:migrate:create
 ```
 
 Then apply it later with:
+
 ```bash
 pnpm db:migrate:deploy
 ```
@@ -102,7 +106,7 @@ import { prisma, query, withTransaction, checkDatabaseHealth } from '@app/db';
 const user = await prisma.user.findUnique({ where: { id } });
 
 // Or use helper functions
-const user = await query((prisma) => 
+const user = await query((prisma) =>
   prisma.user.findUnique({ where: { id } })
 );
 
@@ -135,4 +139,3 @@ The package exports several helper functions:
 - `checkDatabaseHealth()` - Verify database connection
 
 See `src/index.ts` for implementation details.
-
