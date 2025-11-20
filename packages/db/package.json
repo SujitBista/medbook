@@ -10,7 +10,8 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
-    "db:migrate:create": "prisma migrate dev --create-only"
+    "db:migrate:create": "prisma migrate dev --create-only",
+    "db:migrate:reset": "prisma migrate reset"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0"
