@@ -52,7 +52,19 @@ Shared Tailwind CSS configuration.
 **Usage:**
 
 ```js
-// tailwind.config.js
-module.exports = require('@medbook/tailwind-config');
+// tailwind.config.js in your app
+const sharedConfig = require('@medbook/tailwind-config');
+
+module.exports = {
+  ...sharedConfig,
+  content: [
+    // Include shared UI components
+    ...sharedConfig.content,
+    // Add your app-specific paths
+    './app/**/*.{js,ts,jsx,tsx,mdx}',
+    './pages/**/*.{js,ts,jsx,tsx,mdx}',
+    './components/**/*.{js,ts,jsx,tsx,mdx}',
+  ],
+};
 ```
 
