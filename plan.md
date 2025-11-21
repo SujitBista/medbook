@@ -50,7 +50,7 @@ After each task typecheck, lint, build and commit
 - [x] Create initial Prisma schema with User model
 - [x] Set up database connection configuration
 - [x] Create migration system
-- [ ] Set up database seeding script (optional)
+- [x] Set up database seeding script (optional)
 
 #### 1.5 Shared Packages
 

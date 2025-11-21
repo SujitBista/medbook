@@ -11,13 +11,20 @@
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
-    "db:migrate:reset": "prisma migrate reset"
+    "db:migrate:reset": "prisma migrate reset",
+    "db:seed": "prisma db seed"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0"
   },
   "devDependencies": {
     "prisma": "^5.19.0",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "@types/bcrypt": "^5.0.2",
+    "bcrypt": "^5.1.1",
+    "tsx": "^4.7.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   }
 }

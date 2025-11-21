@@ -5,11 +5,13 @@ This package contains the Prisma schema, migrations, and database client for the
 ## Setup
 
 1. Install dependencies:
+
    ```bash
    pnpm install
    ```
 
 2. Set up environment variables:
+
    ```bash
    DATABASE_URL=postgresql://user:password@localhost:5432/medbook
    ```
@@ -30,6 +32,7 @@ pnpm db:migrate
 ```
 
 This will:
+
 - Create a new migration file in `prisma/migrations/`
 - Apply the migration to your database
 - Regenerate Prisma Client
@@ -43,6 +46,7 @@ pnpm db:migrate:create
 ```
 
 Then apply it later with:
+
 ```bash
 pnpm db:migrate:deploy
 ```
@@ -91,6 +95,28 @@ pnpm db:migrate:deploy
 pnpm db:migrate:reset
 ```
 
+## Seeding Database
+
+To populate the database with sample data for development and testing:
+
+```bash
+pnpm db:seed
+```
+
+This will:
+
+- Create sample users (admins, doctors, and patients)
+- Use default password: `password123` for all users
+- Clear existing users before seeding (to avoid duplicates)
+
+**Note:** The seed script uses bcrypt to hash passwords. All seeded users will have the password `password123` (hashed). Remember to change passwords in production!
+
+### Seed Script Location
+
+- Seed script: `prisma/seed.ts`
+- Run from root: `pnpm db:seed`
+- Run from package: `pnpm --filter @app/db db:seed`
+
 ## Prisma Client
 
 After generating the client, import it in your code:
@@ -102,7 +128,7 @@ import { prisma, query, withTransaction, checkDatabaseHealth } from '@app/db';
 const user = await prisma.user.findUnique({ where: { id } });
 
 // Or use helper functions
-const user = await query((prisma) => 
+const user = await query((prisma) =>
   prisma.user.findUnique({ where: { id } })
 );
 
@@ -119,6 +145,8 @@ const result = await withTransaction(async (tx) => {
 - `db:migrate` - Create and apply migration (dev)
 - `db:migrate:deploy` - Apply pending migrations (production)
 - `db:migrate:create` - Create migration without applying
+- `db:migrate:reset` - Reset database (dev only, deletes all data)
+- `db:seed` - Seed database with sample data
 
 ## Schema Location
 
@@ -135,4 +163,3 @@ The package exports several helper functions:
 - `checkDatabaseHealth()` - Verify database connection
 
 See `src/index.ts` for implementation details.
-
