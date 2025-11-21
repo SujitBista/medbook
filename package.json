@@ -15,7 +15,8 @@
     "db:migrate": "pnpm --filter @app/db db:migrate",
     "db:migrate:deploy": "pnpm --filter @app/db db:migrate:deploy",
     "db:migrate:create": "pnpm --filter @app/db db:migrate:create",
-    "db:migrate:reset": "pnpm --filter @app/db db:migrate:reset"
+    "db:migrate:reset": "pnpm --filter @app/db db:migrate:reset",
+    "db:seed": "pnpm --filter @app/db db:seed"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
