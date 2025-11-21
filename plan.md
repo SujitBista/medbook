@@ -54,10 +54,10 @@ After each task typecheck, lint, build and commit
 
 #### 1.5 Shared Packages
 
-- [ ] Create `packages/types` - Shared TypeScript types
-- [ ] Create `packages/config` - Shared configs (ESLint, TypeScript, Tailwind)
-- [ ] Create `packages/ui` - Shared UI components (if needed)
-- [ ] Set up package exports and dependencies
+- [x] Create `packages/types` - Shared TypeScript types
+- [x] Create `packages/config` - Shared configs (ESLint, TypeScript, Tailwind)
+- [x] Create `packages/ui` - Shared UI components (if needed)
+- [x] Set up package exports and dependencies
 
 #### 1.6 Development Tools
 
