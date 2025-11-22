@@ -63,14 +63,14 @@ After each task typecheck, lint, build and commit
 
 - [x] Configure Git repository
 - [x] Create `.gitignore` file
-- [ ] Set up `.env.example` files
-- [ ] Configure VS Code settings (optional)
-- [ ] Set up pre-commit hooks (Husky + lint-staged) - optional
+- [x] Set up `.env.example` files
+- [x] Configure VS Code settings (optional)
+- [x] Set up pre-commit hooks (Husky + lint-staged) - optional
 
 #### 1.7 Documentation
 
 - [x] Create README.md with setup instructions
-- [ ] Document environment variables
+- [x] Document environment variables
 - [x] Add scripts to root package.json
 
 **Deliverables:**
