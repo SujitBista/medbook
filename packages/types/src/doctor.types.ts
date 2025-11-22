@@ -23,3 +23,4 @@ export interface UpdateDoctorInput {
   bio?: string;
 }
 
+

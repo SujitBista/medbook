@@ -34,3 +34,4 @@ export interface UpdateAppointmentInput {
   notes?: string;
 }
 
+

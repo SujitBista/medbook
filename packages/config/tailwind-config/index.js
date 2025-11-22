@@ -2,10 +2,12 @@
  * Shared Tailwind CSS configuration for MedBook monorepo
  * Note: Apps should extend this config and add their own content paths
  */
+const path = require('path');
+
 module.exports = {
   content: [
-    // Shared UI components - path relative to monorepo root
-    '../../packages/ui/src/**/*.{js,ts,jsx,tsx,mdx}',
+    // Shared UI components - resolved relative to this config file
+    path.resolve(__dirname, '../../ui/src/**/*.{js,ts,jsx,tsx,mdx}'),
   ],
   theme: {
     extend: {

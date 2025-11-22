@@ -22,6 +22,7 @@ module.exports = {
 Shared TypeScript configurations.
 
 **Available configs:**
+
 - `base.json` - Base TypeScript configuration
 - `nextjs.json` - Next.js specific configuration (extends base)
 - `node.json` - Node.js/backend configuration (extends base)
@@ -53,7 +54,7 @@ Shared Tailwind CSS configuration.
 
 ```js
 // tailwind.config.js in your app
-const sharedConfig = require('@medbook/tailwind-config');
+const sharedConfig = require("@medbook/tailwind-config");
 
 module.exports = {
   ...sharedConfig,
@@ -61,10 +62,9 @@ module.exports = {
     // Include shared UI components
     ...sharedConfig.content,
     // Add your app-specific paths
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './pages/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
   ],
 };
 ```
-

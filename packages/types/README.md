@@ -27,3 +27,4 @@ pnpm build
 
 Types are automatically compiled to `dist/` directory when built. The package exports both JavaScript and TypeScript declaration files.
 
+

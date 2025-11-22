@@ -7,10 +7,15 @@
     "index.js"
   ],
   "peerDependencies": {
-    "eslint": "^8.0.0 || ^9.0.0"
+    "eslint": "^8.0.0 || ^9.0.0",
+    "@typescript-eslint/parser": "^6.0.0 || ^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0 || ^7.0.0"
   },
   "devDependencies": {
-    "eslint": "^8.57.0"
+    "eslint": "^8.57.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0"
   }
 }
+
 

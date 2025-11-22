@@ -66,3 +66,4 @@ Components are automatically compiled to `dist/` directory when built. The packa
 
 Components use Tailwind CSS classes. Make sure Tailwind is configured in your app to use the shared config from `@medbook/tailwind-config`.
 
+
