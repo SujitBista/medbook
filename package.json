@@ -16,13 +16,25 @@
     "db:migrate:deploy": "pnpm --filter @app/db db:migrate:deploy",
     "db:migrate:create": "pnpm --filter @app/db db:migrate:create",
     "db:migrate:reset": "pnpm --filter @app/db db:migrate:reset",
-    "db:seed": "pnpm --filter @app/db db:seed"
+    "db:seed": "pnpm --filter @app/db db:seed",
+    "prepare": "husky"
   },
   "devDependencies": {
     "eslint": "^8.57.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7",
     "prettier": "^3.2.5",
     "turbo": "^2.0.0",
     "typescript": "^5.3.3"
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "packageManager": "pnpm@8.15.0",
   "engines": {
@@ -30,4 +42,3 @@
     "pnpm": ">=8.0.0"
   }
 }
-
