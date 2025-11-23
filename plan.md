@@ -96,11 +96,11 @@ After each task typecheck, lint, build and commit
 
 #### 2.1 NextAuth.js Setup
 
-- [ ] Install and configure NextAuth.js in frontend
-- [ ] Create NextAuth API route (`/api/auth/[...nextauth]`)
-- [ ] Configure authentication providers (Credentials provider)
-- [ ] Set up session strategy (JWT)
-- [ ] Configure NextAuth environment variables
+- [x] Install and configure NextAuth.js in frontend
+- [x] Create NextAuth API route (`/api/auth/[...nextauth]`)
+- [x] Configure authentication providers (Credentials provider)
+- [x] Set up session strategy (JWT)
+- [x] Configure NextAuth environment variables
 
 #### 2.2 Backend Authentication API
 
