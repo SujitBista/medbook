@@ -68,18 +68,33 @@ module.exports = {
       if (dir === "root") {
         // Skip root files - no ESLint config expected at root
         return;
+      } else if (dir === "apps/web") {
+        // Use pnpm filter to ensure web uses ESLint v9 (supports flat config)
+        const relativeFiles = files
+          .map((f) => f.replace(`${dir}/`, ""))
+          .join(" ");
+        eslintCommands.push(
+          `pnpm --filter web exec eslint --fix ${relativeFiles}`
+        );
+      } else if (dir === "apps/api") {
+        // Use pnpm filter to ensure api uses ESLint v8 (supports legacy config)
+        const relativeFiles = files
+          .map((f) => f.replace(`${dir}/`, ""))
+          .join(" ");
+        eslintCommands.push(
+          `pnpm --filter api exec eslint --fix ${relativeFiles}`
+        );
       } else if (dir.startsWith("packages/")) {
         // Only lint packages that have ESLint configured
         if (!hasESLintConfig(dir)) {
           return; // Skip this package
         }
+        // For packages, use cd approach (they should use root ESLint or their own)
+        const relativeFiles = files
+          .map((f) => f.replace(`${dir}/`, ""))
+          .join(" ");
+        eslintCommands.push(`cd ${dir} && eslint --fix ${relativeFiles}`);
       }
-      // For package/app files, change to package directory and run eslint
-      // This ensures ESLint finds the correct config (flat config for web, legacy for api)
-      const relativeFiles = files
-        .map((f) => f.replace(`${dir}/`, ""))
-        .join(" ");
-      eslintCommands.push(`cd ${dir} && eslint --fix ${relativeFiles}`);
     });
 
     // Return array: eslint commands first, then prettier
