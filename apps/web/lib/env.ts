@@ -13,12 +13,31 @@ function getEnvVar(key: string, defaultValue?: string): string {
 
 function getNextAuthSecret(): string {
   const secret = process.env.NEXTAUTH_SECRET;
+
   if (secret) {
     return secret;
   }
-  // Allow a default for development (Next.js sets NODE_ENV=production during build)
-  // In actual production runtime, this should be set via environment variable
-  // TODO: Validate at runtime that a proper secret is set in production
+
+  // Runtime check: only allow fallback in actual development runtime
+  // Next.js sets NODE_ENV=production during build, so we check multiple indicators
+  const isProductionRuntime =
+    process.env.NODE_ENV === "production" &&
+    (process.env.VERCEL_ENV === "production" ||
+      process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ||
+      process.env.VERCEL === "1"); // Vercel sets this in production
+
+  if (isProductionRuntime) {
+    // Production runtime: fail fast if secret is missing
+    throw new Error(
+      "NEXTAUTH_SECRET is required in production. " +
+        "Generate one with: openssl rand -base64 32"
+    );
+  }
+
+  // Development or build time: allow fallback with warning
+  console.warn(
+    "⚠️  Using development NEXTAUTH_SECRET. Set NEXTAUTH_SECRET in production!"
+  );
   return "development-secret-change-in-production";
 }
 
