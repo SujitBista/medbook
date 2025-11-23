@@ -7,10 +7,12 @@ This document describes all environment variables used across the MedBook monore
 1. Copy `.env.example` files to `.env` in each directory:
 
    ```bash
-   cp .env.example .env                    # Root (for DATABASE_URL)
-   cp apps/api/.env.example apps/api/.env  # API server
-   cp apps/web/.env.example apps/web/.env  # Web app
+   cp packages/db/.env.example packages/db/.env  # Database package (for Prisma)
+   cp apps/api/.env.example apps/api/.env        # API server
+   cp apps/web/.env.example apps/web/.env        # Web app
    ```
+
+   **Important:** The database `.env` file must be in `packages/db/` (not the root) because Prisma commands run from that directory and only load `.env` files from the current working directory or `prisma/.env`.
 
 2. Configure the required variables (see sections below)
 
@@ -19,9 +21,14 @@ This document describes all environment variables used across the MedBook monore
    openssl rand -base64 32
    ```
 
-## Root Environment Variables
+## Database Package Environment Variables
 
-These variables are used by shared packages (primarily the database package).
+Located in `packages/db/.env`
+
+**Important:** The `.env` file must be placed in `packages/db/` (not the repository root) because Prisma commands execute from that directory and only load `.env` files from:
+
+- The current working directory (`packages/db/`)
+- Or `packages/db/prisma/.env` (special Prisma location)
 
 ### `DATABASE_URL` (Required)
 
@@ -232,7 +239,7 @@ NEXT_PUBLIC_API_URL=https://api.medbook.com/api/v1
 ### Development
 
 ```bash
-# Root .env
+# packages/db/.env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
 
 # apps/api/.env
@@ -249,7 +256,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ### Production
 
 ```bash
-# Root .env
+# packages/db/.env
 DATABASE_URL=postgresql://user:password@prod-db-host:5432/medbook
 
 # apps/api/.env
