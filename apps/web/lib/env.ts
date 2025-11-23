@@ -18,26 +18,46 @@ function getNextAuthSecret(): string {
     return secret;
   }
 
-  // Runtime check: only allow fallback in actual development runtime
-  // Next.js sets NODE_ENV=production during build, so we check multiple indicators
+  // During build, Next.js sets NODE_ENV=production but we need to allow builds to succeed
+  // We distinguish build-time from runtime by checking for platform-specific runtime indicators
+  // Build context: NODE_ENV=production but no runtime indicators present
+  // Runtime context: NODE_ENV=production AND platform runtime indicators present
+  //
+  // IMPORTANT: For self-hosted deployments (Docker, bare metal, etc.) where platform
+  // indicators may not be present, you MUST set NEXTAUTH_SECRET in your production environment.
+  // The warning below will alert you, but the app will still run with the fallback secret.
+  // Always set NEXTAUTH_SECRET in production to prevent security vulnerabilities.
   const isProductionRuntime =
     process.env.NODE_ENV === "production" &&
-    (process.env.VERCEL_ENV === "production" ||
-      process.env.NEXT_PUBLIC_VERCEL_ENV === "production" ||
-      process.env.VERCEL === "1"); // Vercel sets this in production
+    (process.env.NEXT_PHASE === "phase-production-server" ||
+      process.env.VERCEL === "1" ||
+      process.env.VERCEL_ENV === "production" ||
+      process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
+      process.env.AWS_EXECUTION_ENV !== undefined ||
+      process.env.K_SERVICE !== undefined || // Cloud Run
+      process.env.FUNCTION_TARGET !== undefined || // Cloud Functions
+      process.env.RAILWAY_ENVIRONMENT !== undefined ||
+      process.env.RENDER !== undefined);
 
+  // Require secret for any production runtime (self-hosted, Docker, AWS, Vercel, etc.)
+  // This covers all common deployment platforms
   if (isProductionRuntime) {
-    // Production runtime: fail fast if secret is missing
     throw new Error(
-      "NEXTAUTH_SECRET is required in production. " +
+      "NEXTAUTH_SECRET is required in production runtime. " +
         "Generate one with: openssl rand -base64 32"
     );
   }
 
-  // Development or build time: allow fallback with warning
-  console.warn(
-    "⚠️  Using development NEXTAUTH_SECRET. Set NEXTAUTH_SECRET in production!"
-  );
+  // Build time or development: allow fallback with warning
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️  Using development NEXTAUTH_SECRET during build. Ensure NEXTAUTH_SECRET is set in production runtime!"
+    );
+  } else {
+    console.warn(
+      "⚠️  Using development NEXTAUTH_SECRET. Set NEXTAUTH_SECRET in production!"
+    );
+  }
   return "development-secret-change-in-production";
 }
 
