@@ -18,30 +18,31 @@ function getNextAuthSecret(): string {
     return secret;
   }
 
-  // During build, Next.js sets NODE_ENV=production but we need to allow builds to succeed
-  // We distinguish build-time from runtime by checking for platform-specific runtime indicators
-  // Build context: NODE_ENV=production but no runtime indicators present
-  // Runtime context: NODE_ENV=production AND platform runtime indicators present
+  // During build, Next.js sets NODE_ENV=production but we need to allow builds to succeed.
+  // We detect runtime by checking if we're actually running a server (not building).
   //
-  // IMPORTANT: For self-hosted deployments (Docker, bare metal, etc.) where platform
-  // indicators may not be present, you MUST set NEXTAUTH_SECRET in your production environment.
-  // The warning below will alert you, but the app will still run with the fallback secret.
-  // Always set NEXTAUTH_SECRET in production to prevent security vulnerabilities.
-  const isProductionRuntime =
-    process.env.NODE_ENV === "production" &&
-    (process.env.NEXT_PHASE === "phase-production-server" ||
-      process.env.VERCEL === "1" ||
-      process.env.VERCEL_ENV === "production" ||
-      process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
-      process.env.AWS_EXECUTION_ENV !== undefined ||
-      process.env.K_SERVICE !== undefined || // Cloud Run
-      process.env.FUNCTION_TARGET !== undefined || // Cloud Functions
-      process.env.RAILWAY_ENVIRONMENT !== undefined ||
-      process.env.RENDER !== undefined);
+  // Detection strategy:
+  // - If NEXT_PHASE === "phase-production-server", we're definitely in runtime (next start)
+  // - If platform runtime indicators are present, we're in runtime (Vercel, AWS, etc.)
+  // - During build, NEXT_PHASE won't be "phase-production-server", so builds succeed
+  //
+  // IMPORTANT: When running 'next start' with NODE_ENV=production, Next.js sets
+  // NEXT_PHASE="phase-production-server", so self-hosted deployments are protected.
+  const isDefinitelyRuntime =
+    process.env.NEXT_PHASE === "phase-production-server" || // next start in production
+    process.env.VERCEL === "1" ||
+    process.env.VERCEL_ENV === "production" ||
+    process.env.AWS_LAMBDA_FUNCTION_NAME !== undefined ||
+    process.env.AWS_EXECUTION_ENV !== undefined ||
+    process.env.K_SERVICE !== undefined || // Cloud Run
+    process.env.FUNCTION_TARGET !== undefined || // Cloud Functions
+    process.env.RAILWAY_ENVIRONMENT !== undefined ||
+    process.env.RENDER !== undefined;
 
-  // Require secret for any production runtime (self-hosted, Docker, AWS, Vercel, etc.)
-  // This covers all common deployment platforms
-  if (isProductionRuntime) {
+  // Require secret for confirmed production runtime (including self-hosted with next start)
+  // This covers: next start, Vercel, AWS, Cloud Run, Railway, Render, etc.
+  // Self-hosted: next start sets NEXT_PHASE="phase-production-server", so it's protected
+  if (process.env.NODE_ENV === "production" && isDefinitelyRuntime) {
     throw new Error(
       "NEXTAUTH_SECRET is required in production runtime. " +
         "Generate one with: openssl rand -base64 32"
@@ -49,9 +50,11 @@ function getNextAuthSecret(): string {
   }
 
   // Build time or development: allow fallback with warning
+  // Note: For self-hosted deployments, ensure NEXTAUTH_SECRET is set when running next start
   if (process.env.NODE_ENV === "production") {
     console.warn(
-      "⚠️  Using development NEXTAUTH_SECRET during build. Ensure NEXTAUTH_SECRET is set in production runtime!"
+      "⚠️  Using development NEXTAUTH_SECRET during build. " +
+        "CRITICAL: Set NEXTAUTH_SECRET when running 'next start' in production!"
     );
   } else {
     console.warn(
