@@ -5,16 +5,17 @@
 
 import { Request, Response, NextFunction } from "express";
 import { registerUser, loginUser } from "../services/auth.service";
-import { CreateUserInput, UserRole } from "@medbook/types";
+import { CreateUserInput } from "@medbook/types";
 import { createValidationError } from "../utils";
 
 /**
  * Request body for registration
+ * Note: role is NOT accepted - public registration always creates PATIENT
+ * Doctors and Admins must be onboarded by existing admins
  */
 interface RegisterRequestBody {
   email: string;
   password: string;
-  role?: UserRole;
 }
 
 /**
@@ -35,7 +36,7 @@ export async function register(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { email, password, role } = req.body;
+    const { email, password } = req.body;
 
     // Validate required fields
     if (!email || !password) {
@@ -53,10 +54,12 @@ export async function register(
     }
 
     // Create user input
+    // Note: role is NOT included - defaults to PATIENT in registerUser service
+    // This prevents privilege escalation - only admins can create DOCTOR/ADMIN accounts
     const input: CreateUserInput = {
       email,
       password,
-      role,
+      // role is intentionally omitted - public registration always creates PATIENT
     };
 
     // Register user
