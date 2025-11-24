@@ -59,7 +59,10 @@ export async function registerUser(
     });
   }
 
-  // Check if user already exists
+  // Check if user already exists (optimistic check)
+  // Note: This check helps avoid unnecessary password hashing, but the actual
+  // uniqueness is enforced by the database unique constraint. We catch the
+  // Prisma unique constraint error (P2002) to handle race conditions.
   const existingUser = await query((prisma) =>
     prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
@@ -74,33 +77,60 @@ export async function registerUser(
   const hashedPassword = await hashPassword(password);
 
   // Create user
-  const user = await query((prisma) =>
-    prisma.user.create({
-      data: {
-        email: email.toLowerCase().trim(),
-        password: hashedPassword,
-        role: role as PrismaUserRole,
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
-    })
-  );
+  // Wrap in try-catch to handle race condition: if two requests try to register
+  // the same email simultaneously, the second will hit the unique constraint
+  // and we need to return 409 Conflict instead of 500 Internal Server Error
+  try {
+    const user = await query((prisma) =>
+      prisma.user.create({
+        data: {
+          email: email.toLowerCase().trim(),
+          password: hashedPassword,
+          role: role as PrismaUserRole,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      })
+    );
 
-  // Generate JWT token
-  const token = generateToken(user.id, convertUserRole(user.role));
+    // Generate JWT token
+    const token = generateToken(user.id, convertUserRole(user.role));
 
-  return {
-    user: {
-      ...user,
-      role: convertUserRole(user.role),
-    },
-    token,
-  };
+    return {
+      user: {
+        ...user,
+        role: convertUserRole(user.role),
+      },
+      token,
+    };
+  } catch (error: unknown) {
+    // Handle Prisma unique constraint violation (race condition)
+    // P2002 is the error code for unique constraint violations
+    // Check if error has Prisma error structure with code P2002
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      // Check if it's the email field that caused the conflict
+      const prismaError = error as {
+        code: string;
+        meta?: { target?: unknown };
+      };
+      const target = prismaError.meta?.target;
+      if (Array.isArray(target) && target.includes("email")) {
+        throw createConflictError("User with this email already exists");
+      }
+    }
+    // Re-throw other errors (they'll be handled by error middleware)
+    throw error;
+  }
 }
 
 /**
