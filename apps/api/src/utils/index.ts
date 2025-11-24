@@ -3,8 +3,9 @@
  * Shared utilities for the backend API
  */
 
-export * from './logger';
-export * from './errors';
+export * from "./logger";
+export * from "./errors";
+export * from "./auth";
 
 /**
  * Creates a standardized API response
@@ -26,7 +27,10 @@ export function createErrorResponse(
   code: string,
   message: string,
   details?: unknown
-): { success: boolean; error: { code: string; message: string; details?: unknown } } {
+): {
+  success: boolean;
+  error: { code: string; message: string; details?: unknown };
+} {
   return {
     success: false,
     error: {
@@ -36,4 +40,3 @@ export function createErrorResponse(
     },
   };
 }
-
