@@ -6,7 +6,7 @@
 import { Request, Response, NextFunction } from "express";
 import { registerUser, loginUser } from "../services/auth.service";
 import { CreateUserInput, UserRole } from "@medbook/types";
-import { createApiResponse, createValidationError } from "../utils";
+import { createValidationError } from "../utils";
 
 /**
  * Request body for registration
@@ -62,16 +62,14 @@ export async function register(
     // Register user
     const result = await registerUser(input);
 
-    // Return response (matching frontend expectations)
-    // Frontend expects: { success: true, data: { user: {...} } }
-    // But accesses data.user, so we need data.user at top level of data
-    res.status(201).json(
-      createApiResponse({
-        user: result.user,
-        // Note: Token is included but NextAuth will handle session management
-        token: result.token,
-      })
-    );
+    // Return response matching NextAuth expectations
+    // NextAuth expects: { user: { id, email, role, ... } } at top level
+    // We maintain success field for API consistency but NextAuth reads data.user
+    res.status(201).json({
+      success: true,
+      user: result.user,
+      // Token removed - NextAuth handles session management internally
+    });
   } catch (error) {
     next(error);
   }
@@ -99,16 +97,14 @@ export async function login(
     // Login user
     const result = await loginUser(email, password);
 
-    // Return response (matching frontend expectations)
-    // Frontend expects: { success: true, data: { user: {...} } }
-    // But accesses data.user, so we need data.user at top level of data
-    res.status(200).json(
-      createApiResponse({
-        user: result.user,
-        // Note: Token is included but NextAuth will handle session management
-        token: result.token,
-      })
-    );
+    // Return response matching NextAuth expectations
+    // NextAuth expects: { user: { id, email, role, ... } } at top level
+    // We maintain success field for API consistency but NextAuth reads data.user
+    res.status(200).json({
+      success: true,
+      user: result.user,
+      // Token removed - NextAuth handles session management internally
+    });
   } catch (error) {
     next(error);
   }
