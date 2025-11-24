@@ -41,4 +41,5 @@ Thumbs.db
 # Misc
 *.tsbuildinfo
 .cache/
+PHASE2_ISSUES.md
 
