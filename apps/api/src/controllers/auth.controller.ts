@@ -65,13 +65,13 @@ export async function register(
     // Register user
     const result = await registerUser(input);
 
-    // Return response matching NextAuth expectations
-    // NextAuth expects: { user: { id, email, role, ... } } at top level
-    // We maintain success field for API consistency but NextAuth reads data.user
+    // Return response with user and token
+    // NextAuth expects: { user: { id, email, role, ... } } at top level (token is ignored)
+    // API clients need the token to authenticate with Bearer token middleware
     res.status(201).json({
       success: true,
       user: result.user,
-      // Token removed - NextAuth handles session management internally
+      token: result.token,
     });
   } catch (error) {
     next(error);
