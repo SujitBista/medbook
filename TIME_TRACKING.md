@@ -115,9 +115,11 @@
 **Total Time:** 0h 0m  
 **Tasks Worked On:**
 
-- **Notes:**
+-
 
-  ***
+**Notes:**
+
+---
 
 ### Phase 2 Summary
 
