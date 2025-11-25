@@ -44,7 +44,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return {
               id: data.user.id,
               email: data.user.email,
-              name: data.user.name,
+              name: data.user.email, // User model doesn't have name field, use email as display name
               role: data.user.role,
             };
           }
