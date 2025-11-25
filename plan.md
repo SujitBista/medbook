@@ -113,10 +113,10 @@ After each task typecheck, lint, build and commit
 
 #### 2.3 Database Schema Updates
 
-- [ ] Extend User model with authentication fields
-- [ ] Add role field (Patient, Doctor, Admin)
-- [ ] Create UserProfile model (if separate from User)
-- [ ] Run Prisma migrations
+- [x] Extend User model with authentication fields - ✅ Completed in Phase 1 (Task 1.4)
+- [x] Add role field (Patient, Doctor, Admin) - ✅ Completed in Phase 1 (Task 1.4)
+- [ ] Create UserProfile model (if separate from User) - SKIPPED: Using User model directly, no separate profile model needed
+- [x] Run Prisma migrations - ✅ Completed in Phase 1 (Task 1.4)
 
 #### 2.4 Frontend Authentication UI
 
