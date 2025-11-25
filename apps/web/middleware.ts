@@ -5,9 +5,15 @@ import type { NextRequest } from "next/server";
 /**
  * Middleware to protect routes
  * Redirects unauthenticated users to login page
+ *
+ * Note: In NextAuth v5, we use auth() as a wrapper that handles the request
+ * properly in the edge runtime. The auth() function receives the request object
+ * internally, avoiding the cookies() helper which is not supported in middleware.
+ * The session is available via req.auth in the wrapper callback.
  */
-export async function middleware(request: NextRequest) {
-  const session = await auth();
+export default auth((req) => {
+  const request = req as NextRequest;
+  const session = req.auth;
 
   // Define protected routes
   const protectedRoutes = ["/dashboard", "/profile"];
@@ -32,7 +38,7 @@ export async function middleware(request: NextRequest) {
   }
 
   return NextResponse.next();
-}
+});
 
 // Configure which routes the middleware should run on
 export const config = {
