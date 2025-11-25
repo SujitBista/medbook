@@ -84,7 +84,7 @@ check_codex_feedback() {
 # Function to check if Codex says everything is OK
 is_codex_approved() {
     local feedback="$1"
-    echo "$feedback" | grep -qiE "(everything is ok|looks good|approved|no issues|no problems|all good|👍|thumbs up|breezy)" && return 0
+    echo "$feedback" | grep -qiE "(didn't find any major issues|didn't find any major|already looking forward|no major issues|everything is ok|looks good|approved|no issues|no problems|all good|👍|thumbs up|breezy)" && return 0
     return 1
 }
 
