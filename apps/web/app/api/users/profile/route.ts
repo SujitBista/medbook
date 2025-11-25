@@ -8,15 +8,8 @@ import jwt from "jsonwebtoken";
  * Uses the same secret as the backend
  */
 function generateBackendToken(userId: string, role: string): string {
-  // Use the same JWT secret as backend (from environment)
-  // This should match the backend's JWT_SECRET
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!jwtSecret) {
-    throw new Error("JWT_SECRET is not configured");
-  }
-
-  return jwt.sign({ id: userId, role }, jwtSecret, { expiresIn: "7d" });
+  // Use JWT secret from env config (matches backend fallback in development)
+  return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
 }
 
 /**
