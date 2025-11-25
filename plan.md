@@ -130,10 +130,10 @@ After each task typecheck, lint, build and commit
 
 #### 2.5 User Profile Management
 
-- [ ] Create user profile page
-- [ ] Implement profile update API endpoint
-- [ ] Add profile update form
-- [ ] Implement password change functionality
+- [x] Create user profile page
+- [x] Implement profile update API endpoint
+- [x] Add profile update form
+- [x] Implement password change functionality
 - [ ] Add profile picture upload (optional)
 
 #### 2.6 Role-Based Access Control
