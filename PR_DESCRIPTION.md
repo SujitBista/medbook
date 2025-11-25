@@ -16,7 +16,7 @@ This PR completes **Task 2.4: Frontend Authentication UI** from Phase 2 of the i
 
 - **Registration Page** (`/register`)
   - Registration form with email, password, and confirm password fields
-  - Password strength validation (8+ chars, uppercase, lowercase, number)
+  - Password strength validation (8+ chars, uppercase, lowercase, number, special character)
   - Email format validation
   - Password match validation
   - Comprehensive error handling for conflicts and validation errors
@@ -33,6 +33,7 @@ This PR completes **Task 2.4: Frontend Authentication UI** from Phase 2 of the i
   - Loading state while checking authentication
   - Role-based access control support
   - Access denied message for unauthorized users
+  - Preserves callbackUrl when redirecting to login
   - Seamless redirect handling
 
 ### 🎯 Authentication Components
@@ -57,7 +58,11 @@ This PR completes **Task 2.4: Frontend Authentication UI** from Phase 2 of the i
 ### 🐛 Bug Fixes
 
 - Fixed NextAuth `name` field issue - uses email as display name since User model doesn't have a `name` field
+- Fixed middleware `auth()` call to properly handle edge runtime (await req.auth)
 - Fixed login redirect to properly handle `callbackUrl` parameter from protected route redirects
+- Fixed ProtectedRoute component to preserve callbackUrl when redirecting unauthenticated users
+- Fixed registration error code matching (CONFLICT_ERROR instead of CONFLICT)
+- Fixed password validation to include special character requirement to match backend validation
 - Cleaned up trailing whitespace in auth-related files
 
 ## Key Features
@@ -66,7 +71,7 @@ This PR completes **Task 2.4: Frontend Authentication UI** from Phase 2 of the i
 
 - Client-side validation for all inputs
 - Real-time error messages
-- Password strength requirements
+- Password strength requirements (matches backend validation)
 - Email format validation
 
 ✅ **Error Handling**
@@ -139,7 +144,8 @@ This PR completes **Task 2.4: Frontend Authentication UI** from Phase 2 of the i
 
 1. `bb4d58c` - feat: complete Task 2.4 Frontend Authentication UI
 2. `94afa97` - fix: resolve name field issue and clean up trailing whitespace
-3. `[latest]` - fix: handle callbackUrl in login redirect for protected routes
+3. `429eaba` - fix: handle callbackUrl in login redirect for protected routes
+4. `[latest]` - fix: address Codex review feedback (middleware, ProtectedRoute, registration validation)
 
 ## Related Tasks
 

@@ -38,9 +38,11 @@ export default function RegisterPage() {
       newErrors.password = "Password is required";
     } else if (password.length < 8) {
       newErrors.password = "Password must be at least 8 characters";
-    } else if (!/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/.test(password)) {
+    } else if (
+      !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(password)
+    ) {
       newErrors.password =
-        "Password must contain at least one uppercase letter, one lowercase letter, and one number";
+        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)";
     }
 
     if (!confirmPassword) {
@@ -78,7 +80,7 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        if (data.error?.code === "CONFLICT") {
+        if (data.error?.code === "CONFLICT_ERROR") {
           setErrors({ email: "An account with this email already exists" });
         } else if (data.error?.code === "VALIDATION_ERROR") {
           const validationErrors = data.error.details?.errors || {};

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useEffect } from "react";
 
 interface ProtectedRouteProps {
@@ -20,10 +20,13 @@ export function ProtectedRoute({
 }: ProtectedRouteProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (status === "unauthenticated") {
-      router.push("/login");
+      // Preserve the current pathname as callbackUrl
+      const loginUrl = `/login${pathname ? `?callbackUrl=${encodeURIComponent(pathname)}` : ""}`;
+      router.push(loginUrl);
     } else if (
       status === "authenticated" &&
       requiredRole &&
@@ -32,7 +35,7 @@ export function ProtectedRoute({
       // Redirect if user doesn't have required role
       router.push("/");
     }
-  }, [status, session, router, requiredRole]);
+  }, [status, session, router, requiredRole, pathname]);
 
   if (status === "loading") {
     return (

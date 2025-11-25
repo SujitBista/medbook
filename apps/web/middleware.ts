@@ -7,13 +7,12 @@ import type { NextRequest } from "next/server";
  * Redirects unauthenticated users to login page
  *
  * Note: In NextAuth v5, we use auth() as a wrapper that handles the request
- * properly in the edge runtime. The auth() function receives the request object
- * internally, avoiding the cookies() helper which is not supported in middleware.
- * The session is available via req.auth in the wrapper callback.
+ * properly in the edge runtime. The request is automatically passed to auth()
+ * by Next.js middleware, and the session is available via req.auth in the wrapper callback.
  */
-export default auth((req) => {
+export default auth(async (req) => {
   const request = req as NextRequest;
-  const session = req.auth;
+  const session = await req.auth;
 
   // Define protected routes
   const protectedRoutes = ["/dashboard", "/profile"];
