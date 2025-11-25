@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import { checkDatabaseHealth } from "@app/db";
 import authRoutes from "./auth.routes";
+import userRoutes from "./user.routes";
 
 /**
  * Main router aggregator
@@ -23,7 +24,7 @@ router.get("/health", async (req, res) => {
 
 // Register route modules
 router.use("/auth", authRoutes);
-// router.use('/users', userRoutes);
+router.use("/users", userRoutes);
 // router.use('/doctors', doctorRoutes);
 // router.use('/appointments', appointmentRoutes);
 // router.use('/availability', availabilityRoutes);

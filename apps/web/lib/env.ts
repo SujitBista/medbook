@@ -64,12 +64,32 @@ function getNextAuthSecret(): string {
   return "development-secret-change-in-production";
 }
 
+function getJwtSecret(): string {
+  const secret = process.env.JWT_SECRET;
+
+  if (secret) {
+    return secret;
+  }
+
+  // Use same fallback as backend for development
+  // In production, JWT_SECRET should be set to match backend
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️  JWT_SECRET is not set. This should match the backend JWT_SECRET in production!"
+    );
+  }
+  return "development-jwt-secret-change-in-production";
+}
+
 export const env = {
   // NextAuth
   nextAuthUrl: getEnvVar("NEXTAUTH_URL", "http://localhost:3000"),
   // NEXTAUTH_SECRET is required for production but can use a default for development builds
   // In production, this MUST be set to a secure random string
   nextAuthSecret: getNextAuthSecret(),
+
+  // JWT Secret for backend API calls (should match backend JWT_SECRET)
+  jwtSecret: getJwtSecret(),
 
   // API
   apiUrl: getEnvVar("NEXT_PUBLIC_API_URL", "http://localhost:4000/api/v1"),
