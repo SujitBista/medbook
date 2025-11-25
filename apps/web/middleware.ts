@@ -27,7 +27,9 @@ export default auth(async (req) => {
   // If accessing protected route without session, redirect to login
   if (isProtectedRoute && !session) {
     const loginUrl = new URL("/login", request.url);
-    loginUrl.searchParams.set("callbackUrl", request.nextUrl.pathname);
+    // Preserve both pathname and query parameters in callbackUrl
+    const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
+    loginUrl.searchParams.set("callbackUrl", callbackUrl);
     return NextResponse.redirect(loginUrl);
   }
 

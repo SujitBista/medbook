@@ -66,8 +66,13 @@ function LoginForm() {
         setIsLoading(false);
       } else {
         // Redirect to callbackUrl if provided, otherwise to home page
+        // Validate callbackUrl to prevent open redirect vulnerability
         const callbackUrl = searchParams.get("callbackUrl") || "/";
-        router.push(callbackUrl);
+        // Only allow same-origin paths starting with "/"
+        const isValidCallback =
+          callbackUrl.startsWith("/") && !callbackUrl.startsWith("//");
+        const safeCallbackUrl = isValidCallback ? callbackUrl : "/";
+        router.push(safeCallbackUrl);
         router.refresh();
       }
     } catch (error) {
