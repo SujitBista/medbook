@@ -120,13 +120,13 @@ After each task typecheck, lint, build and commit
 
 #### 2.4 Frontend Authentication UI
 
-- [ ] Create login page (`/login`)
-- [ ] Create registration page (`/register`)
-- [ ] Implement login form with validation
-- [ ] Implement registration form with validation
-- [ ] Add protected route wrapper/middleware
-- [ ] Create logout functionality
-- [ ] Add authentication status indicators
+- [x] Create login page (`/login`)
+- [x] Create registration page (`/register`)
+- [x] Implement login form with validation
+- [x] Implement registration form with validation
+- [x] Add protected route wrapper/middleware
+- [x] Create logout functionality
+- [x] Add authentication status indicators
 
 #### 2.5 User Profile Management
 
