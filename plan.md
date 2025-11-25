@@ -104,12 +104,12 @@ After each task typecheck, lint, build and commit
 
 #### 2.2 Backend Authentication API
 
-- [ ] Create `/api/v1/auth/register` endpoint
-- [ ] Create `/api/v1/auth/login` endpoint
-- [ ] Implement password hashing (bcrypt)
-- [ ] Create JWT token generation and validation
-- [ ] Set up authentication middleware for protected routes
-- [ ] Implement password validation rules
+- [x] Create `/api/v1/auth/register` endpoint
+- [x] Create `/api/v1/auth/login` endpoint
+- [x] Implement password hashing (bcrypt)
+- [x] Create JWT token generation and validation
+- [x] Set up authentication middleware for protected routes
+- [x] Implement password validation rules
 
 #### 2.3 Database Schema Updates
 

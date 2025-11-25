@@ -16,8 +16,13 @@ This document describes all environment variables used across the MedBook monore
 
 2. Configure the required variables (see sections below)
 
-3. Generate a NextAuth secret:
+3. Generate secrets:
+
    ```bash
+   # Generate NextAuth secret (for web app)
+   openssl rand -base64 32
+
+   # Generate JWT secret (for API server)
    openssl rand -base64 32
    ```
 
@@ -170,6 +175,31 @@ CORS_ALLOW_NULL_ORIGIN=true
 
 ---
 
+### `JWT_SECRET` (Required in Production)
+
+Secret key used to sign and verify JWT tokens for API authentication.
+
+**Generate a secret:**
+
+```bash
+openssl rand -base64 32
+```
+
+**Example:**
+
+```bash
+JWT_SECRET=your-generated-secret-key-here
+```
+
+**⚠️ Important:**
+
+- Must be set in production (server will crash at startup if missing)
+- Keep this secret secure
+- Use a different secret for each environment
+- Defaults to a development fallback in non-production environments
+
+---
+
 ## Web App Environment Variables
 
 Located in `apps/web/.env`
@@ -245,6 +275,7 @@ DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
 # apps/api/.env
 NODE_ENV=development
 PORT=4000
+JWT_SECRET=dev-secret-key-change-in-production
 CORS_ORIGIN=http://localhost:3000
 
 # apps/web/.env
@@ -263,6 +294,7 @@ DATABASE_URL=postgresql://user:password@prod-db-host:5432/medbook
 NODE_ENV=production
 PORT=4000
 API_URL=https://api.medbook.com
+JWT_SECRET=<strong-random-secret>
 CORS_ORIGIN=https://app.medbook.com
 CORS_ALLOW_NO_ORIGIN=false
 CORS_ALLOW_NULL_ORIGIN=false
@@ -278,7 +310,7 @@ NEXT_PUBLIC_API_URL=https://api.medbook.com/api/v1
 ## Security Best Practices
 
 1. **Never commit `.env` files** - They are in `.gitignore`
-2. **Use strong secrets** - Generate `NEXTAUTH_SECRET` using `openssl rand -base64 32`
+2. **Use strong secrets** - Generate `NEXTAUTH_SECRET` and `JWT_SECRET` using `openssl rand -base64 32`
 3. **Restrict CORS origins** - Only include trusted domains
 4. **Use different secrets per environment** - Don't reuse secrets between dev/staging/prod
 5. **Rotate secrets regularly** - Especially if compromised
@@ -290,7 +322,7 @@ NEXT_PUBLIC_API_URL=https://api.medbook.com/api/v1
 
 ### Missing Environment Variable Error
 
-If you see an error like `Missing required environment variable: NEXTAUTH_SECRET`:
+If you see an error like `Missing required environment variable: NEXTAUTH_SECRET` or `JWT_SECRET is required in production`:
 
 1. Check that you've copied `.env.example` to `.env`
 2. Verify the variable name matches exactly (case-sensitive)
