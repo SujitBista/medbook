@@ -6,7 +6,7 @@ Express.js API server for the MedBook application.
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm (recommended) or npm
 
 ### Installation
@@ -24,6 +24,13 @@ Copy `.env.example` to `.env` and configure the following variables:
 - `NODE_ENV` - Node environment (`development`, `production`, `test`). Default: `development`
 - `PORT` - Server port. Default: `4000`
 - `API_URL` - Full URL where the API is accessible. Default: `http://localhost:{PORT}`
+
+#### JWT Configuration
+
+- `JWT_SECRET` - Secret key for signing JWT tokens. **Required in production**.
+  - Generate with: `openssl rand -base64 32`
+  - Default: Development fallback (not secure, change in production!)
+  - ⚠️ **Important**: Server will crash at startup if missing in production
 
 #### CORS Configuration
 
@@ -70,7 +77,7 @@ The API implements a strict CORS policy:
   "error": {
     "code": "CORS_ERROR",
     "message": "Origin not allowed by CORS policy",
-    "details": "CORS: Origin not allowed"  // Only in development
+    "details": "CORS: Origin not allowed" // Only in development
   }
 }
 ```
@@ -103,5 +110,3 @@ src/
 ## License
 
 MIT
-
-
