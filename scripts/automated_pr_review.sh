@@ -163,7 +163,7 @@ while [ $ITERATION -lt $MAX_ITERATIONS ]; do
         echo ""
         echo "🔄 Requesting follow-up Codex review..."
         gh pr comment "$PR_NUMBER" --body "@codex review"
-        LAST_CHECK_TIME=$(date -u +"%Y-%m:%dT%H:%M:%SZ")
+        LAST_CHECK_TIME=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
     fi
 done
 
