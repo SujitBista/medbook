@@ -65,8 +65,9 @@ function LoginForm() {
         setErrors({ general: "Invalid email or password" });
         setIsLoading(false);
       } else {
-        // Redirect to home page on success
-        router.push("/");
+        // Redirect to callbackUrl if provided, otherwise to home page
+        const callbackUrl = searchParams.get("callbackUrl") || "/";
+        router.push(callbackUrl);
         router.refresh();
       }
     } catch (error) {
