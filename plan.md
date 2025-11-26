@@ -154,7 +154,111 @@ After each task typecheck, lint, build and commit
 
 ---
 
-## Phase 3: Core Booking Features
+## Phase 3: Testing & Quality Assurance
+
+### Goals
+
+- Establish comprehensive testing infrastructure
+- Validate Phase 1 and Phase 2 implementations
+- Set up automated testing workflows
+- Ensure code quality and reliability
+
+### Tasks
+
+#### 3.1 Testing Infrastructure Setup
+
+- [ ] Install and configure Vitest for unit/integration tests
+- [ ] Set up Supertest for API endpoint testing
+- [ ] Configure MSW (Mock Service Worker) for API mocking
+- [ ] Install @testing-library/react for component testing
+- [ ] Configure test scripts in all packages (api, web, db, types)
+- [ ] Set up test coverage reporting (c8 or vitest coverage)
+- [ ] Configure Turborepo test pipeline
+- [ ] Create test utilities and helpers
+
+#### 3.2 Unit Tests
+
+- [ ] Write unit tests for utility functions (`apps/api/src/utils/`)
+  - [ ] Password validation (`utils/auth.ts`)
+  - [ ] JWT token generation/validation (`utils/auth.ts`)
+  - [ ] Error creation utilities (`utils/errors.ts`)
+  - [ ] Logger utilities (`utils/logger.ts`)
+- [ ] Write unit tests for service functions (`apps/api/src/services/`)
+  - [ ] Auth service (`auth.service.ts`)
+  - [ ] User service (`user.service.ts`)
+- [ ] Write unit tests for shared utilities (`packages/types/`, `packages/ui/`)
+- [ ] Write unit tests for React components (`apps/web/components/`)
+- [ ] Achieve minimum 70% unit test coverage
+
+#### 3.3 Integration Tests
+
+- [ ] Set up test database configuration
+- [ ] Create database test utilities and fixtures
+- [ ] Write integration tests for API endpoints (`apps/api/src/routes/`)
+  - [ ] Auth routes (`/api/v1/auth/register`, `/api/v1/auth/login`)
+  - [ ] User routes (`/api/v1/users/profile`, `/api/v1/users/update-password`)
+- [ ] Test authentication middleware
+- [ ] Test role-based access control
+- [ ] Test error handling and validation
+- [ ] Test database transactions and rollbacks
+
+#### 3.4 API Tests
+
+- [ ] Write API tests for authentication flows
+  - [ ] Registration with valid/invalid data
+  - [ ] Login with valid/invalid credentials
+  - [ ] Token refresh and validation
+  - [ ] Logout functionality
+- [ ] Write API tests for user management
+  - [ ] Profile retrieval
+  - [ ] Profile updates
+  - [ ] Password changes
+- [ ] Test API error responses and status codes
+- [ ] Test CORS and security headers
+- [ ] Test rate limiting (when implemented)
+
+#### 3.5 Auth Tests
+
+- [ ] Test NextAuth.js configuration and flows
+- [ ] Test JWT token generation and validation
+- [ ] Test session management
+- [ ] Test protected route middleware
+- [ ] Test role-based route protection
+- [ ] Test authentication state persistence
+- [ ] Test logout and session invalidation
+
+#### 3.6 Database Tests
+
+- [ ] Test Prisma schema and migrations
+- [ ] Test database connection pooling
+- [ ] Test query performance and optimization
+- [ ] Test database transactions
+- [ ] Test seed scripts
+- [ ] Test migration rollbacks
+- [ ] Test database constraints and validations
+
+#### 3.7 Test Coverage & CI/CD
+
+- [ ] Set up coverage reporting and thresholds
+- [ ] Configure GitHub Actions for automated testing
+- [ ] Set up test execution on pull requests
+- [ ] Configure coverage reporting (Codecov or similar)
+- [ ] Document testing guidelines and best practices
+- [ ] Create test data factories and fixtures
+
+**Deliverables:**
+
+- Comprehensive test suite covering Phase 1 and Phase 2 features
+- Automated test execution in CI/CD pipeline
+- Test coverage reports and monitoring
+- Testing documentation and guidelines
+- Confidence to proceed with Phase 4 features
+
+**Estimated Time:** 3-4 days
+
+---
+
+## Phase 4: Core Booking Features
 
 ### Goals
 
@@ -162,9 +266,13 @@ After each task typecheck, lint, build and commit
 - Create appointment booking system
 - Build user dashboards
 
+### Testing Approach
+
+**Test immediately after each feature implementation.** Write tests for each feature before moving to the next one. This ensures features are validated as they're built and prevents accumulation of untested code.
+
 ### Tasks
 
-#### 3.1 Doctor Management
+#### 4.1 Doctor Management
 
 - [ ] Create Doctor model in Prisma schema
 - [ ] Add relationship between User and Doctor
@@ -173,8 +281,13 @@ After each task typecheck, lint, build and commit
 - [ ] Create doctor detail API endpoint
 - [ ] Create doctor update API endpoint
 - [ ] Implement doctor search/filter functionality
+- [ ] **Testing**: Write tests for doctor management
+  - [ ] Unit tests for doctor service functions
+  - [ ] Integration tests for doctor API endpoints
+  - [ ] Component tests for doctor UI components
+  - [ ] Test doctor search/filter functionality
 
-#### 3.2 Doctor Availability/Schedule
+#### 4.2 Doctor Availability/Schedule
 
 - [ ] Create Availability/Schedule model in Prisma
 - [ ] Create API endpoints for managing availability
@@ -182,8 +295,13 @@ After each task typecheck, lint, build and commit
 - [ ] Add availability validation (no overlaps)
 - [ ] Create availability viewing endpoints
 - [ ] Implement recurring schedule support (optional)
+- [ ] **Testing**: Write tests for availability management
+  - [ ] Unit tests for availability service functions
+  - [ ] Integration tests for availability API endpoints
+  - [ ] Component tests for availability UI components
+  - [ ] Test availability validation (overlaps, conflicts)
 
-#### 3.3 Appointment System
+#### 4.3 Appointment System
 
 - [ ] Create Appointment model in Prisma schema
 - [ ] Add relationships (Patient, Doctor, Availability)
@@ -192,16 +310,26 @@ After each task typecheck, lint, build and commit
 - [ ] Create appointment listing endpoints (for patient and doctor)
 - [ ] Create appointment detail endpoint
 - [ ] Implement appointment status (Pending, Confirmed, Cancelled, Completed)
+- [ ] **Testing**: Write tests for appointment system
+  - [ ] Unit tests for appointment service functions
+  - [ ] Integration tests for appointment API endpoints
+  - [ ] Component tests for appointment UI components
+  - [ ] Test appointment validation (conflicts, availability checks)
 
-#### 3.4 Appointment Management
+#### 4.4 Appointment Management
 
 - [ ] Create appointment cancellation API endpoint
 - [ ] Create appointment rescheduling API endpoint
 - [ ] Implement cancellation rules (time limits, etc.)
 - [ ] Add appointment status update endpoints
 - [ ] Create appointment history endpoint
+- [ ] **Testing**: Write tests for appointment management
+  - [ ] Unit tests for cancellation/rescheduling logic
+  - [ ] Integration tests for cancellation/rescheduling endpoints
+  - [ ] Component tests for appointment management UI
+  - [ ] Test cancellation rules and time limits
 
-#### 3.5 Patient Dashboard
+#### 4.5 Patient Dashboard
 
 - [ ] Create patient dashboard page (`/dashboard/patient`)
 - [ ] Display upcoming appointments
@@ -209,8 +337,12 @@ After each task typecheck, lint, build and commit
 - [ ] Add "Book Appointment" functionality
 - [ ] Implement appointment filtering and search
 - [ ] Add appointment detail view
+- [ ] **Testing**: Write tests for patient dashboard
+  - [ ] Component tests for dashboard page
+  - [ ] Integration tests for appointment listing/filtering
+  - [ ] E2E test for patient booking flow
 
-#### 3.6 Doctor Dashboard
+#### 4.6 Doctor Dashboard
 
 - [ ] Create doctor dashboard page (`/dashboard/doctor`)
 - [ ] Display upcoming appointments
@@ -218,8 +350,12 @@ After each task typecheck, lint, build and commit
 - [ ] Add availability management UI
 - [ ] Implement appointment status updates
 - [ ] Add patient information view
+- [ ] **Testing**: Write tests for doctor dashboard
+  - [ ] Component tests for dashboard page
+  - [ ] Integration tests for appointment management
+  - [ ] E2E test for doctor workflow
 
-#### 3.7 Booking UI Components
+#### 4.7 Booking UI Components
 
 - [ ] Create doctor listing page (`/doctors`)
 - [ ] Create doctor detail page (`/doctors/[id]`)
@@ -227,6 +363,10 @@ After each task typecheck, lint, build and commit
 - [ ] Implement time slot selection UI
 - [ ] Add appointment confirmation page
 - [ ] Create appointment detail page
+- [ ] **Testing**: Write tests for booking UI
+  - [ ] Component tests for all booking components
+  - [ ] Integration tests for booking flow
+  - [ ] E2E test for complete booking journey
 
 **Deliverables:**
 
@@ -240,7 +380,7 @@ After each task typecheck, lint, build and commit
 
 ---
 
-## Phase 4: Advanced Features
+## Phase 5: Advanced Features
 
 ### Goals
 
@@ -249,9 +389,13 @@ After each task typecheck, lint, build and commit
 - Create admin features
 - Add analytics
 
+### Testing Approach
+
+**Test immediately after each feature implementation.** Write tests for each feature before moving to the next one.
+
 ### Tasks
 
-#### 4.1 Email Notifications
+#### 5.1 Email Notifications
 
 - [ ] Set up email service (SendGrid, Resend, or similar)
 - [ ] Create email templates
@@ -259,31 +403,51 @@ After each task typecheck, lint, build and commit
 - [ ] Add appointment reminder emails
 - [ ] Create cancellation notification emails
 - [ ] Add welcome emails for new users
+- [ ] **Testing**: Write tests for email notifications
+  - [ ] Unit tests for email service functions
+  - [ ] Integration tests for email sending (with mocks)
+  - [ ] Test email template rendering
+  - [ ] Test email delivery scenarios
 
-#### 4.2 Appointment Reminders
+#### 5.2 Appointment Reminders
 
 - [ ] Set up background job system (Bull, Agenda, or similar)
 - [ ] Create reminder scheduling logic
 - [ ] Implement 24-hour reminder emails
 - [ ] Add 1-hour reminder notifications (optional)
 - [ ] Create reminder cancellation on appointment cancellation
+- [ ] **Testing**: Write tests for appointment reminders
+  - [ ] Unit tests for reminder scheduling logic
+  - [ ] Integration tests for reminder jobs
+  - [ ] Test reminder cancellation scenarios
+  - [ ] Test reminder timing accuracy
 
-#### 4.3 Search and Filtering
+#### 5.3 Search and Filtering
 
 - [ ] Implement doctor search by name, specialty
 - [ ] Add filtering by location, availability, rating
 - [ ] Create advanced search UI
 - [ ] Implement search result pagination
 - [ ] Add sorting options
+- [ ] **Testing**: Write tests for search and filtering
+  - [ ] Unit tests for search/filter logic
+  - [ ] Integration tests for search API endpoints
+  - [ ] Component tests for search UI
+  - [ ] Test pagination and sorting
 
-#### 4.4 Appointment History
+#### 5.4 Appointment History
 
 - [ ] Enhance appointment history with filters
 - [ ] Add export functionality (CSV/PDF)
 - [ ] Implement detailed history view
 - [ ] Add statistics and insights
+- [ ] **Testing**: Write tests for appointment history
+  - [ ] Unit tests for history filtering logic
+  - [ ] Integration tests for history endpoints
+  - [ ] Component tests for history UI
+  - [ ] Test export functionality
 
-#### 4.5 Admin Dashboard
+#### 5.5 Admin Dashboard
 
 - [ ] Create admin dashboard page (`/dashboard/admin`)
 - [ ] Implement user management (view, edit, delete)
@@ -291,14 +455,25 @@ After each task typecheck, lint, build and commit
 - [ ] Create appointment overview and management
 - [ ] Add system statistics and analytics
 - [ ] Implement admin-only settings
+- [ ] **Testing**: Write tests for admin dashboard
+  - [ ] Unit tests for admin service functions
+  - [ ] Integration tests for admin API endpoints
+  - [ ] Component tests for admin UI
+  - [ ] Test admin-only access control
+  - [ ] E2E test for admin workflows
 
-#### 4.6 Analytics and Reporting
+#### 5.6 Analytics and Reporting
 
 - [ ] Create appointment statistics API
 - [ ] Add dashboard analytics widgets
 - [ ] Implement revenue reports (if applicable)
 - [ ] Create user activity reports
 - [ ] Add doctor performance metrics
+- [ ] **Testing**: Write tests for analytics
+  - [ ] Unit tests for analytics calculations
+  - [ ] Integration tests for analytics API endpoints
+  - [ ] Component tests for analytics widgets
+  - [ ] Test report generation
 
 **Deliverables:**
 
@@ -312,7 +487,7 @@ After each task typecheck, lint, build and commit
 
 ---
 
-## Phase 5: Polish & Deployment
+## Phase 6: Polish & Deployment
 
 ### Goals
 
@@ -321,9 +496,13 @@ After each task typecheck, lint, build and commit
 - Secure the application
 - Prepare for production deployment
 
+### Testing Approach
+
+**Test immediately after each improvement/optimization.** Write tests for new features and validate existing tests still pass after optimizations.
+
 ### Tasks
 
-#### 5.1 UI/UX Improvements
+#### 6.1 UI/UX Improvements
 
 - [ ] Conduct UI/UX review
 - [ ] Improve responsive design (mobile, tablet, desktop)
@@ -332,8 +511,13 @@ After each task typecheck, lint, build and commit
 - [ ] Add toast notifications for user feedback
 - [ ] Improve form validation and error messages
 - [ ] Add accessibility improvements (ARIA labels, keyboard navigation)
+- [ ] **Testing**: Write tests for UI/UX improvements
+  - [ ] Component tests for new UI components
+  - [ ] Accessibility tests (ARIA, keyboard navigation)
+  - [ ] Responsive design tests
+  - [ ] Test error boundaries
 
-#### 5.2 Performance Optimization
+#### 6.2 Performance Optimization
 
 - [ ] Optimize database queries (add indexes, optimize joins)
 - [ ] Implement API response caching
@@ -342,8 +526,13 @@ After each task typecheck, lint, build and commit
 - [ ] Implement pagination for large lists
 - [ ] Optimize bundle sizes
 - [ ] Add performance monitoring
+- [ ] **Testing**: Write tests for performance optimizations
+  - [ ] Performance tests for optimized endpoints
+  - [ ] Test caching behavior
+  - [ ] Test pagination performance
+  - [ ] Validate optimizations don't break functionality
 
-#### 5.3 Security Hardening
+#### 6.3 Security Hardening
 
 - [ ] Security audit of API endpoints
 - [ ] Implement rate limiting
@@ -352,24 +541,37 @@ After each task typecheck, lint, build and commit
 - [ ] Implement HTTPS in production
 - [ ] Add security headers
 - [ ] Set up CORS properly for production
+- [ ] **Testing**: Write tests for security features
+  - [ ] Test rate limiting
+  - [ ] Test input sanitization
+  - [ ] Security tests for API endpoints
+  - [ ] Test CORS configuration
+  - [ ] Test security headers
 
-#### 5.4 Testing
+#### 6.4 Testing (E2E & Final Polish)
 
-- [ ] Write unit tests for critical functions
-- [ ] Add integration tests for API endpoints
+- [ ] Set up Playwright for E2E testing
 - [ ] Create E2E tests for critical user flows
-- [ ] Set up test coverage reporting
-- [ ] Add CI/CD pipeline for automated testing
+  - [ ] Complete user registration and login flow
+  - [ ] Appointment booking flow (when implemented)
+  - [ ] Profile management flow
+  - [ ] Doctor management flow (when implemented)
+- [ ] Add visual regression testing (optional)
+- [ ] Performance testing for critical endpoints
+- [ ] Load testing for high-traffic scenarios (optional)
+- [ ] Final test coverage review and improvements
+- [ ] Ensure all Phase 4+ features have adequate test coverage
 
-#### 5.5 Documentation
+#### 6.5 Documentation
 
 - [ ] Complete API documentation
 - [ ] Update README with deployment instructions
 - [ ] Create user guide/documentation
 - [ ] Document environment variables
 - [ ] Add code comments where needed
+- [ ] **Testing**: Document testing approach and guidelines
 
-#### 5.6 Deployment Setup
+#### 6.6 Deployment Setup
 
 - [ ] Set up production database
 - [ ] Configure production environment variables
@@ -379,14 +581,16 @@ After each task typecheck, lint, build and commit
 - [ ] Set up monitoring and error tracking (Sentry, etc.)
 - [ ] Create deployment scripts
 - [ ] Set up CI/CD pipeline (GitHub Actions, etc.)
+- [ ] **Testing**: Ensure CI/CD runs all tests before deployment
 
-#### 5.7 Post-Deployment
+#### 6.7 Post-Deployment
 
 - [ ] Perform smoke tests in production
 - [ ] Monitor application performance
 - [ ] Set up backup strategy for database
 - [ ] Create runbook for common issues
 - [ ] Plan for scaling (if needed)
+- [ ] **Testing**: Set up production monitoring and alerting
 
 **Deliverables:**
 
@@ -404,19 +608,24 @@ After each task typecheck, lint, build and commit
 
 - **Phase 1:** 2-3 days
 - **Phase 2:** 3-4 days
-- **Phase 3:** 5-7 days
-- **Phase 4:** 4-5 days
-- **Phase 5:** 4-5 days
+- **Phase 3:** 3-4 days (Testing & Quality Assurance)
+- **Phase 4:** 5-7 days (Core Booking Features)
+- **Phase 5:** 4-5 days (Advanced Features)
+- **Phase 6:** 4-5 days (Polish & Deployment)
 
-**Total Estimated Time:** 18-24 days (approximately 3-4 weeks)
+**Total Estimated Time:** 21-28 days (approximately 3-4 weeks)
 
 ## Notes
 
 - Each phase should be completed and tested before moving to the next
+- **Testing Approach**:
+  - **Phase 3**: Retroactive testing of Phase 1 & 2 features
+  - **Phase 4+**: Test immediately after each feature implementation (write tests before moving to next feature)
 - Features can be adjusted based on requirements and feedback
 - Some tasks may be parallelized within a phase
 - Consider creating feature branches for each phase
 - Regular code reviews and testing are recommended throughout
+- Commit feature code and tests together: `feat: add doctor management with tests`
 
 ## Success Criteria
 

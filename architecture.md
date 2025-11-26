@@ -125,10 +125,105 @@ The project follows a monorepo architecture with the following structure:
 
 ### Testing Strategy
 
-- **Unit Tests** - Jest/Vitest for utility functions and components
-- **Integration Tests** - API endpoint testing
-- **E2E Tests** - Playwright or Cypress for critical user flows
-- **Type Safety** - TypeScript for compile-time error checking
+The project follows a comprehensive testing strategy with multiple layers of testing:
+
+#### Testing Stack
+
+- **Vitest** - Primary testing framework for unit and integration tests
+  - Fast execution with ESM support
+  - TypeScript-native with excellent DX
+  - Jest-compatible API for easy migration
+- **Supertest** - HTTP assertion library for API endpoint testing
+- **MSW (Mock Service Worker)** - API mocking for isolated testing
+- **@testing-library/react** - React component testing with focus on accessibility
+- **Playwright** - E2E testing for critical user flows (Phase 6+)
+
+#### Test Organization
+
+Tests are organized alongside source code using the following structure:
+
+```
+apps/api/src/
+├── services/
+│   ├── auth.service.ts
+│   └── auth.service.test.ts      # Unit tests
+├── routes/
+│   ├── auth.routes.ts
+│   └── auth.routes.test.ts       # Integration tests
+└── utils/
+    ├── auth.ts
+    └── auth.test.ts              # Unit tests
+
+apps/web/
+├── components/
+│   ├── Button.tsx
+│   └── Button.test.tsx           # Component tests
+└── lib/
+    ├── auth.ts
+    └── auth.test.ts              # Unit tests
+
+packages/db/
+├── src/
+│   └── index.ts
+└── __tests__/                    # Database tests
+    └── migrations.test.ts
+```
+
+#### Test Types
+
+1. **Unit Tests** - Test individual functions and utilities in isolation
+   - Location: `*.test.ts` or `*.test.tsx` files alongside source
+   - Coverage target: 70%+ for critical paths
+   - Mock external dependencies (database, APIs)
+
+2. **Integration Tests** - Test API endpoints with database
+   - Location: `*.test.ts` files in routes/controllers
+   - Use test database with transactions/rollbacks
+   - Test full request/response cycles
+
+3. **Component Tests** - Test React components
+   - Location: `*.test.tsx` files alongside components
+   - Use Testing Library for user-centric testing
+   - Test accessibility and user interactions
+
+4. **E2E Tests** - Test complete user flows
+   - Location: `apps/web/e2e/` directory
+   - Use Playwright for browser automation
+   - Test critical paths: auth, booking, profile management
+
+#### Test Environment
+
+- **Test Database**: Separate PostgreSQL database for integration tests
+- **Environment Variables**: `.env.test` files for test configuration
+- **Test Data**: Factories and fixtures for consistent test data
+- **Isolation**: Each test runs in isolation with cleanup
+
+#### Running Tests
+
+```bash
+# Run all tests
+pnpm test
+
+# Run tests in watch mode
+pnpm test:watch
+
+# Run tests with coverage
+pnpm test:coverage
+
+# Run tests for specific package
+pnpm --filter api test
+pnpm --filter web test
+
+# Run E2E tests
+pnpm --filter web test:e2e
+```
+
+#### Coverage Requirements
+
+- **Unit Tests**: 70%+ coverage for services and utilities
+- **Integration Tests**: All API endpoints covered
+- **E2E Tests**: Critical user flows covered
+- **Coverage Reports**: Generated in `coverage/` directories
 
 ## Development Tools Configuration
 

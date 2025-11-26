@@ -287,6 +287,28 @@ JWT_SECRET=your-jwt-secret-here
 NEXTAUTH_SECRET=your-secret-key-here
 ```
 
+### Test Environment Variables
+
+For testing, use separate test databases and configurations:
+
+#### apps/api/.env.test
+
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/medbook_test
+NODE_ENV=test
+PORT=4001
+JWT_SECRET=test-jwt-secret
+NEXTAUTH_SECRET=test-secret-key
+```
+
+#### apps/web/.env.test
+
+```
+NEXTAUTH_URL=http://localhost:3001
+NEXTAUTH_SECRET=test-secret-key
+NEXT_PUBLIC_API_URL=http://localhost:4001/api/v1
+```
+
 ## Git Structure
 
 ```
@@ -359,6 +381,8 @@ node_modules/                # Dependencies (all levels)
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "turbo run test",
+    "test:watch": "turbo run test:watch",
+    "test:coverage": "turbo run test:coverage",
     "clean": "turbo run clean"
   }
 }
@@ -372,7 +396,11 @@ node_modules/                # Dependencies (all levels)
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage",
+    "test:e2e": "playwright test"
   }
 }
 ```
@@ -382,12 +410,84 @@ node_modules/                # Dependencies (all levels)
 ```json
 {
   "scripts": {
-    "dev": "tsx watch src/server.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsc",
-    "start": "node dist/server.js",
-    "lint": "eslint src"
+    "start": "node dist/index.js",
+    "lint": "eslint src --ext .ts",
+    "test": "vitest",
+    "test:watch": "vitest --watch",
+    "test:coverage": "vitest --coverage"
   }
 }
+```
+
+## Testing Structure
+
+### Test Files Organization
+
+Tests follow the convention of being co-located with source files:
+
+```
+apps/api/src/
+├── services/
+│   ├── auth.service.ts
+│   └── auth.service.test.ts
+├── routes/
+│   ├── auth.routes.ts
+│   └── auth.routes.test.ts
+└── utils/
+    ├── auth.ts
+    └── auth.test.ts
+
+apps/web/
+├── components/
+│   ├── Button.tsx
+│   └── Button.test.tsx
+└── lib/
+    ├── auth.ts
+    └── auth.test.ts
+
+packages/db/
+└── __tests__/
+    ├── migrations.test.ts
+    └── fixtures/
+        └── users.ts
+```
+
+### E2E Tests
+
+E2E tests are organized in a dedicated directory:
+
+```
+apps/web/
+└── e2e/
+    ├── auth.spec.ts
+    ├── booking.spec.ts
+    └── fixtures/
+        └── test-data.ts
+```
+
+### Test Configuration Files
+
+```
+medbook/
+├── vitest.config.ts              # Root Vitest config
+├── apps/api/
+│   └── vitest.config.ts          # API-specific config
+├── apps/web/
+│   └── vitest.config.ts          # Web-specific config
+└── packages/db/
+    └── vitest.config.ts          # DB-specific config
+```
+
+### Test Utilities
+
+```
+apps/api/src/
+└── __tests__/
+    ├── setup.ts                  # Test setup and teardown
+    ├── helpers.ts                # Test helper functions
+    └── fixtures.ts               # Test data fixtures
 ```
 
 ## Notes
@@ -395,6 +495,7 @@ node_modules/                # Dependencies (all levels)
 - All `node_modules` directories are gitignored
 - Environment files (`.env`, `.env.local`) are gitignored
 - Build outputs are gitignored
+- Test coverage reports (`coverage/`) are gitignored
 - Only source code and configuration files are committed
 - Each package/app can have its own dependencies
 - Shared dependencies are hoisted to root when possible
