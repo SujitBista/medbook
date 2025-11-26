@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
-import { RoleGuard } from "@/app/components/RoleGuard";
 import { UserRole } from "@medbook/types";
 import { Button } from "@medbook/ui";
 
