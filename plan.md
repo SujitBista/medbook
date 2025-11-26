@@ -138,10 +138,10 @@ After each task typecheck, lint, build and commit
 
 #### 2.6 Role-Based Access Control
 
-- [ ] Implement role checking utilities
-- [ ] Create role-based route protection
-- [ ] Add role-based UI components visibility
-- [ ] Set up admin-only routes
+- [x] Implement role checking utilities
+- [x] Create role-based route protection
+- [x] Add role-based UI components visibility
+- [x] Set up admin-only routes
 
 **Deliverables:**
 

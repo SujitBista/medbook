@@ -6,6 +6,7 @@
 export * from "./logger";
 export * from "./errors";
 export * from "./auth";
+export * from "./roles";
 
 /**
  * Creates a standardized API response
