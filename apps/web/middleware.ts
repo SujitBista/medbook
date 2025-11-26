@@ -20,6 +20,15 @@ export default auth(async (req) => {
     request.nextUrl.pathname.startsWith(route)
   );
 
+  // Define admin-only routes
+  const adminRoutes = ["/admin"];
+  const isAdminRoute = adminRoutes.some((route) =>
+    request.nextUrl.pathname.startsWith(route)
+  );
+
+  // Check if user has admin role
+  const isAdmin = session?.user?.role === "ADMIN";
+
   // Define auth routes (login, register) - redirect to home if already authenticated
   const authRoutes = ["/login", "/register"];
   const isAuthRoute = authRoutes.includes(request.nextUrl.pathname);
@@ -31,6 +40,19 @@ export default auth(async (req) => {
     const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
     loginUrl.searchParams.set("callbackUrl", callbackUrl);
     return NextResponse.redirect(loginUrl);
+  }
+
+  // If accessing admin route without session, redirect to login
+  if (isAdminRoute && !session) {
+    const loginUrl = new URL("/login", request.url);
+    const callbackUrl = request.nextUrl.pathname + request.nextUrl.search;
+    loginUrl.searchParams.set("callbackUrl", callbackUrl);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  // If accessing admin route without admin role, redirect to home
+  if (isAdminRoute && session && !isAdmin) {
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   // If accessing auth routes with session, redirect to home

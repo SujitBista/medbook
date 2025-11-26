@@ -3,10 +3,16 @@
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
+import { UserRole } from "@medbook/types";
+import { hasAnyRole } from "@/lib/roles";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requiredRole?: string;
+  /**
+   * Required roles - user must have at least one of these roles
+   * If not provided, route is accessible to any authenticated user
+   */
+  requiredRoles?: UserRole[];
 }
 
 /**
@@ -16,7 +22,7 @@ interface ProtectedRouteProps {
  */
 export function ProtectedRoute({
   children,
-  requiredRole,
+  requiredRoles,
 }: ProtectedRouteProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -33,13 +39,14 @@ export function ProtectedRoute({
       router.push(loginUrl);
     } else if (
       status === "authenticated" &&
-      requiredRole &&
-      session?.user?.role !== requiredRole
+      requiredRoles &&
+      requiredRoles.length > 0 &&
+      !hasAnyRole(session?.user?.role, requiredRoles)
     ) {
       // Redirect if user doesn't have required role
       router.push("/");
     }
-  }, [status, session, router, requiredRole, pathname, searchParams]);
+  }, [status, session, router, requiredRoles, pathname, searchParams]);
 
   if (status === "loading") {
     return (
@@ -56,7 +63,11 @@ export function ProtectedRoute({
     return null; // Will redirect via useEffect
   }
 
-  if (requiredRole && session?.user?.role !== requiredRole) {
+  if (
+    requiredRoles &&
+    requiredRoles.length > 0 &&
+    !hasAnyRole(session?.user?.role, requiredRoles)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
