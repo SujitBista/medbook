@@ -13,15 +13,11 @@ process.env.API_URL = "http://localhost:4000";
 process.env.CORS_ORIGIN = "http://localhost:3000";
 process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Allow requests without origin in tests
 
-// Set DATABASE_URL for tests if not already set
-// Use a test database URL - can be overridden via environment variable
-if (!process.env.DATABASE_URL) {
-  // Default to a test database - users should set DATABASE_URL in their environment
-  // or use a test-specific database URL
-  process.env.DATABASE_URL =
-    process.env.TEST_DATABASE_URL ||
-    "postgresql://postgres:password@localhost:5432/medbook_test";
-}
+// Always override DATABASE_URL in test mode to prevent tests from running against real databases
+// This ensures test isolation even if developers have DATABASE_URL set in their .env
+process.env.DATABASE_URL =
+  process.env.TEST_DATABASE_URL ||
+  "postgresql://postgres:password@localhost:5432/medbook_test";
 
 beforeAll(async () => {
   // Setup before all tests

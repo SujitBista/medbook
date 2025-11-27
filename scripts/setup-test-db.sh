@@ -7,25 +7,29 @@ set -e
 
 echo "🔧 Setting up test database..."
 
-# Check if PostgreSQL is running
-if ! pg_isready -h localhost -p 5432 > /dev/null 2>&1; then
-    echo "❌ PostgreSQL is not running!"
+# Get database connection details from environment or use defaults
+DB_USER="${DB_USER:-$(whoami)}"
+DB_NAME="${TEST_DB_NAME:-medbook_test}"
+DB_HOST="${DB_HOST:-localhost}"
+DB_PORT="${DB_PORT:-5432}"
+
+# Check if PostgreSQL is running (using environment variables)
+if ! pg_isready -h "$DB_HOST" -p "$DB_PORT" > /dev/null 2>&1; then
+    echo "❌ PostgreSQL is not running at $DB_HOST:$DB_PORT!"
     echo ""
     echo "Please start PostgreSQL first:"
     echo "  brew services start postgresql@14"
     echo "  # OR"
     echo "  pg_ctl -D /usr/local/var/postgresql@14 start"
     echo ""
+    echo "Or set DB_HOST and DB_PORT if using a different location:"
+    echo "  export DB_HOST=your-host"
+    echo "  export DB_PORT=your-port"
+    echo ""
     exit 1
 fi
 
-echo "✅ PostgreSQL is running"
-
-# Get database connection details from environment or use defaults
-DB_USER="${DB_USER:-$(whoami)}"
-DB_NAME="${TEST_DB_NAME:-medbook_test}"
-DB_HOST="${DB_HOST:-localhost}"
-DB_PORT="${DB_PORT:-5432}"
+echo "✅ PostgreSQL is running at $DB_HOST:$DB_PORT"
 
 echo "📊 Database configuration:"
 echo "  User: $DB_USER"
