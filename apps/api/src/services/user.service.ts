@@ -194,10 +194,23 @@ export async function changeUserPassword(
   const hashedPassword = await hashPassword(newPassword);
 
   // Update password
-  await query((prisma) =>
-    prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
-    })
-  );
+  try {
+    await query((prisma) =>
+      prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      })
+    );
+  } catch (error: unknown) {
+    // Handle Prisma not found error (P2025) - user might have been deleted
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2025"
+    ) {
+      throw createNotFoundError("User not found");
+    }
+    throw error;
+  }
 }
