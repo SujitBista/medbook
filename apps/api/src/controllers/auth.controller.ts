@@ -38,9 +38,22 @@ export async function register(
   try {
     const { email, password } = req.body;
 
-    // Validate required fields
-    if (!email || !password) {
-      const error = createValidationError("Email and password are required");
+    // Validate required fields with field-specific errors
+    const fieldErrors: Record<string, string> = {};
+    if (!email) {
+      fieldErrors.email = "Email is required";
+    }
+    if (!password) {
+      fieldErrors.password = "Password is required";
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      const error = createValidationError(
+        "Please fill in all required fields",
+        {
+          errors: fieldErrors,
+        }
+      );
       next(error);
       return;
     }
@@ -48,7 +61,11 @@ export async function register(
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(email)) {
-      const error = createValidationError("Invalid email format");
+      const error = createValidationError("Invalid email format", {
+        errors: {
+          email: "Please enter a valid email address",
+        },
+      });
       next(error);
       return;
     }

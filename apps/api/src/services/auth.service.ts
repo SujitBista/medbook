@@ -54,8 +54,14 @@ export async function registerUser(
   // Validate password strength
   const passwordValidation = validatePassword(password);
   if (!passwordValidation.valid) {
+    // Combine password validation errors into a single message for the password field
+    const passwordErrorMessage = passwordValidation.errors.join(". ");
     throw createValidationError("Password does not meet requirements", {
-      errors: passwordValidation.errors,
+      errors: {
+        password: passwordErrorMessage,
+      },
+      // Also include raw errors array for detailed client-side handling if needed
+      passwordErrors: passwordValidation.errors,
     });
   }
 

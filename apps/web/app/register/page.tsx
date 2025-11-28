@@ -2,11 +2,40 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 import { Button, Input, Card } from "@medbook/ui";
 import Link from "next/link";
 // API URL is available via NEXT_PUBLIC_API_URL environment variable
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000/api/v1";
+
+// Zod validation schema for registration form
+const registerSchema = z
+  .object({
+    email: z.string().min(1, "Email is required").email("Invalid email format"),
+    password: z
+      .string()
+      .min(1, "Password is required")
+      .min(8, "Password must be at least 8 characters")
+      .regex(
+        /(?=.*[a-z])/,
+        "Password must contain at least one lowercase letter"
+      )
+      .regex(
+        /(?=.*[A-Z])/,
+        "Password must contain at least one uppercase letter"
+      )
+      .regex(/(?=.*\d)/, "Password must contain at least one number")
+      .regex(
+        /(?=.*[!@#$%^&*])/,
+        "Password must contain at least one special character (!@#$%^&*)"
+      ),
+    confirmPassword: z.string().min(1, "Please confirm your password"),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
 
 export default function RegisterPage() {
   // Log API URL on component mount for debugging
@@ -30,50 +59,153 @@ export default function RegisterPage() {
   }>({});
   const [isLoading, setIsLoading] = useState(false);
 
-  const validateForm = () => {
-    const newErrors: {
+  const validateForm = (): {
+    isValid: boolean;
+    errors: {
       email?: string;
       password?: string;
       confirmPassword?: string;
-    } = {};
+      general?: string;
+    };
+  } => {
+    try {
+      registerSchema.parse({
+        email,
+        password,
+        confirmPassword,
+      });
+      // Validation passed - no errors
+      return { isValid: true, errors: {} };
+    } catch (error) {
+      // Check if it's a ZodError - extract and map validation errors
+      if (error instanceof z.ZodError) {
+        const newErrors: {
+          email?: string;
+          password?: string;
+          confirmPassword?: string;
+        } = {};
 
-    if (!email) {
-      newErrors.email = "Email is required";
-    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      newErrors.email = "Invalid email format";
+        // Zod errors array contains error objects with path and message
+        // Path is always an array: ["email"], ["password"], ["confirmPassword"], etc.
+        // Note: ZodError uses 'issues' property, not 'errors'
+        console.log("[Registration] Zod error details:", {
+          issuesCount: error.issues?.length,
+          issues: error.issues,
+        });
+
+        if (
+          error.issues &&
+          Array.isArray(error.issues) &&
+          error.issues.length > 0
+        ) {
+          error.issues.forEach((err, index) => {
+            console.log(`[Registration] Processing Zod error ${index}:`, {
+              path: err.path,
+              message: err.message,
+              code: err.code,
+            });
+
+            // Get the field name from the path array
+            // For field errors, path will be like ["email"], ["password"], ["confirmPassword"]
+            // For refine errors (like password mismatch), path is set in refine options
+            if (Array.isArray(err.path) && err.path.length > 0) {
+              const fieldName = err.path[0] as string;
+              console.log(
+                `[Registration] Extracted field name: "${fieldName}"`
+              );
+
+              // Map Zod field names to our error object keys
+              if (
+                fieldName === "email" ||
+                fieldName === "password" ||
+                fieldName === "confirmPassword"
+              ) {
+                const errorKey = fieldName as keyof typeof newErrors;
+                // Only keep the first error for each field (Zod may return multiple errors per field)
+                if (!newErrors[errorKey]) {
+                  newErrors[errorKey] = err.message;
+                  console.log(
+                    `[Registration] Mapped error to ${errorKey}: "${err.message}"`
+                  );
+                } else {
+                  console.log(
+                    `[Registration] Skipping duplicate error for ${errorKey}`
+                  );
+                }
+              } else {
+                console.log(
+                  `[Registration] Field "${fieldName}" not in our form fields, skipping`
+                );
+              }
+            } else {
+              console.log(
+                `[Registration] Error ${index} has no valid path array`
+              );
+            }
+          });
+        } else {
+          console.warn(
+            "[Registration] No Zod issues found or issues is not an array"
+          );
+        }
+
+        console.log("[Registration] Final mapped errors:", newErrors);
+        return { isValid: false, errors: newErrors };
+      }
+      // Fallback for unexpected errors
+      console.error("[Registration] Unexpected validation error:", error);
+      return {
+        isValid: false,
+        errors: {
+          general: "Validation failed. Please check your input.",
+        },
+      };
     }
-
-    if (!password) {
-      newErrors.password = "Password is required";
-    } else if (password.length < 8) {
-      newErrors.password = "Password must be at least 8 characters";
-    } else if (
-      !/(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*])/.test(password)
-    ) {
-      newErrors.password =
-        "Password must contain at least one uppercase letter, one lowercase letter, one number, and one special character (!@#$%^&*)";
-    }
-
-    if (!confirmPassword) {
-      newErrors.confirmPassword = "Please confirm your password";
-    } else if (password !== confirmPassword) {
-      newErrors.confirmPassword = "Passwords do not match";
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const validation = validateForm();
+    if (!validation.isValid) {
       console.log("[Registration] Form validation failed");
-      // Errors are already set by validateForm(), but add a general message
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        general: "Please fix the errors below to continue",
-      }));
+      console.log("[Registration] Validation errors:", validation.errors);
+
+      // Build errors object with only defined values
+      const errorsToSet: {
+        email?: string;
+        password?: string;
+        confirmPassword?: string;
+        general?: string;
+      } = {};
+
+      // Set field-specific errors if they exist
+      if (validation.errors.email) {
+        errorsToSet.email = validation.errors.email;
+      }
+      if (validation.errors.password) {
+        errorsToSet.password = validation.errors.password;
+      }
+      if (validation.errors.confirmPassword) {
+        errorsToSet.confirmPassword = validation.errors.confirmPassword;
+      }
+
+      // Check if we have any field-specific errors
+      const hasFieldErrors = !!(
+        errorsToSet.email ||
+        errorsToSet.password ||
+        errorsToSet.confirmPassword
+      );
+
+      console.log("[Registration] Has field errors:", hasFieldErrors);
+      console.log("[Registration] Errors to set:", errorsToSet);
+
+      // Only show general error if there are no field-specific errors
+      if (!hasFieldErrors) {
+        errorsToSet.general = "Please fix the errors below to continue";
+      }
+
+      setErrors(errorsToSet);
       return;
     }
 
@@ -204,15 +336,51 @@ export default function RegisterPage() {
           });
         } else if (errorData.error?.code === "CONFLICT_ERROR") {
           console.warn("[Registration] Conflict error - email already exists");
-          setErrors({ email: "An account with this email already exists" });
+          // Show error both on email field and as general message for visibility
+          const conflictMessage =
+            errorData.error.message ||
+            "An account with this email already exists";
+          setErrors({
+            email: conflictMessage,
+            general: `${conflictMessage}. If this is your account, please sign in instead.`,
+          });
         } else if (errorData.error?.code === "VALIDATION_ERROR") {
           console.warn("[Registration] Validation error:", errorData.error);
-          const validationErrors = errorData.error.details?.errors || {};
-          setErrors({
-            email: validationErrors.email,
-            password: validationErrors.password,
-            general: errorData.error.message,
-          });
+          const details = errorData.error.details || {};
+
+          // Handle field-specific errors (object format: { email: "...", password: "..." })
+          const fieldErrors = details.errors || {};
+
+          // Handle password errors - could be array or string
+          let passwordError = fieldErrors.password;
+          if (details.passwordErrors && Array.isArray(details.passwordErrors)) {
+            // If password errors come as array, join them
+            passwordError = details.passwordErrors.join(". ");
+          }
+
+          // Build error state with field-specific errors
+          const newErrors: typeof errors = {};
+
+          if (fieldErrors.email) {
+            newErrors.email = fieldErrors.email;
+          }
+          if (passwordError) {
+            newErrors.password = passwordError;
+          }
+
+          // Only show general message if there are no field-specific errors
+          // or if it provides additional context
+          if (Object.keys(fieldErrors).length === 0) {
+            newErrors.general = errorData.error.message;
+          } else if (
+            errorData.error.message &&
+            errorData.error.message !== "Password does not meet requirements"
+          ) {
+            // Show general message only if it's different from field errors
+            newErrors.general = errorData.error.message;
+          }
+
+          setErrors(newErrors);
         } else if (errorData.error?.code === "INTERNAL_SERVER_ERROR") {
           console.error(
             "[Registration] Internal server error:",
@@ -331,82 +499,141 @@ export default function RegisterPage() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
         <Card title="Create Account">
-          <form onSubmit={handleSubmit} className="space-y-4">
+          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
             {errors.general && (
-              <div className="rounded-md bg-red-50 p-4">
-                <p className="text-sm text-red-800">{errors.general}</p>
+              <div
+                className="rounded-md bg-red-50 p-4 border border-red-200"
+                role="alert"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                <div className="flex">
+                  <div className="flex-shrink-0">
+                    <svg
+                      className="h-5 w-5 text-red-400"
+                      viewBox="0 0 20 20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path
+                        fillRule="evenodd"
+                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  </div>
+                  <div className="ml-3">
+                    <p className="text-sm font-medium text-red-800">
+                      {errors.general}
+                    </p>
+                    {errors.general.includes("already exists") && (
+                      <p className="mt-2 text-sm text-red-700">
+                        <Link
+                          href="/login"
+                          className="font-medium underline hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded"
+                        >
+                          Sign in to your existing account
+                        </Link>
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             )}
 
-            <Input
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => {
-                setEmail(e.target.value);
-                // Clear error when user starts typing
-                if (errors.email) {
-                  setErrors((prev) => ({ ...prev, email: undefined }));
-                }
-              }}
-              error={errors.email}
-              disabled={isLoading}
-              required
-              autoComplete="email"
-            />
+            <div>
+              <Input
+                label="Email"
+                type="email"
+                value={email}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  // Clear error when user starts typing
+                  if (errors.email) {
+                    setErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (errors.general && errors.general.includes("email")) {
+                    setErrors((prev) => ({ ...prev, general: undefined }));
+                  }
+                }}
+                error={errors.email}
+                disabled={isLoading}
+                required
+                autoComplete="email"
+                aria-invalid={errors.email ? "true" : "false"}
+                aria-describedby={errors.email ? "email-error" : undefined}
+              />
+            </div>
 
-            <Input
-              label="Password"
-              type="password"
-              value={password}
-              onChange={(e) => {
-                setPassword(e.target.value);
-                // Clear error when user starts typing
-                if (errors.password) {
-                  setErrors((prev) => ({ ...prev, password: undefined }));
+            <div>
+              <Input
+                label="Password"
+                type="password"
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  // Clear error when user starts typing
+                  if (errors.password) {
+                    setErrors((prev) => ({ ...prev, password: undefined }));
+                  }
+                  // Clear confirm password error if passwords now match
+                  if (
+                    errors.confirmPassword &&
+                    e.target.value === confirmPassword
+                  ) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: undefined,
+                    }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (errors.general && errors.general.includes("Password")) {
+                    setErrors((prev) => ({ ...prev, general: undefined }));
+                  }
+                }}
+                error={errors.password}
+                disabled={isLoading}
+                required
+                autoComplete="new-password"
+                aria-invalid={errors.password ? "true" : "false"}
+                aria-describedby={
+                  errors.password ? "password-error" : undefined
                 }
-                // Clear confirm password error if passwords now match
-                if (
-                  errors.confirmPassword &&
-                  e.target.value === confirmPassword
-                ) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    confirmPassword: undefined,
-                  }));
-                }
-              }}
-              error={errors.password}
-              disabled={isLoading}
-              required
-              autoComplete="new-password"
-            />
+              />
+            </div>
 
-            <Input
-              label="Confirm Password"
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => {
-                setConfirmPassword(e.target.value);
-                // Clear error when user starts typing
-                if (errors.confirmPassword) {
-                  setErrors((prev) => ({
-                    ...prev,
-                    confirmPassword: undefined,
-                  }));
+            <div>
+              <Input
+                label="Confirm Password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  // Clear error when user starts typing
+                  if (errors.confirmPassword) {
+                    setErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: undefined,
+                    }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (
+                    errors.general === "Please fix the errors below to continue"
+                  ) {
+                    setErrors((prev) => ({ ...prev, general: undefined }));
+                  }
+                }}
+                error={errors.confirmPassword}
+                disabled={isLoading}
+                required
+                autoComplete="new-password"
+                aria-invalid={errors.confirmPassword ? "true" : "false"}
+                aria-describedby={
+                  errors.confirmPassword ? "confirm-password-error" : undefined
                 }
-                // Clear general error if it was a validation error
-                if (
-                  errors.general === "Please fix the errors below to continue"
-                ) {
-                  setErrors((prev) => ({ ...prev, general: undefined }));
-                }
-              }}
-              error={errors.confirmPassword}
-              disabled={isLoading}
-              required
-              autoComplete="new-password"
-            />
+              />
+            </div>
 
             <Button
               type="submit"
