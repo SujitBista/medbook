@@ -28,10 +28,24 @@ export default auth(async (req) => {
 
   // Check if user has admin role
   const isAdmin = session?.user?.role === "ADMIN";
+  const mustResetPassword = (session?.user as any)?.mustResetPassword ?? false;
 
   // Define auth routes (login, register) - redirect to home if already authenticated
   const authRoutes = ["/login", "/register"];
   const isAuthRoute = authRoutes.includes(request.nextUrl.pathname);
+
+  // Password reset route - allow access if mustResetPassword is true
+  const isResetPasswordRoute = request.nextUrl.pathname === "/reset-password";
+
+  // If admin must reset password and is not on reset password page, redirect there
+  if (session && isAdmin && mustResetPassword && !isResetPasswordRoute) {
+    return NextResponse.redirect(new URL("/reset-password", request.url));
+  }
+
+  // If accessing reset password page but doesn't need to reset, redirect to admin
+  if (isResetPasswordRoute && session && (!mustResetPassword || !isAdmin)) {
+    return NextResponse.redirect(new URL("/admin", request.url));
+  }
 
   // If accessing protected route without session, redirect to login
   if (isProtectedRoute && !session) {

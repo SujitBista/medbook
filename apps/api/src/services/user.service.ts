@@ -46,13 +46,6 @@ export async function getUserProfile(
   const user = await query((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
     })
   );
 
@@ -60,10 +53,14 @@ export async function getUserProfile(
     throw createNotFoundError("User not found");
   }
 
+  // Exclude password and return user data
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { password: _password, ...userWithoutPassword } = user;
+
   return {
-    ...user,
+    ...userWithoutPassword,
     role: convertUserRole(user.role),
-  };
+  } as UserWithoutPassword;
 }
 
 /**
@@ -106,20 +103,17 @@ export async function updateUserProfile(
         data: {
           ...(input.email && { email: input.email.toLowerCase().trim() }),
         },
-        select: {
-          id: true,
-          email: true,
-          role: true,
-          createdAt: true,
-          updatedAt: true,
-        },
       })
     );
 
+    // Exclude password and return user data
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { password: _password, ...userWithoutPassword } = user;
+
     return {
-      ...user,
+      ...userWithoutPassword,
       role: convertUserRole(user.role),
-    };
+    } as UserWithoutPassword;
   } catch (error: unknown) {
     // Handle Prisma unique constraint violation (race condition)
     if (
@@ -193,14 +187,20 @@ export async function changeUserPassword(
   // Hash new password
   const hashedPassword = await hashPassword(newPassword);
 
-  // Update password
+  // Update password and clear mustResetPassword flag
   try {
-    await query((prisma) =>
-      prisma.user.update({
+    await query(async (prisma) => {
+      // Update password first
+      await prisma.user.update({
         where: { id: userId },
         data: { password: hashedPassword },
-      })
-    );
+      });
+      // Then update mustResetPassword flag
+      // Using $executeRaw to work around TypeScript type issues
+      await prisma.$executeRaw`
+        UPDATE users SET "mustResetPassword" = false WHERE id = ${userId}
+      `;
+    });
   } catch (error: unknown) {
     // Handle Prisma not found error (P2025) - user might have been deleted
     if (

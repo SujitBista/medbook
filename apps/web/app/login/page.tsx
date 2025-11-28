@@ -62,16 +62,26 @@ function LoginForm() {
     setErrors({});
 
     try {
+      console.log("[Login] Attempting sign in with:", { email });
       const result = await signIn("credentials", {
         email,
         password,
         redirect: false,
       });
 
+      console.log("[Login] Sign in result:", JSON.stringify(result, null, 2));
+
       if (result?.error) {
-        setErrors({ general: "Invalid email or password" });
+        console.error("[Login] Sign in error:", result.error);
+        // Show the actual error message if available, otherwise show generic message
+        const errorMessage =
+          result.error === "CredentialsSignin"
+            ? "Invalid email or password"
+            : result.error || "Invalid email or password";
+        setErrors({ general: errorMessage });
         setIsLoading(false);
-      } else {
+      } else if (result?.ok) {
+        console.log("[Login] Sign in successful, redirecting...");
         // Redirect to callbackUrl if provided, otherwise to dashboard
         // Validate callbackUrl to prevent open redirect vulnerability
         const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -81,6 +91,10 @@ function LoginForm() {
         const safeCallbackUrl = isValidCallback ? callbackUrl : "/dashboard";
         router.push(safeCallbackUrl);
         router.refresh();
+      } else {
+        console.warn("[Login] Unexpected sign in result:", result);
+        setErrors({ general: "Invalid email or password" });
+        setIsLoading(false);
       }
     } catch (error) {
       console.error("[Login] Exception caught:", error);
@@ -174,17 +188,30 @@ function LoginForm() {
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm">
-            <p className="text-gray-600">
-              Don't have an account?{" "}
-              <Link
-                href="/register"
-                className="font-medium text-blue-600 hover:text-blue-500"
-              >
-                Sign up
-              </Link>
-            </p>
-          </div>
+          {/* Hide signup link for admin login */}
+          {!searchParams.get("callbackUrl")?.includes("/admin") && (
+            <div className="mt-6 text-center text-sm">
+              <p className="text-gray-600">
+                Don't have an account?{" "}
+                <Link
+                  href="/register"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Sign up
+                </Link>
+              </p>
+            </div>
+          )}
+          {/* Show admin login info */}
+          {searchParams.get("callbackUrl")?.includes("/admin") && (
+            <div className="mt-6 text-center text-sm">
+              <p className="text-gray-600">
+                Admin access only. Company will provide the initial password.
+                <br />
+                You will be required to reset your password after first login.
+              </p>
+            </div>
+          )}
         </Card>
       </div>
     </div>

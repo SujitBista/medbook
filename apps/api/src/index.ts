@@ -1,8 +1,22 @@
 // Load environment variables from .env file before anything else
 // This ensures DATABASE_URL is available when Prisma Client is initialized
 import { config } from "dotenv";
-import { resolve } from "path";
-config({ path: resolve(__dirname, "../.env") });
+import { resolve, dirname } from "path";
+import { fileURLToPath } from "url";
+
+// Handle both CommonJS and ESM environments
+// In tsx watch (ESM), __dirname might not exist, so we need to derive it
+let envPath: string;
+if (typeof __dirname !== "undefined") {
+  // CommonJS environment
+  envPath = resolve(__dirname, "../.env");
+} else {
+  // ESM environment (tsx watch) - use import.meta.url
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  envPath = resolve(__dirname, "../.env");
+}
+config({ path: envPath });
 
 import { createApp } from "./app";
 import { env } from "./config/env";

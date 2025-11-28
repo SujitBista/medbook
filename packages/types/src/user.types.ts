@@ -3,9 +3,9 @@
  */
 
 export enum UserRole {
-  PATIENT = 'PATIENT',
-  DOCTOR = 'DOCTOR',
-  ADMIN = 'ADMIN',
+  PATIENT = "PATIENT",
+  DOCTOR = "DOCTOR",
+  ADMIN = "ADMIN",
 }
 
 export interface User {
@@ -13,11 +13,12 @@ export interface User {
   email: string;
   password: string;
   role: UserRole;
+  mustResetPassword: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
 
-export interface UserWithoutPassword extends Omit<User, 'password'> {}
+export interface UserWithoutPassword extends Omit<User, "password"> {}
 
 export interface CreateUserInput {
   email: string;
@@ -30,5 +31,3 @@ export interface UpdateUserInput {
   password?: string;
   role?: UserRole;
 }
-
-
