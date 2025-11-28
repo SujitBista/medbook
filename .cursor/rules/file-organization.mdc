@@ -1,0 +1,67 @@
+---
+name: File Organization
+description: Naming conventions and file structure standards
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# File Organization
+
+## Naming Conventions
+
+- Use kebab-case for file names: `auth.service.ts`, `user.controller.ts`
+- Use PascalCase for components: `UserProfile.tsx`
+- Use camelCase for functions and variables
+- Use UPPER_SNAKE_CASE for constants
+
+**Examples:**
+- Files: `auth.service.ts`, `user.controller.ts`, `error.middleware.ts`
+- Components: `UserProfile.tsx`, `LoginForm.tsx`
+- Functions: `getUserById()`, `createUser()`
+- Constants: `MAX_RETRY_COUNT`, `API_BASE_URL`
+
+## File Structure
+
+- Group related files in directories
+- Use index files for clean imports
+- Keep components small and focused
+- Separate concerns: controllers, services, utilities, types
+
+**Example structure:**
+```
+apps/api/src/
+  controllers/
+    auth.controller.ts
+    user.controller.ts
+    index.ts
+  services/
+    auth.service.ts
+    user.service.ts
+    index.ts
+  utils/
+    logger.ts
+    errors.ts
+    index.ts
+```
+
+## Code Comments
+
+- Use JSDoc for public functions and classes
+- Document complex logic and business rules
+- Include examples in documentation
+- Keep comments up-to-date with code changes
+
+**Example:**
+```typescript
+/**
+ * Registers a new user
+ * @param input User registration input
+ * @returns User data and JWT token
+ * @throws AppError if validation fails or user already exists
+ */
+export async function registerUser(
+  input: CreateUserInput
+): Promise<RegisterResult> {
+  // ...
+}
+```

@@ -1,0 +1,196 @@
+# Cursor Rules for MedBook Project
+
+> **Note:** This file is deprecated. Rules have been migrated to `.cursor/rules/` directory.
+> See `.cursor/rules/README.md` for details.
+
+## Service Architecture
+
+### Prefer Functional Services
+Do not create service classes like `DoctorService` or `AppointmentService`.
+Instead, export plain functions (named exports) from each service file.
+Each function should directly use the shared Postgres pool helper (`query`, `withTransaction`).
+Do not export default class instances.
+
+**BAD:**
+```typescript
+class DoctorService {
+  async getAllDoctors() { ... }
+}
+export const doctorService = new DoctorService()
+```
+
+**GOOD:**
+```typescript
+export async function getAllDoctors(filters) { ... }
+export async function getDoctorById(id) { ... }
+```
+
+## Logging Guidelines
+
+### Backend (API) Logging
+- Always use the centralized logger utility from `apps/api/src/utils/logger.ts`
+- Import: `import { logger } from '../utils/logger'`
+- Use appropriate log levels:
+  - `logger.info()` - General information, successful operations
+  - `logger.warn()` - Warnings, non-critical issues
+  - `logger.error()` - Errors, exceptions, failures
+  - `logger.debug()` - Debug information (only in development)
+- Include context in log messages (e.g., user ID, request ID, operation name)
+- Log errors with full context: error message, stack trace, relevant data
+
+**Example:**
+```typescript
+logger.info('User registered successfully', { userId: user.id, email: user.email });
+logger.error('Failed to create user', { error: err.message, stack: err.stack, email });
+logger.debug('Processing registration request', { email, timestamp: Date.now() });
+```
+
+### Frontend (Web) Logging
+- Use `console.log()`, `console.warn()`, `console.error()` with consistent prefixes
+- Prefix all logs with `[ComponentName]` or `[FeatureName]` for easy filtering
+- Always include logging in development environment
+- Use conditional logging for development-only logs: `if (process.env.NODE_ENV === 'development')`
+- Log important user actions, API calls, errors, and state changes
+- Never log sensitive data (passwords, tokens, PII) - use placeholders instead
+
+**Example:**
+```typescript
+console.log('[Registration] Component mounted');
+console.log('[Registration] API URL configured:', API_URL);
+console.error('[Registration] Failed to register user:', error);
+// For sensitive data:
+console.log('[Auth] Token received:', token ? '[REDACTED]' : 'null');
+```
+
+### Error Handling with Logging
+- Always log errors before handling them
+- Include stack traces in development
+- Log request/response data for API errors (sanitize sensitive fields)
+- Use structured logging when possible (objects instead of string concatenation)
+
+**Example:**
+```typescript
+try {
+  const result = await someOperation();
+  logger.info('Operation successful', { resultId: result.id });
+} catch (error) {
+  logger.error('Operation failed', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    context: { userId, operation: 'someOperation' }
+  });
+  throw error;
+}
+```
+
+## Code Style
+
+### TypeScript
+- Use TypeScript strict mode
+- Prefer interfaces over types for object shapes
+- Use `as const` for literal types
+- Avoid `any` - use `unknown` and type guards instead
+- Export types/interfaces from `@medbook/types` package when shared
+
+### Async/Await
+- Always use async/await instead of Promises with `.then()`
+- Handle errors with try/catch blocks
+- Use `Promise.all()` for parallel operations when order doesn't matter
+
+### Error Handling
+- Use custom error classes from `apps/api/src/utils/errors.ts`
+- Create specific error types: `createValidationError()`, `createConflictError()`, etc.
+- Always include meaningful error messages
+- Return appropriate HTTP status codes
+
+## Testing
+
+### Test Structure
+- Write unit tests for utilities and services
+- Write integration tests for API routes
+- Use Vitest for testing
+- Follow AAA pattern: Arrange, Act, Assert
+- Use descriptive test names: `it('should return 404 when user does not exist')`
+
+### Test Data
+- Use test fixtures and factories from `apps/api/src/__tests__/`
+- Clean up test data after each test
+- Use unique identifiers (timestamps, UUIDs) to avoid conflicts
+
+## Database
+
+### Prisma Usage
+- Always use the `query()` helper function for database operations
+- Use `withTransaction()` for multi-step operations that need atomicity
+- Never create PrismaClient instances directly - use the shared instance
+- Include proper error handling for database operations
+
+**Example:**
+```typescript
+const user = await query((prisma) =>
+  prisma.user.findUnique({ where: { id } })
+);
+```
+
+## API Design
+
+### RESTful Endpoints
+- Use standard HTTP methods: GET, POST, PUT, DELETE, PATCH
+- Return consistent response format: `{ success: boolean, data?: T, error?: ErrorResponse }`
+- Use appropriate HTTP status codes
+- Include request validation
+- Document endpoints with JSDoc comments
+
+### Authentication
+- Use JWT tokens for API authentication
+- Use NextAuth.js for web authentication
+- Protect routes with authentication middleware
+- Implement role-based access control (RBAC)
+
+## File Organization
+
+### Naming Conventions
+- Use kebab-case for file names: `auth.service.ts`, `user.controller.ts`
+- Use PascalCase for components: `UserProfile.tsx`
+- Use camelCase for functions and variables
+- Use UPPER_SNAKE_CASE for constants
+
+### File Structure
+- Group related files in directories
+- Use index files for clean imports
+- Keep components small and focused
+- Separate concerns: controllers, services, utilities, types
+
+## Security
+
+### Best Practices
+- Never commit secrets or API keys
+- Validate and sanitize all user input
+- Use parameterized queries (Prisma handles this)
+- Implement rate limiting for public endpoints
+- Use HTTPS in production
+- Sanitize error messages in production (don't expose stack traces)
+
+## Performance
+
+### Optimization
+- Use database indexes for frequently queried fields
+- Implement pagination for list endpoints
+- Use `select` in Prisma queries to fetch only needed fields
+- Cache frequently accessed data when appropriate
+- Avoid N+1 queries - use Prisma's `include` or `select` efficiently
+
+## Documentation
+
+### Code Comments
+- Use JSDoc for public functions and classes
+- Document complex logic and business rules
+- Include examples in documentation
+- Keep comments up-to-date with code changes
+
+### README Files
+- Keep README files updated
+- Include setup instructions
+- Document environment variables
+- Include examples of usage
+

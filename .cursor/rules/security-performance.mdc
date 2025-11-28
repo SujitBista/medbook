@@ -1,0 +1,60 @@
+---
+name: Security and Performance
+description: Security best practices and performance optimization
+globs: ["**/*"]
+alwaysApply: true
+---
+
+# Security and Performance
+
+## Security Best Practices
+
+- Never commit secrets or API keys
+- Validate and sanitize all user input
+- Use parameterized queries (Prisma handles this automatically)
+- Implement rate limiting for public endpoints
+- Use HTTPS in production
+- Sanitize error messages in production (don't expose stack traces)
+
+**Example:**
+```typescript
+// Input validation
+if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  throw createValidationError('Invalid email format');
+}
+
+// Error handling - don't expose stack traces in production
+if (isDevelopment) {
+  logger.error('Error details:', { stack: err.stack });
+} else {
+  logger.error('Error occurred:', { message: err.message });
+}
+```
+
+## Performance Optimization
+
+- Use database indexes for frequently queried fields
+- Implement pagination for list endpoints
+- Use `select` in Prisma queries to fetch only needed fields
+- Cache frequently accessed data when appropriate
+- Avoid N+1 queries - use Prisma's `include` or `select` efficiently
+
+**Example:**
+```typescript
+// GOOD - Select only needed fields
+const users = await query((prisma) =>
+  prisma.user.findMany({
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      // Don't select password or other sensitive fields
+    },
+  })
+);
+
+// BAD - Selects all fields including password
+const users = await query((prisma) =>
+  prisma.user.findMany()
+);
+```

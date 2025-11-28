@@ -1,0 +1,61 @@
+---
+name: Frontend Logging
+description: Use console logging with consistent prefixes in frontend code
+globs: ["apps/web/**/*.tsx", "apps/web/**/*.ts", "apps/web/app/**/*"]
+alwaysApply: false
+---
+
+# Frontend Logging Guidelines
+
+## Console Logging with Prefixes
+
+- Use `console.log()`, `console.warn()`, `console.error()` with consistent prefixes
+- Prefix all logs with `[ComponentName]` or `[FeatureName]` for easy filtering
+- Always include logging in development environment
+- Use conditional logging for development-only logs: `if (process.env.NODE_ENV === 'development')`
+- Log important user actions, API calls, errors, and state changes
+
+## Security: Never Log Sensitive Data
+
+- Never log sensitive data (passwords, tokens, PII) - use placeholders instead
+- Redact tokens and passwords in logs
+
+**Example:**
+
+```typescript
+// Component initialization
+console.log("[Registration] Component mounted");
+console.log("[Registration] API URL configured:", API_URL);
+
+// API calls
+console.log("[Registration] Sending POST request to:", registrationUrl);
+console.log("[Registration] Response status:", response.status);
+
+// Error logging
+console.error("[Registration] Failed to register user:", error);
+console.error(
+  "[Registration] Error type:",
+  error instanceof Error ? error.constructor.name : typeof error
+);
+console.error(
+  "[Registration] Error stack:",
+  error instanceof Error ? error.stack : "No stack trace"
+);
+
+// Sensitive data - use placeholders
+console.log("[Auth] Token received:", token ? "[REDACTED]" : "null");
+console.log("[Auth] Password length:", password ? password.length : 0);
+```
+
+## Structured Logging
+
+Use structured logging when possible:
+
+```typescript
+console.log("[Registration] Request details:", {
+  url: registrationUrl,
+  method: "POST",
+  email: email, // OK to log email
+  // Never log password
+});
+```

@@ -22,8 +22,10 @@ function LoginForm() {
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
       setSuccessMessage("Registration successful! Please sign in.");
+      // Remove the query parameter from URL to prevent showing message on refresh
+      router.replace("/login", { scroll: false });
     }
-  }, [searchParams]);
+  }, [searchParams, router]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -48,6 +50,11 @@ function LoginForm() {
     e.preventDefault();
 
     if (!validateForm()) {
+      // Errors are already set by validateForm(), but add a general message
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        general: "Please fix the errors below to continue",
+      }));
       return;
     }
 
@@ -76,7 +83,13 @@ function LoginForm() {
         router.refresh();
       }
     } catch (error) {
-      setErrors({ general: "An error occurred. Please try again." });
+      console.error("[Login] Exception caught:", error);
+      // Provide more specific error messages
+      const errorMessage =
+        error instanceof Error
+          ? `Connection error: ${error.message}. Please ensure the API server is running.`
+          : "An error occurred. Please try again.";
+      setErrors({ general: errorMessage });
       setIsLoading(false);
     }
   };
@@ -101,7 +114,23 @@ function LoginForm() {
               label="Email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e) => {
+                setEmail(e.target.value);
+                // Clear success message when user starts typing
+                if (successMessage) {
+                  setSuccessMessage(null);
+                }
+                // Clear error when user starts typing
+                if (errors.email) {
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }
+                // Clear general error if it was a validation error
+                if (
+                  errors.general === "Please fix the errors below to continue"
+                ) {
+                  setErrors((prev) => ({ ...prev, general: undefined }));
+                }
+              }}
               error={errors.email}
               disabled={isLoading}
               required
@@ -112,7 +141,23 @@ function LoginForm() {
               label="Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
+              onChange={(e) => {
+                setPassword(e.target.value);
+                // Clear success message when user starts typing
+                if (successMessage) {
+                  setSuccessMessage(null);
+                }
+                // Clear error when user starts typing
+                if (errors.password) {
+                  setErrors((prev) => ({ ...prev, password: undefined }));
+                }
+                // Clear general error if it was a validation error
+                if (
+                  errors.general === "Please fix the errors below to continue"
+                ) {
+                  setErrors((prev) => ({ ...prev, general: undefined }));
+                }
+              }}
               error={errors.password}
               disabled={isLoading}
               required

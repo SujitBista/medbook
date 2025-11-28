@@ -126,6 +126,11 @@ function ProfilePage() {
     setProfileErrors({});
 
     if (!validateProfileForm()) {
+      // Errors are already set by validateProfileForm(), but add a general message
+      setProfileErrors((prevErrors) => ({
+        ...prevErrors,
+        general: "Please fix the errors below to continue",
+      }));
       return;
     }
 
@@ -176,6 +181,11 @@ function ProfilePage() {
     setPasswordErrors({});
 
     if (!validatePasswordForm()) {
+      // Errors are already set by validatePasswordForm(), but add a general message
+      setPasswordErrors((prevErrors) => ({
+        ...prevErrors,
+        general: "Please fix the errors below to continue",
+      }));
       return;
     }
 
@@ -332,7 +342,23 @@ function ProfilePage() {
                 label="Email"
                 type="email"
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  // Clear error when user starts typing
+                  if (profileErrors.email) {
+                    setProfileErrors((prev) => ({ ...prev, email: undefined }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (
+                    profileErrors.general ===
+                    "Please fix the errors below to continue"
+                  ) {
+                    setProfileErrors((prev) => ({
+                      ...prev,
+                      general: undefined,
+                    }));
+                  }
+                }}
                 error={profileErrors.email}
                 disabled={isUpdatingProfile}
                 required
@@ -385,7 +411,26 @@ function ProfilePage() {
                 label="Current Password"
                 type="password"
                 value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
+                onChange={(e) => {
+                  setCurrentPassword(e.target.value);
+                  // Clear error when user starts typing
+                  if (passwordErrors.currentPassword) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      currentPassword: undefined,
+                    }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (
+                    passwordErrors.general ===
+                    "Please fix the errors below to continue"
+                  ) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      general: undefined,
+                    }));
+                  }
+                }}
                 error={passwordErrors.currentPassword}
                 disabled={isChangingPassword}
                 required
@@ -396,7 +441,36 @@ function ProfilePage() {
                 label="New Password"
                 type="password"
                 value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
+                onChange={(e) => {
+                  setNewPassword(e.target.value);
+                  // Clear error when user starts typing
+                  if (passwordErrors.newPassword) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      newPassword: undefined,
+                    }));
+                  }
+                  // Clear confirm password error if passwords now match
+                  if (
+                    passwordErrors.confirmPassword &&
+                    e.target.value === confirmPassword
+                  ) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: undefined,
+                    }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (
+                    passwordErrors.general ===
+                    "Please fix the errors below to continue"
+                  ) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      general: undefined,
+                    }));
+                  }
+                }}
                 error={passwordErrors.newPassword}
                 disabled={isChangingPassword}
                 required
@@ -407,7 +481,26 @@ function ProfilePage() {
                 label="Confirm New Password"
                 type="password"
                 value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
+                onChange={(e) => {
+                  setConfirmPassword(e.target.value);
+                  // Clear error when user starts typing
+                  if (passwordErrors.confirmPassword) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      confirmPassword: undefined,
+                    }));
+                  }
+                  // Clear general error if it was a validation error
+                  if (
+                    passwordErrors.general ===
+                    "Please fix the errors below to continue"
+                  ) {
+                    setPasswordErrors((prev) => ({
+                      ...prev,
+                      general: undefined,
+                    }));
+                  }
+                }}
                 error={passwordErrors.confirmPassword}
                 disabled={isChangingPassword}
                 required
