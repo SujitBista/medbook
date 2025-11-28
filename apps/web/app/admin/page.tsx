@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
 import { UserRole } from "@medbook/types";
-import { Button } from "@medbook/ui";
+import { Button, Input } from "@medbook/ui";
 
 interface User {
   id: string;
@@ -29,6 +29,19 @@ function AdminDashboardContent() {
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [newRole, setNewRole] = useState<UserRole>(UserRole.PATIENT);
+  const [showDoctorForm, setShowDoctorForm] = useState(false);
+  const [doctorFormData, setDoctorFormData] = useState({
+    email: "",
+    password: "",
+    confirmPassword: "",
+    specialization: "",
+    bio: "",
+  });
+  const [doctorFormErrors, setDoctorFormErrors] = useState<
+    Record<string, string>
+  >({});
+  const [doctorFormLoading, setDoctorFormLoading] = useState(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -117,6 +130,116 @@ function AdminDashboardContent() {
     }
   };
 
+  const handleDoctorFormChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+  ) => {
+    const { name, value } = e.target;
+    setDoctorFormData((prev) => ({ ...prev, [name]: value }));
+    // Clear error for this field when user starts typing
+    if (doctorFormErrors[name]) {
+      setDoctorFormErrors((prev) => {
+        const newErrors = { ...prev };
+        delete newErrors[name];
+        return newErrors;
+      });
+    }
+    // If password or confirmPassword changes, check if they match
+    if (name === "password" || name === "confirmPassword") {
+      const password = name === "password" ? value : doctorFormData.password;
+      const confirmPassword =
+        name === "confirmPassword" ? value : doctorFormData.confirmPassword;
+      // Clear confirmPassword error if passwords now match
+      if (
+        doctorFormErrors.confirmPassword &&
+        password === confirmPassword &&
+        password !== ""
+      ) {
+        setDoctorFormErrors((prev) => {
+          const newErrors = { ...prev };
+          delete newErrors.confirmPassword;
+          return newErrors;
+        });
+      }
+    }
+  };
+
+  const handleDoctorFormSubmit = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    setDoctorFormLoading(true);
+    setDoctorFormErrors({});
+    setError(null);
+    setSuccessMessage(null);
+
+    // Validate password match
+    if (doctorFormData.password !== doctorFormData.confirmPassword) {
+      setDoctorFormErrors({
+        confirmPassword: "Passwords do not match",
+      });
+      setDoctorFormLoading(false);
+      return;
+    }
+
+    try {
+      console.log("[AdminDashboard] Registering doctor:", {
+        email: doctorFormData.email,
+      });
+
+      const response = await fetch("/api/admin/doctors", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email: doctorFormData.email,
+          password: doctorFormData.password,
+          specialization: doctorFormData.specialization || undefined,
+          bio: doctorFormData.bio || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        // Handle validation errors
+        if (data.error?.details?.errors) {
+          setDoctorFormErrors(data.error.details.errors);
+          throw new Error(data.error.message || "Validation failed");
+        }
+        throw new Error(data.error?.message || "Failed to register doctor");
+      }
+
+      console.log("[AdminDashboard] Doctor registered successfully:", data);
+
+      // Reset form
+      setDoctorFormData({
+        email: "",
+        password: "",
+        confirmPassword: "",
+        specialization: "",
+        bio: "",
+      });
+      setShowDoctorForm(false);
+      setSuccessMessage(`Doctor ${data.user.email} registered successfully!`);
+
+      // Refresh data
+      await fetchData();
+
+      // Clear success message after 5 seconds
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (err) {
+      console.error("[AdminDashboard] Error registering doctor:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to register doctor"
+      );
+    } finally {
+      setDoctorFormLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -140,6 +263,12 @@ function AdminDashboardContent() {
       {error && (
         <div className="mb-6 rounded-lg bg-red-50 p-4 text-red-800">
           <p className="font-medium">Error: {error}</p>
+        </div>
+      )}
+
+      {successMessage && (
+        <div className="mb-6 rounded-lg bg-green-50 p-4 text-green-800">
+          <p className="font-medium">{successMessage}</p>
         </div>
       )}
 
@@ -172,6 +301,167 @@ function AdminDashboardContent() {
           </div>
         </div>
       )}
+
+      {/* Doctor Registration Form */}
+      <div className="mb-8 rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-xl font-semibold text-gray-900">
+              Doctor Registration
+            </h2>
+            <Button
+              variant={showDoctorForm ? "outline" : "primary"}
+              onClick={() => {
+                setShowDoctorForm(!showDoctorForm);
+                setDoctorFormErrors({});
+                setError(null);
+                if (!showDoctorForm) {
+                  setDoctorFormData({
+                    email: "",
+                    password: "",
+                    confirmPassword: "",
+                    specialization: "",
+                    bio: "",
+                  });
+                }
+              }}
+            >
+              {showDoctorForm ? "Cancel" : "Register New Doctor"}
+            </Button>
+          </div>
+        </div>
+        {showDoctorForm && (
+          <div className="px-6 py-4">
+            <form onSubmit={handleDoctorFormSubmit} className="space-y-4">
+              <div>
+                <label
+                  htmlFor="email"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Email <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  value={doctorFormData.email}
+                  onChange={handleDoctorFormChange}
+                  required
+                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                    doctorFormErrors.email
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                />
+                {doctorFormErrors.email && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {doctorFormErrors.email}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <Input
+                  label="Password"
+                  type="password"
+                  id="password"
+                  name="password"
+                  value={doctorFormData.password}
+                  onChange={handleDoctorFormChange}
+                  required
+                  error={doctorFormErrors.password}
+                  disabled={doctorFormLoading}
+                  autoComplete="new-password"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Password must be at least 8 characters long and contain at
+                  least one uppercase letter, one lowercase letter, and one
+                  number.
+                </p>
+              </div>
+
+              <div>
+                <Input
+                  label="Confirm Password"
+                  type="password"
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  value={doctorFormData.confirmPassword}
+                  onChange={handleDoctorFormChange}
+                  required
+                  error={doctorFormErrors.confirmPassword}
+                  disabled={doctorFormLoading}
+                  autoComplete="new-password"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="specialization"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Specialization
+                </label>
+                <input
+                  type="text"
+                  id="specialization"
+                  name="specialization"
+                  value={doctorFormData.specialization}
+                  onChange={handleDoctorFormChange}
+                  placeholder="e.g., Cardiology, Pediatrics"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div>
+                <label
+                  htmlFor="bio"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Bio
+                </label>
+                <textarea
+                  id="bio"
+                  name="bio"
+                  value={doctorFormData.bio}
+                  onChange={handleDoctorFormChange}
+                  rows={3}
+                  placeholder="Doctor's bio or description"
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
+              <div className="flex gap-2">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={doctorFormLoading}
+                >
+                  {doctorFormLoading ? "Registering..." : "Register Doctor"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowDoctorForm(false);
+                    setDoctorFormData({
+                      email: "",
+                      password: "",
+                      confirmPassword: "",
+                      specialization: "",
+                      bio: "",
+                    });
+                    setDoctorFormErrors({});
+                  }}
+                  disabled={doctorFormLoading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
+          </div>
+        )}
+      </div>
 
       {/* Users Table */}
       <div className="rounded-lg bg-white shadow">

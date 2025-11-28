@@ -13,6 +13,7 @@ import {
   updateRole,
   removeUser,
   getStats,
+  registerDoctor,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -50,5 +51,11 @@ router.put("/users/:id/role", updateRole);
  * Delete user
  */
 router.delete("/users/:id", removeUser);
+
+/**
+ * POST /api/v1/admin/doctors
+ * Register a new doctor user (creates user with DOCTOR role and doctor profile)
+ */
+router.post("/doctors", registerDoctor);
 
 export default router;

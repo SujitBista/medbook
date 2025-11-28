@@ -308,16 +308,17 @@ After each task typecheck, lint, build and commit
   - [x] Verify admin can login and access admin dashboard (ready for manual testing)
   - [ ] Document admin initial password setup process (optional - can be done later)
 
-- [ ] **Admin Doctor Registration**
-  - [ ] Create admin UI for registering new doctor users
-  - [ ] Add form to create user with DOCTOR role
-  - [ ] Add form to create doctor profile after user creation
-  - [ ] Implement admin API endpoint for creating doctor users (or use existing user creation + role update)
-  - [ ] Add validation for doctor registration (email, password, specialization)
-  - [ ] **Testing**: Write tests for admin doctor registration
-    - [ ] Test admin can create doctor user
-    - [ ] Test admin can create doctor profile
-    - [ ] Test validation and error handling
+- [x] **Admin Doctor Registration**
+  - [x] Create admin UI for registering new doctor users
+  - [x] Add form to create user with DOCTOR role
+  - [x] Add form to create doctor profile after user creation (done in single transaction)
+  - [x] Implement admin API endpoint for creating doctor users (`POST /api/v1/admin/doctors`)
+  - [x] Add validation for doctor registration (email, password, confirm password, specialization, bio)
+  - [x] Add password visibility toggle to password fields
+  - [x] **Testing**: Write tests for admin doctor registration
+    - [x] Test admin can create doctor user
+    - [x] Test admin can create doctor profile
+    - [x] Test validation and error handling
 
 - [ ] **Admin Doctor Management UI**
   - [ ] Add doctor management section to admin dashboard
@@ -337,11 +338,11 @@ After each task typecheck, lint, build and commit
   - [x] Doctor listing endpoint exists (`GET /api/v1/doctors`)
   - [x] Doctor detail endpoint exists (`GET /api/v1/doctors/:id`)
   - [x] Doctor update endpoint exists (`PUT /api/v1/doctors/:id`)
-  - [ ] Add admin-only doctor creation endpoint (if needed, or use existing user creation + doctor profile creation)
+  - [x] Add admin-only doctor creation endpoint (`POST /api/v1/admin/doctors` - creates user with DOCTOR role and doctor profile in single transaction)
   - [ ] Add admin-only doctor deletion endpoint
   - [ ] Add admin doctor statistics endpoint
   - [ ] **Testing**: Write tests for admin doctor management endpoints
-    - [ ] Test admin can create doctors
+    - [x] Test admin can create doctors (12 comprehensive tests passing)
     - [ ] Test admin can update any doctor
     - [ ] Test admin can delete doctors
     - [ ] Test admin-only access control
@@ -355,7 +356,7 @@ After each task typecheck, lint, build and commit
 - ✅ After password reset, admin can access admin dashboard (fixed redirect issue)
 - ✅ Seed script creates admin users with `mustResetPassword: true` and configurable password (via SEED_PASSWORD env var)
 - ✅ Admin authentication and password reset flow fully functional
-- [ ] Admin can register new doctors (create user + doctor profile)
+- ✅ Admin can register new doctors (create user + doctor profile in single transaction)
 - [ ] Admin can view all doctors
 - [ ] Admin can edit doctor profiles
 - [ ] Admin can delete doctor profiles

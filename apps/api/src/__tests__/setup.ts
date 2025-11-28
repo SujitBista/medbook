@@ -15,9 +15,9 @@ process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Allow requests without origin in t
 
 // Always override DATABASE_URL in test mode to prevent tests from running against real databases
 // This ensures test isolation even if developers have DATABASE_URL set in their .env
-process.env.DATABASE_URL =
-  process.env.TEST_DATABASE_URL ||
-  "postgresql://postgres:password@localhost:5432/medbook_test";
+// Default uses current user (no password) - override with TEST_DATABASE_URL if needed
+const defaultTestDbUrl = `postgresql://${process.env.USER || "postgres"}@localhost:5432/medbook_test`;
+process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || defaultTestDbUrl;
 
 beforeAll(async () => {
   // Setup before all tests

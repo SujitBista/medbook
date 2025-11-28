@@ -3,9 +3,16 @@
  * Handles admin-only business logic
  */
 
-import { query, UserRole as PrismaUserRole } from "@app/db";
-import { UserRole, UserWithoutPassword } from "@medbook/types";
-import { createNotFoundError, createValidationError } from "../utils/errors";
+import { query, UserRole as PrismaUserRole, withTransaction } from "@app/db";
+import { UserRole, UserWithoutPassword, Doctor } from "@medbook/types";
+import { CreateUserInput } from "@medbook/types";
+import {
+  createNotFoundError,
+  createValidationError,
+  createConflictError,
+} from "../utils/errors";
+import { hashPassword, validatePassword } from "../utils";
+import { logger } from "../utils/logger";
 
 /**
  * Converts Prisma UserRole to @medbook/types UserRole
@@ -158,6 +165,152 @@ export async function deleteUser(userId: string): Promise<void> {
     ) {
       throw createNotFoundError("User not found");
     }
+    throw error;
+  }
+}
+
+/**
+ * Input for creating a doctor user
+ */
+export interface CreateDoctorUserInput {
+  email: string;
+  password: string;
+  specialization?: string;
+  bio?: string;
+}
+
+/**
+ * Result of creating a doctor user
+ */
+export interface CreateDoctorUserResult {
+  user: UserWithoutPassword;
+  doctor: Doctor;
+}
+
+/**
+ * Creates a new doctor user with doctor profile (admin only)
+ * Creates both the user account with DOCTOR role and the doctor profile in a single transaction
+ * @param input Doctor user creation input
+ * @returns Created user and doctor data
+ * @throws AppError if validation fails, user already exists, or doctor profile creation fails
+ */
+export async function createDoctorUser(
+  input: CreateDoctorUserInput
+): Promise<CreateDoctorUserResult> {
+  const { email, password, specialization, bio } = input;
+
+  // Validate email format
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    throw createValidationError("Invalid email format", {
+      errors: {
+        email: "Please enter a valid email address",
+      },
+    });
+  }
+
+  // Validate password strength
+  const passwordValidation = validatePassword(password);
+  if (!passwordValidation.valid) {
+    const passwordErrorMessage = passwordValidation.errors.join(". ");
+    throw createValidationError("Password does not meet requirements", {
+      errors: {
+        password: passwordErrorMessage,
+      },
+      passwordErrors: passwordValidation.errors,
+    });
+  }
+
+  // Check if user already exists (optimistic check)
+  const existingUser = await query((prisma) =>
+    prisma.user.findUnique({
+      where: { email: email.toLowerCase().trim() },
+    })
+  );
+
+  if (existingUser) {
+    throw createConflictError("User with this email already exists");
+  }
+
+  // Hash password
+  const hashedPassword = await hashPassword(password);
+
+  // Create user and doctor profile in a transaction
+  try {
+    const result = await withTransaction(async (tx) => {
+      // Create user with DOCTOR role
+      const user = await tx.user.create({
+        data: {
+          email: email.toLowerCase().trim(),
+          password: hashedPassword,
+          role: PrismaUserRole.DOCTOR,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
+
+      // Create doctor profile
+      const doctor = await tx.doctor.create({
+        data: {
+          userId: user.id,
+          specialization: specialization?.trim() || null,
+          bio: bio?.trim() || null,
+        },
+      });
+
+      logger.info("Doctor user created by admin", {
+        userId: user.id,
+        doctorId: doctor.id,
+        email: user.email,
+      });
+
+      return {
+        user: {
+          ...user,
+          role: convertUserRole(user.role),
+        },
+        doctor: {
+          id: doctor.id,
+          userId: doctor.userId,
+          specialization: doctor.specialization ?? undefined,
+          bio: doctor.bio ?? undefined,
+          createdAt: doctor.createdAt,
+          updatedAt: doctor.updatedAt,
+        },
+      };
+    });
+
+    return result;
+  } catch (error: unknown) {
+    // Handle Prisma unique constraint violation (race condition)
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2002"
+    ) {
+      const prismaError = error as {
+        code: string;
+        meta?: { target?: unknown };
+      };
+      const target = prismaError.meta?.target;
+      if (Array.isArray(target)) {
+        if (target.includes("email")) {
+          throw createConflictError("User with this email already exists");
+        }
+        if (target.includes("userId")) {
+          throw createConflictError(
+            "Doctor profile already exists for this user"
+          );
+        }
+      }
+    }
+    // Re-throw other errors (they'll be handled by error middleware)
     throw error;
   }
 }

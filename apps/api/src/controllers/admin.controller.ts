@@ -10,7 +10,9 @@ import {
   updateUserRole,
   deleteUser,
   getSystemStats,
+  createDoctorUser,
   UpdateUserRoleInput,
+  CreateDoctorUserInput,
 } from "../services/admin.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
@@ -176,6 +178,63 @@ export async function getStats(
     res.status(200).json({
       success: true,
       stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Register a new doctor user (admin only)
+ * POST /api/v1/admin/doctors
+ */
+export async function registerDoctor(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    const { email, password, specialization, bio } = req.body;
+
+    // Validate required fields
+    const fieldErrors: Record<string, string> = {};
+    if (!email) {
+      fieldErrors.email = "Email is required";
+    }
+    if (!password) {
+      fieldErrors.password = "Password is required";
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      const error = createValidationError(
+        "Please fill in all required fields",
+        {
+          errors: fieldErrors,
+        }
+      );
+      next(error);
+      return;
+    }
+
+    const input: CreateDoctorUserInput = {
+      email,
+      password,
+      specialization,
+      bio,
+    };
+
+    const result = await createDoctorUser(input);
+
+    res.status(201).json({
+      success: true,
+      user: result.user,
+      doctor: result.doctor,
     });
   } catch (error) {
     next(error);
