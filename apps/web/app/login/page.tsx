@@ -72,13 +72,13 @@ function LoginForm() {
         setErrors({ general: "Invalid email or password" });
         setIsLoading(false);
       } else {
-        // Redirect to callbackUrl if provided, otherwise to home page
+        // Redirect to callbackUrl if provided, otherwise to dashboard
         // Validate callbackUrl to prevent open redirect vulnerability
-        const callbackUrl = searchParams.get("callbackUrl") || "/";
+        const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
         // Only allow same-origin paths starting with "/"
         const isValidCallback =
           callbackUrl.startsWith("/") && !callbackUrl.startsWith("//");
-        const safeCallbackUrl = isValidCallback ? callbackUrl : "/";
+        const safeCallbackUrl = isValidCallback ? callbackUrl : "/dashboard";
         router.push(safeCallbackUrl);
         router.refresh();
       }

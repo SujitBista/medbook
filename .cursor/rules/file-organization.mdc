@@ -15,6 +15,7 @@ alwaysApply: true
 - Use UPPER_SNAKE_CASE for constants
 
 **Examples:**
+
 - Files: `auth.service.ts`, `user.controller.ts`, `error.middleware.ts`
 - Components: `UserProfile.tsx`, `LoginForm.tsx`
 - Functions: `getUserById()`, `createUser()`
@@ -28,6 +29,7 @@ alwaysApply: true
 - Separate concerns: controllers, services, utilities, types
 
 **Example structure:**
+
 ```
 apps/api/src/
   controllers/
@@ -52,6 +54,7 @@ apps/api/src/
 - Keep comments up-to-date with code changes
 
 **Example:**
+
 ```typescript
 /**
  * Registers a new user

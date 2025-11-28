@@ -3,6 +3,7 @@ import { checkDatabaseHealth } from "@app/db";
 import authRoutes from "./auth.routes";
 import userRoutes from "./user.routes";
 import adminRoutes from "./admin.routes";
+import doctorRoutes from "./doctor.routes";
 
 /**
  * Main router aggregator
@@ -27,7 +28,7 @@ router.get("/health", async (req, res) => {
 router.use("/auth", authRoutes);
 router.use("/users", userRoutes);
 router.use("/admin", adminRoutes);
-// router.use('/doctors', doctorRoutes);
+router.use("/doctors", doctorRoutes);
 // router.use('/appointments', appointmentRoutes);
 // router.use('/availability', availabilityRoutes);
 

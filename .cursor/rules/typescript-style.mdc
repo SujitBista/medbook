@@ -22,16 +22,14 @@ alwaysApply: true
 - Use `Promise.all()` for parallel operations when order doesn't matter
 
 **Example:**
+
 ```typescript
 // GOOD
-const [user, profile] = await Promise.all([
-  getUser(id),
-  getProfile(id)
-]);
+const [user, profile] = await Promise.all([getUser(id), getProfile(id)]);
 
 // BAD
-getUser(id).then(user => {
-  getProfile(id).then(profile => {
+getUser(id).then((user) => {
+  getProfile(id).then((profile) => {
     // nested callbacks
   });
 });
@@ -45,14 +43,15 @@ getUser(id).then(user => {
 - Return appropriate HTTP status codes
 
 **Example:**
+
 ```typescript
-import { createValidationError, createConflictError } from '../utils/errors';
+import { createValidationError, createConflictError } from "../utils/errors";
 
 if (!email) {
-  throw createValidationError('Email is required');
+  throw createValidationError("Email is required");
 }
 
 if (existingUser) {
-  throw createConflictError('User with this email already exists');
+  throw createConflictError("User with this email already exists");
 }
 ```

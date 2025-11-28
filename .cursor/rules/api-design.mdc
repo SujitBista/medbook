@@ -24,6 +24,7 @@ alwaysApply: false
 - Document endpoints with JSDoc comments
 
 **Example:**
+
 ```typescript
 /**
  * Register a new user

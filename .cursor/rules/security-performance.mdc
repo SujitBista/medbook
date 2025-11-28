@@ -17,17 +17,18 @@ alwaysApply: true
 - Sanitize error messages in production (don't expose stack traces)
 
 **Example:**
+
 ```typescript
 // Input validation
 if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-  throw createValidationError('Invalid email format');
+  throw createValidationError("Invalid email format");
 }
 
 // Error handling - don't expose stack traces in production
 if (isDevelopment) {
-  logger.error('Error details:', { stack: err.stack });
+  logger.error("Error details:", { stack: err.stack });
 } else {
-  logger.error('Error occurred:', { message: err.message });
+  logger.error("Error occurred:", { message: err.message });
 }
 ```
 
@@ -40,6 +41,7 @@ if (isDevelopment) {
 - Avoid N+1 queries - use Prisma's `include` or `select` efficiently
 
 **Example:**
+
 ```typescript
 // GOOD - Select only needed fields
 const users = await query((prisma) =>
@@ -54,7 +56,5 @@ const users = await query((prisma) =>
 );
 
 // BAD - Selects all fields including password
-const users = await query((prisma) =>
-  prisma.user.findMany()
-);
+const users = await query((prisma) => prisma.user.findMany());
 ```

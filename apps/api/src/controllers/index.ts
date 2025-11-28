@@ -7,6 +7,6 @@
 export * from "./auth.controller";
 export * from "./user.controller";
 export * from "./admin.controller";
-// export * from './doctors.controller';
+export * from "./doctor.controller";
 // export * from './appointments.controller';
 // export * from './availability.controller';

@@ -10,6 +10,7 @@ export interface Doctor {
   bio?: string;
   createdAt: Date;
   updatedAt: Date;
+  userEmail?: string; // Included when fetching doctors list
 }
 
 export interface CreateDoctorInput {
@@ -22,5 +23,3 @@ export interface UpdateDoctorInput {
   specialization?: string;
   bio?: string;
 }
-
-

@@ -15,6 +15,7 @@ Each function should directly use the shared Postgres pool helper (`query`, `wit
 Do not export default class instances.
 
 **BAD:**
+
 ```typescript
 class DoctorService {
   async getAllDoctors() { ... }
@@ -23,6 +24,7 @@ export const doctorService = new DoctorService()
 ```
 
 **GOOD:**
+
 ```typescript
 export async function getAllDoctors(filters) { ... }
 export async function getDoctorById(id) { ... }
@@ -35,10 +37,9 @@ Use `withTransaction()` for multi-step operations that need atomicity.
 Never create PrismaClient instances directly - use the shared instance from `@app/db`.
 
 **Example:**
-```typescript
-import { query } from '@app/db';
 
-const user = await query((prisma) =>
-  prisma.user.findUnique({ where: { id } })
-);
+```typescript
+import { query } from "@app/db";
+
+const user = await query((prisma) => prisma.user.findUnique({ where: { id } }));
 ```

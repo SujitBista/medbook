@@ -286,20 +286,82 @@ After each task typecheck, lint, build and commit
 
 ### Tasks
 
-#### 4.1 Doctor Management
+#### 4.0 Admin Doctor Management (PRIORITY)
 
-- [ ] Create Doctor model in Prisma schema
-- [ ] Add relationship between User and Doctor
-- [ ] Create doctor registration API endpoint
-- [ ] Create doctor listing API endpoint
-- [ ] Create doctor detail API endpoint
-- [ ] Create doctor update API endpoint
-- [ ] Implement doctor search/filter functionality
-- [ ] **Testing**: Write tests for doctor management
-  - [ ] Unit tests for doctor service functions
-  - [ ] Integration tests for doctor API endpoints
-  - [ ] Component tests for doctor UI components
-  - [ ] Test doctor search/filter functionality
+**Goal**: Enable admins to register doctors and manage doctor profiles before patients can book appointments.
+
+- [ ] **Admin Login & Access**
+  - [x] Admin authentication already implemented (Phase 2)
+  - [x] Admin routes protected (`/admin`)
+  - [x] Admin dashboard exists (`/admin`)
+  - [ ] Verify admin can login and access admin dashboard
+  - [ ] Create initial admin user (seed script or manual)
+
+- [ ] **Admin Doctor Registration**
+  - [ ] Create admin UI for registering new doctor users
+  - [ ] Add form to create user with DOCTOR role
+  - [ ] Add form to create doctor profile after user creation
+  - [ ] Implement admin API endpoint for creating doctor users (or use existing user creation + role update)
+  - [ ] Add validation for doctor registration (email, password, specialization)
+  - [ ] **Testing**: Write tests for admin doctor registration
+    - [ ] Test admin can create doctor user
+    - [ ] Test admin can create doctor profile
+    - [ ] Test validation and error handling
+
+- [ ] **Admin Doctor Management UI**
+  - [ ] Add doctor management section to admin dashboard
+  - [ ] Display list of all doctors with their details
+  - [ ] Add ability to view doctor details
+  - [ ] Add ability to edit doctor profiles (specialization, bio)
+  - [ ] Add ability to delete doctor profiles
+  - [ ] Add search/filter functionality for doctors
+  - [ ] Show doctor statistics (total doctors, by specialization)
+  - [ ] **Testing**: Write tests for admin doctor management UI
+    - [ ] Test doctor listing
+    - [ ] Test doctor editing
+    - [ ] Test doctor deletion
+    - [ ] Test search/filter functionality
+
+- [ ] **Admin API Endpoints for Doctor Management**
+  - [x] Doctor listing endpoint exists (`GET /api/v1/doctors`)
+  - [x] Doctor detail endpoint exists (`GET /api/v1/doctors/:id`)
+  - [x] Doctor update endpoint exists (`PUT /api/v1/doctors/:id`)
+  - [ ] Add admin-only doctor creation endpoint (if needed, or use existing user creation + doctor profile creation)
+  - [ ] Add admin-only doctor deletion endpoint
+  - [ ] Add admin doctor statistics endpoint
+  - [ ] **Testing**: Write tests for admin doctor management endpoints
+    - [ ] Test admin can create doctors
+    - [ ] Test admin can update any doctor
+    - [ ] Test admin can delete doctors
+    - [ ] Test admin-only access control
+
+**Deliverables:**
+
+- Admin can login and access admin dashboard
+- Admin can register new doctors (create user + doctor profile)
+- Admin can view all doctors
+- Admin can edit doctor profiles
+- Admin can delete doctor profiles
+- Admin can search/filter doctors
+
+**Estimated Time:** 1-2 days
+
+---
+
+#### 4.1 Doctor Management (Backend & Public API)
+
+- [x] Create Doctor model in Prisma schema
+- [x] Add relationship between User and Doctor
+- [x] Create doctor registration API endpoint (for authenticated doctors)
+- [x] Create doctor listing API endpoint (public)
+- [x] Create doctor detail API endpoint (public)
+- [x] Create doctor update API endpoint (for authenticated doctors)
+- [x] Implement doctor search/filter functionality
+- [x] **Testing**: Write tests for doctor management
+  - [x] Unit tests for doctor service functions
+  - [x] Integration tests for doctor API endpoints
+  - [ ] Component tests for doctor UI components (pending - will be done when UI is built)
+  - [x] Test doctor search/filter functionality
 
 #### 4.2 Doctor Availability/Schedule
 
@@ -384,13 +446,14 @@ After each task typecheck, lint, build and commit
 
 **Deliverables:**
 
-- Doctors can register and manage their profiles
+- ✅ Admin can register doctors and manage doctor profiles (Task 4.0 - PRIORITY)
+- Doctors can register and manage their profiles (self-service)
 - Doctors can set their availability
 - Patients can browse doctors and book appointments
 - Both patients and doctors have functional dashboards
 - Appointment management (view, cancel, reschedule) working
 
-**Estimated Time:** 5-7 days
+**Estimated Time:** 6-9 days (includes 1-2 days for Task 4.0)
 
 ---
 
@@ -623,11 +686,13 @@ After each task typecheck, lint, build and commit
 - **Phase 1:** 2-3 days
 - **Phase 2:** 3-4 days
 - **Phase 3:** 3-4 days (Testing & Quality Assurance)
-- **Phase 4:** 5-7 days (Core Booking Features)
+- **Phase 4:** 6-9 days (Core Booking Features - includes Admin Doctor Management priority task)
 - **Phase 5:** 4-5 days (Advanced Features)
 - **Phase 6:** 4-5 days (Polish & Deployment)
 
-**Total Estimated Time:** 21-28 days (approximately 3-4 weeks)
+**Total Estimated Time:** 22-30 days (approximately 3-4 weeks)
+
+**Note:** Phase 4 now includes Task 4.0 (Admin Doctor Management) as a priority before other doctor management features. This ensures admins can register doctors before patients need to book appointments.
 
 ## Notes
 

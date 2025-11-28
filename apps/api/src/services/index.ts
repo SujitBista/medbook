@@ -9,6 +9,6 @@
 export * from "./auth.service";
 export * from "./user.service";
 export * from "./admin.service";
-// export * from './doctors.service';
+export * from "./doctor.service";
 // export * from './appointments.service';
 // export * from './availability.service';
