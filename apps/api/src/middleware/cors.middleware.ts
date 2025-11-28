@@ -38,9 +38,15 @@ function createCorsErrorResponse(
     details.push(`Allowed origins: ${env.corsOrigins.join(", ")}`);
 
     if (!receivedOrigin) {
-      details.push(
-        "Tip: Set CORS_ALLOW_NO_ORIGIN=true in development to allow requests without Origin header"
-      );
+      if (isDevelopment) {
+        details.push(
+          "Note: No-origin requests are automatically allowed in development mode"
+        );
+      } else {
+        details.push(
+          "Tip: Set CORS_ALLOW_NO_ORIGIN=true to allow requests without Origin header"
+        );
+      }
     }
 
     response.error.details = details.join(". ");
@@ -58,10 +64,15 @@ const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
     // Handle requests with no origin
     if (!origin) {
-      if (env.corsAllowNoOrigin) {
+      // In development, automatically allow no-origin requests (for server-to-server calls)
+      // In production, require explicit CORS_ALLOW_NO_ORIGIN=true for security
+      if (isDevelopment || env.corsAllowNoOrigin) {
+        if (isDevelopment) {
+          logger.debug("CORS: Allowing no-origin request (development mode)");
+        }
         return callback(null, true);
       }
-      // Log and deny no-origin requests by default
+      // Log and deny no-origin requests in production by default
       logger.warn("CORS: Request denied - No origin header");
       return callback(new Error("CORS: Origin header required"), false);
     }

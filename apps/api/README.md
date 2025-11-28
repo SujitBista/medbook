@@ -41,8 +41,9 @@ The API uses strict whitelist-based CORS policy for security.
   - Example: `CORS_ORIGIN=https://app.example.com,https://staging.example.com`
 
 - `CORS_ALLOW_NO_ORIGIN` - Allow requests with no Origin header (e.g., Postman, curl, server-to-server requests).
-  - Set to `true` to allow. Default: `false`
-  - ⚠️ **Security Warning**: Only enable in development or for trusted server-to-server communication.
+  - **Development**: Automatically enabled (no configuration needed)
+  - **Production**: Set to `true` to allow. Default: `false` (requires explicit configuration)
+  - ⚠️ **Security Warning**: In production, only enable for trusted server-to-server communication.
 
 - `CORS_ALLOW_NULL_ORIGIN` - Allow requests with `Origin: null` (file:// protocol, sandboxed iframes).
   - Set to `true` to allow. Default: `false`
@@ -68,6 +69,8 @@ The API implements a strict CORS policy:
 - **Credentials support**: Cookies and authorization headers are allowed for whitelisted origins
 - **Preflight handling**: OPTIONS requests are properly handled with appropriate error responses
 - **Error responses**: Denied requests return 403 Forbidden with a standardized JSON error response
+- **Development mode**: No-origin requests (server-to-server calls) are automatically allowed in development
+- **Production mode**: No-origin requests require explicit `CORS_ALLOW_NO_ORIGIN=true` configuration
 
 ### CORS Error Response Format
 
