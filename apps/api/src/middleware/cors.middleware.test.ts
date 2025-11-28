@@ -69,27 +69,77 @@ describe("corsMiddleware", () => {
     expect(response.headers["access-control-allow-origin"]).toBeDefined();
   });
 
-  describe("when CORS_ALLOW_NO_ORIGIN is false", () => {
-    let appNoOrigin: ReturnType<typeof createTestApp>;
-    let agentNoOrigin: ReturnType<typeof createTestAgent>;
+  describe("no-origin requests", () => {
+    it("should allow no-origin requests in development mode", async () => {
+      // Set NODE_ENV to development (or leave unset, which defaults to development)
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "development";
+      process.env.CORS_ORIGIN = "http://localhost:3000";
+      process.env.CORS_ALLOW_NO_ORIGIN = "false"; // Even when false, dev mode allows it
+      process.env.CORS_ALLOW_NULL_ORIGIN = "false";
 
-    beforeEach(() => {
-      // Set CORS_ALLOW_NO_ORIGIN to false before creating app
+      const devApp = createTestApp();
+      const devAgent = createTestAgent(devApp);
+
+      // In development, no-origin requests should be allowed automatically
+      const response = await devAgent.get("/").expect(200);
+      expect(response.body).toBeDefined();
+
+      // Restore original NODE_ENV
+      if (originalNodeEnv) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        delete process.env.NODE_ENV;
+      }
+    });
+
+    it("should deny no-origin requests in production when CORS_ALLOW_NO_ORIGIN is false", async () => {
+      // Set NODE_ENV to production to test production behavior
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
       process.env.CORS_ORIGIN = "http://localhost:3000";
       process.env.CORS_ALLOW_NO_ORIGIN = "false";
       process.env.CORS_ALLOW_NULL_ORIGIN = "false";
 
-      // Create fresh app instance with the new env config
-      appNoOrigin = createTestApp();
-      agentNoOrigin = createTestAgent(appNoOrigin);
-    });
+      const prodApp = createTestApp();
+      const prodAgent = createTestAgent(prodApp);
 
-    it("should deny request without origin header", async () => {
-      const response = await agentNoOrigin.get("/").expect(403);
+      // In production, no-origin requests should be denied when flag is false
+      const response = await prodAgent.get("/").expect(403);
 
       expect(response.body.success).toBe(false);
       expect(response.body.error).toBeDefined();
       expect(response.body.error.code).toBe("CORS_ERROR");
+
+      // Restore original NODE_ENV
+      if (originalNodeEnv) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        delete process.env.NODE_ENV;
+      }
+    });
+
+    it("should allow no-origin requests in production when CORS_ALLOW_NO_ORIGIN is true", async () => {
+      // Set NODE_ENV to production but allow no-origin
+      const originalNodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = "production";
+      process.env.CORS_ORIGIN = "http://localhost:3000";
+      process.env.CORS_ALLOW_NO_ORIGIN = "true";
+      process.env.CORS_ALLOW_NULL_ORIGIN = "false";
+
+      const prodApp = createTestApp();
+      const prodAgent = createTestAgent(prodApp);
+
+      // In production, no-origin requests should be allowed when flag is true
+      const response = await prodAgent.get("/").expect(200);
+      expect(response.body).toBeDefined();
+
+      // Restore original NODE_ENV
+      if (originalNodeEnv) {
+        process.env.NODE_ENV = originalNodeEnv;
+      } else {
+        delete process.env.NODE_ENV;
+      }
     });
   });
 });
