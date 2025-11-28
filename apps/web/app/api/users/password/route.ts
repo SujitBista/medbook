@@ -36,6 +36,12 @@ export async function PUT(req: NextRequest) {
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
+    console.log("[Password API] Calling backend:", {
+      url: `${env.apiUrl}/users/password`,
+      userId: session.user.id,
+      hasToken: !!token,
+    });
+
     const response = await fetch(`${env.apiUrl}/users/password`, {
       method: "PUT",
       headers: {
@@ -45,12 +51,37 @@ export async function PUT(req: NextRequest) {
       body: JSON.stringify(body),
     });
 
-    const data = await response.json();
+    console.log("[Password API] Backend response:", {
+      status: response.status,
+      statusText: response.statusText,
+      ok: response.ok,
+    });
+
+    let data;
+    try {
+      const responseText = await response.text();
+      console.log("[Password API] Response text:", responseText);
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error("[Password API] Failed to parse response:", parseError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: "Invalid response from server",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
+      console.error("[Password API] Backend error:", data);
       return NextResponse.json(data, { status: response.status });
     }
 
+    console.log("[Password API] Success:", data);
     return NextResponse.json(data);
   } catch (error) {
     console.error("Error changing password:", error);
