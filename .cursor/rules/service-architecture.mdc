@@ -1,0 +1,44 @@
+---
+name: Service Architecture
+description: Prefer functional services over classes
+globs: ["apps/api/src/services/**/*.ts"]
+alwaysApply: false
+---
+
+# Service Architecture
+
+## Prefer Functional Services
+
+Do not create service classes like `DoctorService` or `AppointmentService`.
+Instead, export plain functions (named exports) from each service file.
+Each function should directly use the shared Postgres pool helper (`query`, `withTransaction`).
+Do not export default class instances.
+
+**BAD:**
+```typescript
+class DoctorService {
+  async getAllDoctors() { ... }
+}
+export const doctorService = new DoctorService()
+```
+
+**GOOD:**
+```typescript
+export async function getAllDoctors(filters) { ... }
+export async function getDoctorById(id) { ... }
+```
+
+## Database Helper Usage
+
+Always use the `query()` helper function for database operations.
+Use `withTransaction()` for multi-step operations that need atomicity.
+Never create PrismaClient instances directly - use the shared instance from `@app/db`.
+
+**Example:**
+```typescript
+import { query } from '@app/db';
+
+const user = await query((prisma) =>
+  prisma.user.findUnique({ where: { id } })
+);
+```

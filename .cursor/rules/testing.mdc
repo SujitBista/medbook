@@ -1,0 +1,58 @@
+---
+name: Testing Standards
+description: Testing patterns and best practices
+globs: ["**/*.test.ts", "**/*.test.tsx", "**/__tests__/**/*"]
+alwaysApply: false
+---
+
+# Testing Standards
+
+## Test Structure
+
+- Write unit tests for utilities and services
+- Write integration tests for API routes
+- Use Vitest for testing
+- Follow AAA pattern: Arrange, Act, Assert
+- Use descriptive test names: `it('should return 404 when user does not exist')`
+
+**Example:**
+```typescript
+describe('registerUser', () => {
+  it('should register a new user successfully', async () => {
+    // Arrange
+    const email = 'test@example.com';
+    const password = 'ValidPass123!';
+    
+    // Act
+    const result = await registerUser({ email, password });
+    
+    // Assert
+    expect(result.user.email).toBe(email);
+    expect(result.token).toBeDefined();
+  });
+});
+```
+
+## Test Data
+
+- Use test fixtures and factories from `apps/api/src/__tests__/`
+- Clean up test data after each test
+- Use unique identifiers (timestamps, UUIDs) to avoid conflicts
+
+**Example:**
+```typescript
+import { createTestUser, cleanupTestData } from '../__tests__/db';
+
+afterEach(async () => {
+  await cleanupTestData();
+});
+
+it('should handle duplicate email', async () => {
+  const email = `test-${Date.now()}@example.com`;
+  await createTestUser({ email });
+  
+  // Try to create duplicate
+  await expect(registerUser({ email, password: 'Pass123!' }))
+    .rejects.toThrow('already exists');
+});
+```

@@ -1,0 +1,58 @@
+---
+name: TypeScript Style Guide
+description: TypeScript coding standards and best practices
+globs: ["**/*.ts", "**/*.tsx"]
+alwaysApply: true
+---
+
+# TypeScript Style Guide
+
+## Type Safety
+
+- Use TypeScript strict mode
+- Prefer interfaces over types for object shapes
+- Use `as const` for literal types
+- Avoid `any` - use `unknown` and type guards instead
+- Export types/interfaces from `@medbook/types` package when shared
+
+## Async/Await
+
+- Always use async/await instead of Promises with `.then()`
+- Handle errors with try/catch blocks
+- Use `Promise.all()` for parallel operations when order doesn't matter
+
+**Example:**
+```typescript
+// GOOD
+const [user, profile] = await Promise.all([
+  getUser(id),
+  getProfile(id)
+]);
+
+// BAD
+getUser(id).then(user => {
+  getProfile(id).then(profile => {
+    // nested callbacks
+  });
+});
+```
+
+## Error Handling
+
+- Use custom error classes from `apps/api/src/utils/errors.ts`
+- Create specific error types: `createValidationError()`, `createConflictError()`, etc.
+- Always include meaningful error messages
+- Return appropriate HTTP status codes
+
+**Example:**
+```typescript
+import { createValidationError, createConflictError } from '../utils/errors';
+
+if (!email) {
+  throw createValidationError('Email is required');
+}
+
+if (existingUser) {
+  throw createConflictError('User with this email already exists');
+}
+```

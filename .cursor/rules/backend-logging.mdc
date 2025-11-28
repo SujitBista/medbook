@@ -1,0 +1,64 @@
+---
+name: Backend Logging
+description: Use centralized logger utility for all backend logging
+globs: ["apps/api/src/**/*.ts"]
+alwaysApply: false
+---
+
+# Backend Logging Guidelines
+
+## Always Use Centralized Logger
+
+- Always use the centralized logger utility from `apps/api/src/utils/logger.ts`
+- Import: `import { logger } from '../utils/logger'` or `import { logger } from '../utils'`
+- Never use `console.log()`, `console.error()`, etc. directly in backend code
+
+## Log Levels
+
+Use appropriate log levels:
+- `logger.info()` - General information, successful operations
+- `logger.warn()` - Warnings, non-critical issues
+- `logger.error()` - Errors, exceptions, failures
+- `logger.debug()` - Debug information (only in development, automatically filtered)
+
+## Logging Best Practices
+
+- Include context in log messages (e.g., user ID, request ID, operation name)
+- Log errors with full context: error message, stack trace, relevant data
+- Use structured logging (objects) instead of string concatenation
+- Always log errors before handling them
+
+**Example:**
+```typescript
+import { logger } from '../utils/logger';
+
+// Success logging
+logger.info('User registered successfully', { userId: user.id, email: user.email });
+
+// Error logging
+logger.error('Failed to create user', { 
+  error: err.message, 
+  stack: err.stack, 
+  email 
+});
+
+// Debug logging (only in development)
+logger.debug('Processing registration request', { email, timestamp: Date.now() });
+```
+
+## Error Handling with Logging
+
+Always log errors before handling them:
+```typescript
+try {
+  const result = await someOperation();
+  logger.info('Operation successful', { resultId: result.id });
+} catch (error) {
+  logger.error('Operation failed', {
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+    context: { userId, operation: 'someOperation' }
+  });
+  throw error;
+}
+```

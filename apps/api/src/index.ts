@@ -1,6 +1,12 @@
-import { createApp } from './app';
-import { env } from './config/env';
-import { logger } from './utils/logger';
+// Load environment variables from .env file before anything else
+// This ensures DATABASE_URL is available when Prisma Client is initialized
+import { config } from "dotenv";
+import { resolve } from "path";
+config({ path: resolve(__dirname, "../.env") });
+
+import { createApp } from "./app";
+import { env } from "./config/env";
+import { logger } from "./utils/logger";
 
 /**
  * Server entry point
@@ -18,7 +24,6 @@ async function startServer() {
 
 // Start the server
 startServer().catch((error) => {
-  logger.error('Failed to start server:', error);
+  logger.error("Failed to start server:", error);
   process.exit(1);
 });
-

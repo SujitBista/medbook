@@ -7,13 +7,18 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { createTestApp, createTestAgent } from "../__tests__/helpers";
 
 describe("corsMiddleware", () => {
-  const app = createTestApp();
-  const agent = createTestAgent(app);
+  let app: ReturnType<typeof createTestApp>;
+  let agent: ReturnType<typeof createTestAgent>;
 
   beforeEach(() => {
+    // Set environment variables before creating the app
     process.env.CORS_ORIGIN = "http://localhost:3000";
-    process.env.CORS_ALLOW_NO_ORIGIN = "false";
+    process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Default: allow no origin in tests
     process.env.CORS_ALLOW_NULL_ORIGIN = "false";
+
+    // Create fresh app instance after setting env vars
+    app = createTestApp();
+    agent = createTestAgent(app);
   });
 
   it("should allow request from whitelisted origin", async () => {
@@ -36,15 +41,11 @@ describe("corsMiddleware", () => {
     expect(response.body.error.code).toBe("CORS_ERROR");
   });
 
-  it("should handle request without origin header when CORS_ALLOW_NO_ORIGIN is false", async () => {
-    // Note: CORS_ALLOW_NO_ORIGIN is set to 'true' in test setup
-    // This test verifies the behavior when it's false
-    // Since env is loaded at module import, we test the actual behavior
-    // In test environment, CORS_ALLOW_NO_ORIGIN is true, so requests without origin are allowed
-    const response = await agent.get("/").expect(200); // In test env, no origin is allowed
+  it("should handle request without origin header when CORS_ALLOW_NO_ORIGIN is true", async () => {
+    // Test that requests without origin are allowed when CORS_ALLOW_NO_ORIGIN is true
+    const response = await agent.get("/").expect(200);
 
     expect(response.body).toBeDefined();
-    // The actual behavior: test setup allows no origin, so this passes
   });
 
   it("should normalize origin before checking", async () => {
@@ -66,5 +67,29 @@ describe("corsMiddleware", () => {
 
     // OPTIONS requests should return 204 No Content
     expect(response.headers["access-control-allow-origin"]).toBeDefined();
+  });
+
+  describe("when CORS_ALLOW_NO_ORIGIN is false", () => {
+    let appNoOrigin: ReturnType<typeof createTestApp>;
+    let agentNoOrigin: ReturnType<typeof createTestAgent>;
+
+    beforeEach(() => {
+      // Set CORS_ALLOW_NO_ORIGIN to false before creating app
+      process.env.CORS_ORIGIN = "http://localhost:3000";
+      process.env.CORS_ALLOW_NO_ORIGIN = "false";
+      process.env.CORS_ALLOW_NULL_ORIGIN = "false";
+
+      // Create fresh app instance with the new env config
+      appNoOrigin = createTestApp();
+      agentNoOrigin = createTestAgent(appNoOrigin);
+    });
+
+    it("should deny request without origin header", async () => {
+      const response = await agentNoOrigin.get("/").expect(403);
+
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toBeDefined();
+      expect(response.body.error.code).toBe("CORS_ERROR");
+    });
   });
 });

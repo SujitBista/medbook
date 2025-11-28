@@ -1,21 +1,52 @@
-import cors, { CorsOptions } from 'cors';
-import { Request, Response, NextFunction } from 'express';
-import { env, isDevelopment, normalizeOrigin } from '../config/env';
-import { logger } from '../utils/logger';
+import cors, { CorsOptions } from "cors";
+import { Request, Response, NextFunction } from "express";
+import { env, isDevelopment, normalizeOrigin } from "../config/env";
+import { logger } from "../utils/logger";
 
 /**
  * Creates a standardized CORS error response
  */
-function createCorsErrorResponse(message: string) {
-  return {
+function createCorsErrorResponse(
+  message: string,
+  receivedOrigin?: string | null
+) {
+  const response: {
+    success: false;
+    error: {
+      code: "CORS_ERROR";
+      message: string;
+      details?: string;
+    };
+  } = {
     success: false,
     error: {
-      code: 'CORS_ERROR',
-      message: 'Origin not allowed by CORS policy',
-      // Only expose details in development
-      ...(isDevelopment && { details: message }),
+      code: "CORS_ERROR",
+      message: "Origin not allowed by CORS policy",
     },
   };
+
+  // In development, provide helpful debugging information
+  if (isDevelopment) {
+    const details: string[] = [message];
+
+    if (receivedOrigin) {
+      details.push(`Received origin: ${receivedOrigin}`);
+    } else {
+      details.push("No Origin header was sent with the request");
+    }
+
+    details.push(`Allowed origins: ${env.corsOrigins.join(", ")}`);
+
+    if (!receivedOrigin) {
+      details.push(
+        "Tip: Set CORS_ALLOW_NO_ORIGIN=true in development to allow requests without Origin header"
+      );
+    }
+
+    response.error.details = details.join(". ");
+  }
+
+  return response;
 }
 
 /**
@@ -31,17 +62,17 @@ const corsOptions: CorsOptions = {
         return callback(null, true);
       }
       // Log and deny no-origin requests by default
-      logger.warn('CORS: Request denied - No origin header');
-      return callback(new Error('CORS: Origin header required'), false);
+      logger.warn("CORS: Request denied - No origin header");
+      return callback(new Error("CORS: Origin header required"), false);
     }
 
     // Handle explicit "null" origin (e.g., from file:// protocol)
-    if (origin === 'null') {
+    if (origin === "null") {
       if (env.corsAllowNullOrigin) {
         return callback(null, true);
       }
-      logger.warn('CORS: Request denied - Null origin not allowed');
-      return callback(new Error('CORS: Null origin not allowed'), false);
+      logger.warn("CORS: Request denied - Null origin not allowed");
+      return callback(new Error("CORS: Null origin not allowed"), false);
     }
 
     // Origins are already normalized in env.corsOrigins
@@ -56,18 +87,18 @@ const corsOptions: CorsOptions = {
     // Log denied origin (without exposing full origin in production)
     if (isDevelopment) {
       logger.warn(`CORS: Request denied - Origin "${origin}" not in whitelist`);
-      logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(', ')}`);
+      logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(", ")}`);
     } else {
-      logger.warn('CORS: Request denied - Origin not in whitelist');
+      logger.warn("CORS: Request denied - Origin not in whitelist");
     }
 
     // Return error that will be handled by error middleware
-    return callback(new Error('CORS: Origin not allowed'), false);
+    return callback(new Error("CORS: Origin not allowed"), false);
   },
   credentials: true, // Allow cookies and authorization headers
-  methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With"],
+  exposedHeaders: ["Content-Range", "X-Content-Range"],
   maxAge: 86400, // 24 hours
 };
 
@@ -81,27 +112,41 @@ export function corsMiddleware(
   res: Response,
   next: NextFunction
 ): void {
+  // Capture the origin header before passing to cors middleware
+  const receivedOrigin = req.headers.origin || null;
+
   cors(corsOptions)(req, res, (err) => {
     if (err) {
       // Log the CORS error
-      const isPreflight = req.method === 'OPTIONS';
+      const isPreflight = req.method === "OPTIONS";
       if (isPreflight) {
         logger.error(`CORS: Preflight request denied - ${err.message}`);
+        if (receivedOrigin) {
+          logger.debug(`CORS: Preflight origin: ${receivedOrigin}`);
+        }
       } else {
         logger.error(`CORS: Request denied - ${err.message}`);
+        if (receivedOrigin) {
+          logger.debug(`CORS: Request origin: ${receivedOrigin}`);
+        }
+      }
+
+      if (isDevelopment) {
+        logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(", ")}`);
       }
 
       // Return 403 Forbidden with proper error response
       // This works for both regular requests and OPTIONS preflight
-      res.status(403).json(createCorsErrorResponse(err.message));
+      res
+        .status(403)
+        .json(createCorsErrorResponse(err.message, receivedOrigin));
       return;
     }
 
     // For OPTIONS preflight requests, cors middleware sends the response
     // For regular requests, continue to next middleware
-    if (req.method !== 'OPTIONS') {
+    if (req.method !== "OPTIONS") {
       next();
     }
   });
 }
-

@@ -22,6 +22,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
         try {
           // Call backend API to validate credentials
+          // Note: This runs server-side (NextAuth API route), so no Origin header is sent
+          // The API must have CORS_ALLOW_NO_ORIGIN=true for server-to-server requests
           const response = await fetch(`${env.apiUrl}/auth/login`, {
             method: "POST",
             headers: {

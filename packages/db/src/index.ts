@@ -1,14 +1,23 @@
 import { PrismaClient } from "@prisma/client";
+import { config } from "dotenv";
+import { resolve } from "path";
+
+// Load environment variables from packages/db/.env
+// Prisma needs DATABASE_URL to be available when PrismaClient is instantiated
+config({ path: resolve(__dirname, "../.env") });
 
 // Create a singleton Prisma client instance
 const prisma = new PrismaClient({
-  log: process.env.NODE_ENV === "development" ? ["query", "error", "warn"] : ["error"],
+  log:
+    process.env.NODE_ENV === "development"
+      ? ["query", "error", "warn"]
+      : ["error"],
 });
 
 /**
  * Helper function to execute queries
  * Provides a consistent interface for database operations
- * 
+ *
  * @example
  * const user = await query((prisma) => prisma.user.findUnique({ where: { id } }));
  */
@@ -21,7 +30,7 @@ export async function query<T>(
 /**
  * Helper function to execute transactions
  * Ensures atomic operations across multiple database calls
- * 
+ *
  * @example
  * const result = await withTransaction(async (tx) => {
  *   const user = await tx.user.create({ data: {...} });
@@ -30,7 +39,12 @@ export async function query<T>(
  * });
  */
 export async function withTransaction<T>(
-  callback: (tx: Omit<PrismaClient, "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends">) => Promise<T>
+  callback: (
+    tx: Omit<
+      PrismaClient,
+      "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+    >
+  ) => Promise<T>
 ): Promise<T> {
   return prisma.$transaction(callback);
 }
@@ -50,4 +64,3 @@ export async function checkDatabaseHealth(): Promise<boolean> {
 
 export { prisma };
 export * from "@prisma/client";
-
