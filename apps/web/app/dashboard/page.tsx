@@ -36,19 +36,28 @@ export default function DashboardPage() {
     totalPages: 0,
   });
 
-  // Redirect to login if not authenticated
+  // Redirect based on role
   useEffect(() => {
     if (status === "unauthenticated") {
       router.push("/login?callbackUrl=/dashboard");
+    } else if (status === "authenticated" && session?.user?.role === "ADMIN") {
+      // Redirect admins to admin dashboard
+      router.push("/admin");
     }
-  }, [status, router]);
+  }, [status, session, router]);
 
-  // Fetch doctors
+  // Fetch doctors (for patients and doctors - admins are redirected)
   useEffect(() => {
-    if (status === "authenticated") {
+    if (
+      status === "authenticated" &&
+      (session?.user?.role === "PATIENT" || session?.user?.role === "DOCTOR")
+    ) {
       fetchDoctors();
+    } else if (status === "authenticated") {
+      // For admins, don't fetch doctors here (they're redirected)
+      setLoading(false);
     }
-  }, [status, pagination.page, searchTerm, specializationFilter]);
+  }, [status, session, pagination.page, searchTerm, specializationFilter]);
 
   const fetchDoctors = async () => {
     try {
@@ -121,6 +130,20 @@ export default function DashboardPage() {
     return null; // Will redirect via useEffect
   }
 
+  // Show loading or redirect message for admins (they're redirected)
+  if (status === "authenticated" && session?.user?.role === "ADMIN") {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+          <p className="mt-4 text-gray-600">
+            Redirecting to admin dashboard...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col">
       {/* Header */}
@@ -133,11 +156,20 @@ export default function DashboardPage() {
                 {session.user.email} ({session.user.role})
               </span>
             )}
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                Home
-              </Button>
-            </Link>
+            <div className="flex gap-2">
+              {session?.user?.role === "DOCTOR" && (
+                <Link href="/dashboard/doctor/availability">
+                  <Button variant="outline" size="sm">
+                    Manage Availability
+                  </Button>
+                </Link>
+              )}
+              <Link href="/">
+                <Button variant="outline" size="sm">
+                  Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
