@@ -13,7 +13,30 @@ export async function cleanupTestData(): Promise<void> {
   // Delete in reverse order of dependencies
   // Add more tables as they are created
   await query(async (prisma) => {
-    // Delete availabilities first (has foreign key to doctors)
+    // Delete appointments first (has foreign keys to users, doctors, availabilities)
+    await prisma.appointment.deleteMany({
+      where: {
+        OR: [
+          {
+            patient: {
+              email: {
+                startsWith: "test-",
+              },
+            },
+          },
+          {
+            doctor: {
+              user: {
+                email: {
+                  startsWith: "test-",
+                },
+              },
+            },
+          },
+        ],
+      },
+    });
+    // Delete availabilities (has foreign key to doctors)
     await prisma.availability.deleteMany({
       where: {
         doctor: {
@@ -231,5 +254,93 @@ export async function createTestAvailability(overrides?: {
     validTo: availability.validTo ?? undefined,
     createdAt: availability.createdAt,
     updatedAt: availability.updatedAt,
+  };
+}
+
+/**
+ * Creates a test appointment in the database
+ * Note: The patient and doctor must exist
+ */
+export async function createTestAppointment(overrides?: {
+  patientId?: string;
+  doctorId?: string;
+  availabilityId?: string;
+  startTime?: Date;
+  endTime?: Date;
+  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  notes?: string;
+}) {
+  let patient;
+  let doctor;
+
+  if (overrides?.patientId) {
+    patient = await query(async (prisma) =>
+      prisma.user.findUnique({
+        where: { id: overrides.patientId },
+      })
+    );
+
+    if (!patient) {
+      throw new Error(`Patient with ID ${overrides.patientId} not found`);
+    }
+  } else {
+    patient = await createTestUser({ role: "PATIENT" });
+  }
+
+  if (overrides?.doctorId) {
+    doctor = await query(async (prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: overrides.doctorId },
+      })
+    );
+
+    if (!doctor) {
+      throw new Error(`Doctor with ID ${overrides.doctorId} not found`);
+    }
+  } else {
+    const testDoctor = await createTestDoctor();
+    doctor = await query(async (prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: testDoctor.id },
+      })
+    );
+  }
+
+  if (!doctor) {
+    throw new Error("Failed to get or create doctor");
+  }
+
+  // Default to a time slot 1 hour from now, 1 hour long
+  const now = new Date();
+  const defaultStartTime =
+    overrides?.startTime || new Date(now.getTime() + 60 * 60 * 1000);
+  const defaultEndTime =
+    overrides?.endTime || new Date(defaultStartTime.getTime() + 60 * 60 * 1000);
+
+  const appointment = await query(async (prisma) =>
+    prisma.appointment.create({
+      data: {
+        patientId: patient.id,
+        doctorId: doctor.id,
+        availabilityId: overrides?.availabilityId ?? null,
+        startTime: defaultStartTime,
+        endTime: defaultEndTime,
+        status: overrides?.status || "PENDING",
+        notes: overrides?.notes ?? null,
+      },
+    })
+  );
+
+  return {
+    id: appointment.id,
+    patientId: appointment.patientId,
+    doctorId: appointment.doctorId,
+    availabilityId: appointment.availabilityId ?? undefined,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    status: appointment.status,
+    notes: appointment.notes ?? undefined,
+    createdAt: appointment.createdAt,
+    updatedAt: appointment.updatedAt,
   };
 }

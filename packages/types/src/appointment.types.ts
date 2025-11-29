@@ -1,20 +1,22 @@
 /**
  * Appointment-related types
- * These will be expanded when Appointment model is added to the database
+ * Represents patient appointments with doctors
  */
 
 export enum AppointmentStatus {
-  PENDING = 'PENDING',
-  CONFIRMED = 'CONFIRMED',
-  CANCELLED = 'CANCELLED',
-  COMPLETED = 'COMPLETED',
+  PENDING = "PENDING",
+  CONFIRMED = "CONFIRMED",
+  CANCELLED = "CANCELLED",
+  COMPLETED = "COMPLETED",
 }
 
 export interface Appointment {
   id: string;
   patientId: string;
   doctorId: string;
-  appointmentDate: Date;
+  availabilityId?: string; // Optional: link to specific availability slot
+  startTime: Date;
+  endTime: Date;
   status: AppointmentStatus;
   notes?: string;
   createdAt: Date;
@@ -24,14 +26,15 @@ export interface Appointment {
 export interface CreateAppointmentInput {
   patientId: string;
   doctorId: string;
-  appointmentDate: Date;
+  availabilityId?: string; // Optional: link to specific availability slot
+  startTime: Date;
+  endTime: Date;
   notes?: string;
 }
 
 export interface UpdateAppointmentInput {
-  appointmentDate?: Date;
+  startTime?: Date;
+  endTime?: Date;
   status?: AppointmentStatus;
   notes?: string;
 }
-
-

@@ -21,6 +21,7 @@ model User {
 
   // Relations
   doctor Doctor?
+  patientAppointments Appointment[] @relation("PatientAppointments")
 
   @@map("users")
 }
@@ -36,6 +37,7 @@ model Doctor {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   availabilities Availability[]
+  appointments Appointment[]
 
   @@map("doctors")
 }
@@ -54,6 +56,7 @@ model Availability {
 
   // Relations
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  appointments Appointment[]
 
   @@index([doctorId])
   @@index([startTime])
@@ -61,9 +64,41 @@ model Availability {
   @@map("availabilities")
 }
 
+model Appointment {
+  id            String            @id @default(uuid())
+  patientId     String
+  doctorId      String
+  availabilityId String?           // Optional: link to specific availability slot
+  startTime     DateTime
+  endTime       DateTime
+  status        AppointmentStatus  @default(PENDING)
+  notes         String?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  // Relations
+  patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  availability Availability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@map("appointments")
+}
+
 enum UserRole {
   PATIENT
   DOCTOR
   ADMIN
+}
+
+enum AppointmentStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
 }
 
