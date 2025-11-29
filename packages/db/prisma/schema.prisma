@@ -35,8 +35,30 @@ model Doctor {
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  availabilities Availability[]
 
   @@map("doctors")
+}
+
+model Availability {
+  id            String   @id @default(uuid())
+  doctorId      String
+  startTime     DateTime
+  endTime       DateTime
+  dayOfWeek     Int?     // 0-6 (Sunday-Saturday), null for one-time slots
+  isRecurring   Boolean  @default(false)
+  validFrom     DateTime? // Start date for recurring schedules
+  validTo       DateTime? // End date for recurring schedules
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([startTime])
+  @@index([endTime])
+  @@map("availabilities")
 }
 
 enum UserRole {

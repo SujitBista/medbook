@@ -13,7 +13,19 @@ export async function cleanupTestData(): Promise<void> {
   // Delete in reverse order of dependencies
   // Add more tables as they are created
   await query(async (prisma) => {
-    // Delete doctors first (has foreign key to users)
+    // Delete availabilities first (has foreign key to doctors)
+    await prisma.availability.deleteMany({
+      where: {
+        doctor: {
+          user: {
+            email: {
+              startsWith: "test-",
+            },
+          },
+        },
+      },
+    });
+    // Delete doctors (has foreign key to users)
     await prisma.doctor.deleteMany({
       where: {
         user: {
@@ -144,5 +156,80 @@ export async function createTestDoctor(overrides?: {
       email: doctor.user.email,
       role: doctor.user.role,
     },
+  };
+}
+
+/**
+ * Creates a test availability in the database
+ * Note: The doctor must exist
+ */
+export async function createTestAvailability(overrides?: {
+  doctorId?: string;
+  startTime?: Date;
+  endTime?: Date;
+  dayOfWeek?: number;
+  isRecurring?: boolean;
+  validFrom?: Date;
+  validTo?: Date;
+}) {
+  let doctor;
+
+  if (overrides?.doctorId) {
+    // Use existing doctor
+    doctor = await query(async (prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: overrides.doctorId },
+      })
+    );
+
+    if (!doctor) {
+      throw new Error(`Doctor with ID ${overrides.doctorId} not found`);
+    }
+  } else {
+    // Create a new doctor
+    const testDoctor = await createTestDoctor();
+    doctor = await query(async (prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: testDoctor.id },
+      })
+    );
+  }
+
+  if (!doctor) {
+    throw new Error("Failed to get or create doctor");
+  }
+
+  // Default to a time slot 1 hour from now, 1 hour long
+  const now = new Date();
+  const defaultStartTime =
+    overrides?.startTime || new Date(now.getTime() + 60 * 60 * 1000);
+  const defaultEndTime =
+    overrides?.endTime || new Date(defaultStartTime.getTime() + 60 * 60 * 1000);
+
+  const availability = await query(async (prisma) =>
+    prisma.availability.create({
+      data: {
+        doctorId: doctor.id,
+        startTime: defaultStartTime,
+        endTime: defaultEndTime,
+        dayOfWeek: overrides?.dayOfWeek ?? null,
+        isRecurring: overrides?.isRecurring ?? false,
+        validFrom: overrides?.validFrom ?? null,
+        validTo: overrides?.validTo ?? null,
+      },
+    })
+  );
+
+  return {
+    id: availability.id,
+    doctorId: availability.doctorId,
+    startTime: availability.startTime,
+    endTime: availability.endTime,
+    dayOfWeek: availability.dayOfWeek ?? undefined,
+    isRecurring: availability.isRecurring,
+    validFrom: availability.validFrom ?? undefined,
+    validTo: availability.validTo ?? undefined,
+    createdAt: availability.createdAt,
+    updatedAt: availability.updatedAt,
   };
 }
