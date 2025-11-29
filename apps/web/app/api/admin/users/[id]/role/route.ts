@@ -17,9 +17,10 @@ function generateBackendToken(userId: string, role: string): string {
  */
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -49,17 +50,14 @@ export async function PUT(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(
-      `${env.apiUrl}/admin/users/${params.id}/role`,
-      {
-        method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      }
-    );
+    const response = await fetch(`${env.apiUrl}/admin/users/${id}/role`, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
 
     const data = await response.json();
 

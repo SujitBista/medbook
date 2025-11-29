@@ -17,9 +17,10 @@ function generateBackendToken(userId: string, role: string): string {
  */
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -47,7 +48,7 @@ export async function GET(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/users/${params.id}`, {
+    const response = await fetch(`${env.apiUrl}/admin/users/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -79,9 +80,10 @@ export async function GET(
  */
 export async function DELETE(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -109,7 +111,7 @@ export async function DELETE(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/users/${params.id}`, {
+    const response = await fetch(`${env.apiUrl}/admin/users/${id}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${token}`,
