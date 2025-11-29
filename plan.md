@@ -284,6 +284,14 @@ After each task typecheck, lint, build and commit
 
 **Test immediately after each feature implementation.** Write tests for each feature before moving to the next one. This ensures features are validated as they're built and prevents accumulation of untested code.
 
+### Development Pattern
+
+**Follow iterative development: Backend → Frontend → Test → Next Feature**
+
+- After creating backend endpoints, immediately build the corresponding frontend UI
+- Test the complete feature end-to-end before moving to the next feature
+- This allows immediate validation and ensures features work together from the start
+
 ### Tasks
 
 #### 4.0 Admin Doctor Management (PRIORITY)
@@ -381,7 +389,7 @@ After each task typecheck, lint, build and commit
   - [ ] Component tests for doctor UI components (pending - will be done when UI is built)
   - [x] Test doctor search/filter functionality
 
-#### 4.2 Doctor Availability/Schedule ✅ COMPLETE
+#### 4.2 Doctor Availability/Schedule (Backend) ✅ COMPLETE
 
 - [x] Create Availability/Schedule model in Prisma
 - [x] Create API endpoints for managing availability
@@ -392,10 +400,26 @@ After each task typecheck, lint, build and commit
 - [x] **Testing**: Write tests for availability management
   - [x] Unit tests for availability service functions (included in integration tests)
   - [x] Integration tests for availability API endpoints (24 comprehensive tests passing)
-  - [ ] Component tests for availability UI components (pending - will be done when UI is built)
   - [x] Test availability validation (overlaps, conflicts)
 
-#### 4.3 Appointment System
+#### 4.2.1 Availability Management UI (Frontend)
+
+**Goal**: Allow doctors to manage their availability immediately after backend is ready. Test end-to-end.
+
+- [ ] Create doctor availability management page (`/dashboard/doctor/availability`)
+- [ ] Add availability creation form (one-time and recurring slots)
+- [ ] Display list of existing availability slots
+- [ ] Add edit availability functionality
+- [ ] Add delete availability functionality
+- [ ] Implement date range filtering for availability view
+- [ ] Add validation feedback (overlaps, invalid times)
+- [ ] **Testing**: Write tests for availability management UI
+  - [ ] Component tests for availability management components
+  - [ ] Integration tests for availability CRUD operations
+  - [ ] E2E test for doctor setting availability flow
+  - [ ] Test validation and error handling in UI
+
+#### 4.3 Appointment System (Backend)
 
 - [ ] Create Appointment model in Prisma schema
 - [ ] Add relationships (Patient, Doctor, Availability)
@@ -407,10 +431,25 @@ After each task typecheck, lint, build and commit
 - [ ] **Testing**: Write tests for appointment system
   - [ ] Unit tests for appointment service functions
   - [ ] Integration tests for appointment API endpoints
-  - [ ] Component tests for appointment UI components
   - [ ] Test appointment validation (conflicts, availability checks)
 
-#### 4.4 Appointment Management
+#### 4.3.1 Appointment Booking UI (Frontend)
+
+**Goal**: Allow patients to book appointments immediately after backend is ready. Test end-to-end.
+
+- [ ] Create doctor detail page (`/doctors/[id]`) with availability display
+- [ ] Implement time slot selection UI (show available slots from doctor's availability)
+- [ ] Create booking form/modal for appointment creation
+- [ ] Add appointment confirmation page
+- [ ] Display booking success/error messages
+- [ ] Add validation for booking (time conflicts, availability checks)
+- [ ] **Testing**: Write tests for appointment booking UI
+  - [ ] Component tests for booking components
+  - [ ] Integration tests for booking flow
+  - [ ] E2E test for complete booking journey
+  - [ ] Test time slot selection and validation
+
+#### 4.4 Appointment Management (Backend)
 
 - [ ] Create appointment cancellation API endpoint
 - [ ] Create appointment rescheduling API endpoint
@@ -420,58 +459,92 @@ After each task typecheck, lint, build and commit
 - [ ] **Testing**: Write tests for appointment management
   - [ ] Unit tests for cancellation/rescheduling logic
   - [ ] Integration tests for cancellation/rescheduling endpoints
-  - [ ] Component tests for appointment management UI
   - [ ] Test cancellation rules and time limits
 
-#### 4.5 Patient Dashboard
+#### 4.4.1 Appointment Management UI (Frontend)
+
+**Goal**: Allow users to manage appointments immediately after backend is ready. Test end-to-end.
+
+- [ ] Create appointment detail page (`/appointments/[id]`)
+- [ ] Add appointment cancellation UI (with validation for time limits)
+- [ ] Add appointment rescheduling UI (with availability selection)
+- [ ] Implement appointment status updates (for doctors)
+- [ ] Add appointment history view with filtering
+- [ ] Display appointment information (patient, doctor, time, status)
+- [ ] **Testing**: Write tests for appointment management UI
+  - [ ] Component tests for appointment management components
+  - [ ] Integration tests for cancellation/rescheduling flows
+  - [ ] E2E test for appointment management workflow
+  - [ ] Test cancellation rules and time limits in UI
+
+#### 4.5 Patient Dashboard (Consolidation)
+
+**Goal**: Consolidate patient-facing features into a unified dashboard.
 
 - [ ] Create patient dashboard page (`/dashboard/patient`)
-- [ ] Display upcoming appointments
-- [ ] Show appointment history
-- [ ] Add "Book Appointment" functionality
+- [ ] Display upcoming appointments (using appointment listing endpoint)
+- [ ] Show appointment history with filtering
+- [ ] Add quick "Book Appointment" button/link
 - [ ] Implement appointment filtering and search
-- [ ] Add appointment detail view
+- [ ] Link to appointment detail pages
+- [ ] Add navigation to doctor listing page
 - [ ] **Testing**: Write tests for patient dashboard
   - [ ] Component tests for dashboard page
   - [ ] Integration tests for appointment listing/filtering
-  - [ ] E2E test for patient booking flow
+  - [ ] E2E test for patient dashboard navigation
 
-#### 4.6 Doctor Dashboard
+#### 4.6 Doctor Dashboard (Consolidation)
+
+**Goal**: Consolidate doctor-facing features into a unified dashboard.
 
 - [ ] Create doctor dashboard page (`/dashboard/doctor`)
-- [ ] Display upcoming appointments
+- [ ] Display upcoming appointments (using appointment listing endpoint)
 - [ ] Show appointment history
-- [ ] Add availability management UI
-- [ ] Implement appointment status updates
+- [ ] Add quick link to availability management (from 4.2.1)
+- [ ] Implement appointment status updates (from 4.4.1)
 - [ ] Add patient information view
+- [ ] Add navigation to manage availability
 - [ ] **Testing**: Write tests for doctor dashboard
   - [ ] Component tests for dashboard page
-  - [ ] Integration tests for appointment management
+  - [ ] Integration tests for dashboard navigation
   - [ ] E2E test for doctor workflow
 
-#### 4.7 Booking UI Components
+#### 4.7 Public Doctor Listing (Enhancement)
 
-- [ ] Create doctor listing page (`/doctors`)
-- [ ] Create doctor detail page (`/doctors/[id]`)
-- [ ] Create booking form/modal
-- [ ] Implement time slot selection UI
-- [ ] Add appointment confirmation page
-- [ ] Create appointment detail page
-- [ ] **Testing**: Write tests for booking UI
-  - [ ] Component tests for all booking components
-  - [ ] Integration tests for booking flow
-  - [ ] E2E test for complete booking journey
+**Goal**: Enhance public-facing doctor browsing experience.
+
+- [ ] Enhance doctor listing page (`/doctors`) with better UI
+- [ ] Add doctor search and filtering UI (backend already exists)
+- [ ] Link to doctor detail pages (from 4.3.1)
+- [ ] Add availability preview on doctor cards (if available)
+- [ ] **Testing**: Write tests for doctor listing
+  - [ ] Component tests for doctor listing page
+  - [ ] Integration tests for search/filter functionality
+  - [ ] E2E test for doctor browsing flow
 
 **Deliverables:**
 
 - ✅ Admin can register doctors and manage doctor profiles (Task 4.0 - PRIORITY)
+- ✅ Doctors can set their availability (4.2 + 4.2.1)
 - Doctors can register and manage their profiles (self-service)
-- Doctors can set their availability
-- Patients can browse doctors and book appointments
-- Both patients and doctors have functional dashboards
-- Appointment management (view, cancel, reschedule) working
+- Patients can browse doctors and book appointments (4.3 + 4.3.1)
+- Both patients and doctors have functional dashboards (4.5 + 4.6)
+- Appointment management (view, cancel, reschedule) working (4.4 + 4.4.1)
 
-**Estimated Time:** 6-9 days (includes 1-2 days for Task 4.0)
+**Development Flow:**
+
+1. **4.2** (Backend) → **4.2.1** (Frontend) → Test → ✅ Complete
+2. **4.3** (Backend) → **4.3.1** (Frontend) → Test → ✅ Complete
+3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ✅ Complete
+4. **4.5** (Consolidate Patient Dashboard) → Test → ✅ Complete
+5. **4.6** (Consolidate Doctor Dashboard) → Test → ✅ Complete
+6. **4.7** (Enhance Public Listing) → Test → ✅ Complete
+
+**Estimated Time:** 8-12 days (includes 1-2 days for Task 4.0)
+
+- Each backend + frontend pair: ~1.5-2 days
+- Dashboard consolidation: ~1 day each
+- Public listing enhancement: ~0.5 day
 
 ---
 
