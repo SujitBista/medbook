@@ -14,6 +14,14 @@ import {
   UpdateUserRoleInput,
   CreateDoctorUserInput,
 } from "../services/admin.service";
+import {
+  getAllDoctors,
+  getDoctorById,
+  updateDoctor,
+  deleteDoctor,
+  getDoctorStats,
+} from "../services/doctor.service";
+import { UpdateDoctorInput } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
 import { UserRole } from "@medbook/types";
@@ -235,6 +243,176 @@ export async function registerDoctor(
       success: true,
       user: result.user,
       doctor: result.doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get all doctors (admin only)
+ * GET /api/v1/admin/doctors
+ */
+export async function listDoctors(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const page = req.query.page ? parseInt(req.query.page as string, 10) : 1;
+    const limit = req.query.limit
+      ? parseInt(req.query.limit as string, 10)
+      : 100; // Admin can see more doctors at once
+    const search = req.query.search as string | undefined;
+    const specialization = req.query.specialization as string | undefined;
+
+    // Validate pagination parameters
+    if (page < 1) {
+      const error = createValidationError("Page must be greater than 0");
+      next(error);
+      return;
+    }
+
+    if (limit < 1 || limit > 1000) {
+      const error = createValidationError("Limit must be between 1 and 1000");
+      next(error);
+      return;
+    }
+
+    const result = await getAllDoctors({
+      page,
+      limit,
+      search,
+      specialization,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: result.doctors,
+      pagination: result.pagination,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get doctor by ID (admin only)
+ * GET /api/v1/admin/doctors/:id
+ */
+export async function getDoctor(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    const doctor = await getDoctorById(id);
+
+    res.status(200).json({
+      success: true,
+      doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update doctor profile (admin only)
+ * PUT /api/v1/admin/doctors/:id
+ */
+export async function updateDoctorProfile(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { specialization, bio } = req.body;
+
+    if (!id) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    // Validate that at least one field is provided
+    if (specialization === undefined && bio === undefined) {
+      const error = createValidationError(
+        "At least one field must be provided"
+      );
+      next(error);
+      return;
+    }
+
+    const input: UpdateDoctorInput = {
+      ...(specialization !== undefined && { specialization }),
+      ...(bio !== undefined && { bio }),
+    };
+
+    const doctor = await updateDoctor(id, input);
+
+    res.status(200).json({
+      success: true,
+      doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete doctor (admin only)
+ * DELETE /api/v1/admin/doctors/:id
+ */
+export async function removeDoctor(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    await deleteDoctor(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Doctor deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get doctor statistics (admin only)
+ * GET /api/v1/admin/doctors/stats
+ */
+export async function getDoctorStatistics(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const stats = await getDoctorStats();
+
+    res.status(200).json({
+      success: true,
+      stats,
     });
   } catch (error) {
     next(error);

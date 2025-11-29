@@ -12,11 +12,15 @@ function generateBackendToken(userId: string, role: string): string {
 }
 
 /**
- * GET /api/admin/doctors
- * Get all doctors with pagination and search (admin only)
+ * GET /api/admin/doctors/[id]
+ * Get doctor by ID (admin only)
  */
-export async function GET(req: NextRequest) {
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -40,28 +44,11 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Get query parameters
-    const { searchParams } = new URL(req.url);
-    const page = searchParams.get("page");
-    const limit = searchParams.get("limit");
-    const search = searchParams.get("search");
-    const specialization = searchParams.get("specialization");
-
-    // Build query string
-    const queryParams = new URLSearchParams();
-    if (page) queryParams.append("page", page);
-    if (limit) queryParams.append("limit", limit);
-    if (search) queryParams.append("search", search);
-    if (specialization) queryParams.append("specialization", specialization);
-
-    const queryString = queryParams.toString();
-    const url = `${env.apiUrl}/admin/doctors${queryString ? `?${queryString}` : ""}`;
-
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(url, {
+    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -76,7 +63,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[AdminDoctors] Error fetching doctors:", error);
+    console.error("[AdminDoctors] Error fetching doctor:", error);
     return NextResponse.json(
       {
         success: false,
@@ -88,11 +75,15 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/admin/doctors
- * Register a new doctor user (admin only)
+ * PUT /api/admin/doctors/[id]
+ * Update doctor profile (admin only)
  */
-export async function POST(req: NextRequest) {
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
+    const { id } = await params;
     const session = await auth();
 
     if (!session?.user?.id) {
@@ -122,8 +113,8 @@ export async function POST(req: NextRequest) {
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/doctors`, {
-      method: "POST",
+    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
+      method: "PUT",
       headers: {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
@@ -139,7 +130,71 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[AdminDoctorRegistration] Error registering doctor:", error);
+    console.error("[AdminDoctors] Error updating doctor:", error);
+    return NextResponse.json(
+      {
+        success: false,
+        error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+      },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/admin/doctors/[id]
+ * Delete doctor (admin only)
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const session = await auth();
+
+    if (!session?.user?.id) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: "UNAUTHORIZED", message: "Not authenticated" },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Check if user is admin
+    if (session.user.role !== "ADMIN") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: { code: "FORBIDDEN", message: "Admin access required" },
+        },
+        { status: 403 }
+      );
+    }
+
+    // Generate token for backend API
+    const token = generateBackendToken(session.user.id, session.user.role);
+
+    // Call backend API
+    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
+      method: "DELETE",
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
+    }
+
+    return NextResponse.json(data);
+  } catch (error) {
+    console.error("[AdminDoctors] Error deleting doctor:", error);
     return NextResponse.json(
       {
         success: false,

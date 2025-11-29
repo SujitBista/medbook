@@ -328,3 +328,84 @@ export async function updateDoctor(
     throw error;
   }
 }
+
+/**
+ * Deletes a doctor profile and associated user (admin only)
+ * @param doctorId Doctor ID
+ * @throws AppError if doctor not found
+ */
+export async function deleteDoctor(doctorId: string): Promise<void> {
+  // Check if doctor exists
+  const existingDoctor = await query((prisma) =>
+    prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: {
+        id: true,
+        userId: true,
+      },
+    })
+  );
+
+  if (!existingDoctor) {
+    throw createNotFoundError("Doctor not found");
+  }
+
+  try {
+    // Delete doctor profile (cascade will handle user deletion if configured)
+    // Or delete user which will cascade delete doctor profile
+    await query((prisma) =>
+      prisma.user.delete({
+        where: { id: existingDoctor.userId },
+      })
+    );
+
+    logger.info("Doctor deleted by admin", {
+      doctorId,
+      userId: existingDoctor.userId,
+    });
+  } catch (error: unknown) {
+    // Handle Prisma not found error (P2025)
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2025"
+    ) {
+      throw createNotFoundError("Doctor not found");
+    }
+    throw error;
+  }
+}
+
+/**
+ * Gets doctor statistics
+ * @returns Doctor statistics
+ */
+export interface DoctorStats {
+  totalDoctors: number;
+  doctorsBySpecialization: Record<string, number>;
+}
+
+export async function getDoctorStats(): Promise<DoctorStats> {
+  const doctors = await query((prisma) =>
+    prisma.doctor.findMany({
+      select: {
+        specialization: true,
+      },
+    })
+  );
+
+  const totalDoctors = doctors.length;
+  const doctorsBySpecialization: Record<string, number> = {};
+
+  doctors.forEach((doctor) => {
+    const specialization = doctor.specialization || "Unspecified";
+    doctorsBySpecialization[specialization] =
+      (doctorsBySpecialization[specialization] || 0) + 1;
+  });
+
+  return {
+    totalDoctors,
+    doctorsBySpecialization,
+  };
+}

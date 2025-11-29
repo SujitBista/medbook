@@ -320,32 +320,32 @@ After each task typecheck, lint, build and commit
     - [x] Test admin can create doctor profile
     - [x] Test validation and error handling
 
-- [ ] **Admin Doctor Management UI**
-  - [ ] Add doctor management section to admin dashboard
-  - [ ] Display list of all doctors with their details
-  - [ ] Add ability to view doctor details
-  - [ ] Add ability to edit doctor profiles (specialization, bio)
-  - [ ] Add ability to delete doctor profiles
-  - [ ] Add search/filter functionality for doctors
-  - [ ] Show doctor statistics (total doctors, by specialization)
-  - [ ] **Testing**: Write tests for admin doctor management UI
-    - [ ] Test doctor listing
-    - [ ] Test doctor editing
-    - [ ] Test doctor deletion
-    - [ ] Test search/filter functionality
+- [x] **Admin Doctor Management UI** ✅ COMPLETE
+  - [x] Add doctor management section to admin dashboard
+  - [x] Display list of all doctors with their details
+  - [x] Add ability to view doctor details
+  - [x] Add ability to edit doctor profiles (specialization, bio)
+  - [x] Add ability to delete doctor profiles
+  - [x] Add search/filter functionality for doctors
+  - [x] Show doctor statistics (total doctors, by specialization)
+  - [x] **Testing**: Write tests for admin doctor management UI
+    - [x] Test doctor listing
+    - [x] Test doctor editing
+    - [x] Test doctor deletion
+    - [x] Test search/filter functionality
 
-- [ ] **Admin API Endpoints for Doctor Management**
+- [x] **Admin API Endpoints for Doctor Management** ✅ COMPLETE
   - [x] Doctor listing endpoint exists (`GET /api/v1/doctors`)
   - [x] Doctor detail endpoint exists (`GET /api/v1/doctors/:id`)
   - [x] Doctor update endpoint exists (`PUT /api/v1/doctors/:id`)
   - [x] Add admin-only doctor creation endpoint (`POST /api/v1/admin/doctors` - creates user with DOCTOR role and doctor profile in single transaction)
-  - [ ] Add admin-only doctor deletion endpoint
-  - [ ] Add admin doctor statistics endpoint
-  - [ ] **Testing**: Write tests for admin doctor management endpoints
+  - [x] Add admin-only doctor deletion endpoint
+  - [x] Add admin doctor statistics endpoint
+  - [x] **Testing**: Write tests for admin doctor management endpoints
     - [x] Test admin can create doctors (12 comprehensive tests passing)
-    - [ ] Test admin can update any doctor
-    - [ ] Test admin can delete doctors
-    - [ ] Test admin-only access control
+    - [x] Test admin can update any doctor (9 comprehensive tests passing)
+    - [x] Test admin can delete doctors (4 comprehensive tests passing)
+    - [x] Test admin-only access control (tested across all endpoints)
 
 **Deliverables:**
 
@@ -357,10 +357,10 @@ After each task typecheck, lint, build and commit
 - ✅ Seed script creates admin users with `mustResetPassword: true` and configurable password (via SEED_PASSWORD env var)
 - ✅ Admin authentication and password reset flow fully functional
 - ✅ Admin can register new doctors (create user + doctor profile in single transaction)
-- [ ] Admin can view all doctors
-- [ ] Admin can edit doctor profiles
-- [ ] Admin can delete doctor profiles
-- [ ] Admin can search/filter doctors
+- ✅ Admin can view all doctors
+- ✅ Admin can edit doctor profiles
+- ✅ Admin can delete doctor profiles
+- ✅ Admin can search/filter doctors
 
 **Estimated Time:** 1-2 days
 

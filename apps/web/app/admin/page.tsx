@@ -22,6 +22,21 @@ interface SystemStats {
   };
 }
 
+interface Doctor {
+  id: string;
+  userId: string;
+  specialization?: string;
+  bio?: string;
+  createdAt: string;
+  updatedAt: string;
+  userEmail?: string;
+}
+
+interface DoctorStats {
+  totalDoctors: number;
+  doctorsBySpecialization: Record<string, number>;
+}
+
 function AdminDashboardContent() {
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
@@ -42,10 +57,36 @@ function AdminDashboardContent() {
   >({});
   const [doctorFormLoading, setDoctorFormLoading] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  // Doctor management state
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [doctorStats, setDoctorStats] = useState<DoctorStats | null>(null);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [specializationFilter, setSpecializationFilter] = useState("");
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const [editDoctorData, setEditDoctorData] = useState({
+    specialization: "",
+    bio: "",
+  });
+  const [editDoctorLoading, setEditDoctorLoading] = useState(false);
+  const [editDoctorErrors, setEditDoctorErrors] = useState<
+    Record<string, string>
+  >({});
 
   useEffect(() => {
     fetchData();
+    fetchDoctors();
+    fetchDoctorStats();
   }, []);
+
+  useEffect(() => {
+    // Debounce search
+    const timer = setTimeout(() => {
+      fetchDoctors();
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery, specializationFilter]);
 
   const fetchData = async () => {
     try {
@@ -225,6 +266,8 @@ function AdminDashboardContent() {
 
       // Refresh data
       await fetchData();
+      await fetchDoctors();
+      await fetchDoctorStats();
 
       // Clear success message after 5 seconds
       setTimeout(() => {
@@ -237,6 +280,148 @@ function AdminDashboardContent() {
       );
     } finally {
       setDoctorFormLoading(false);
+    }
+  };
+
+  const fetchDoctors = async () => {
+    try {
+      setDoctorsLoading(true);
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.append("search", searchQuery);
+      if (specializationFilter)
+        queryParams.append("specialization", specializationFilter);
+      queryParams.append("limit", "100"); // Get more doctors for admin view
+
+      const response = await fetch(
+        `/api/admin/doctors?${queryParams.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch doctors");
+      }
+
+      const data = await response.json();
+      setDoctors(data.data || []);
+    } catch (err) {
+      console.error("[AdminDashboard] Error fetching doctors:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch doctors");
+    } finally {
+      setDoctorsLoading(false);
+    }
+  };
+
+  const fetchDoctorStats = async () => {
+    try {
+      const response = await fetch("/api/admin/doctors/stats", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch doctor stats");
+      }
+
+      const data = await response.json();
+      setDoctorStats(data.stats || null);
+    } catch (err) {
+      console.error("[AdminDashboard] Error fetching doctor stats:", err);
+      // Don't set error for stats, just log it
+    }
+  };
+
+  const handleEditDoctor = (doctor: Doctor) => {
+    setSelectedDoctor(doctor);
+    setEditDoctorData({
+      specialization: doctor.specialization || "",
+      bio: doctor.bio || "",
+    });
+    setEditDoctorErrors({});
+  };
+
+  const handleUpdateDoctor = async () => {
+    if (!selectedDoctor) return;
+
+    setEditDoctorLoading(true);
+    setEditDoctorErrors({});
+    setError(null);
+
+    try {
+      const response = await fetch(`/api/admin/doctors/${selectedDoctor.id}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          specialization: editDoctorData.specialization || undefined,
+          bio: editDoctorData.bio || undefined,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.error?.details?.errors) {
+          setEditDoctorErrors(data.error.details.errors);
+          throw new Error(data.error.message || "Validation failed");
+        }
+        throw new Error(data.error?.message || "Failed to update doctor");
+      }
+
+      setSuccessMessage("Doctor updated successfully!");
+      setSelectedDoctor(null);
+      await fetchDoctors();
+      await fetchDoctorStats();
+
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (err) {
+      console.error("[AdminDashboard] Error updating doctor:", err);
+      setError(err instanceof Error ? err.message : "Failed to update doctor");
+    } finally {
+      setEditDoctorLoading(false);
+    }
+  };
+
+  const handleDeleteDoctor = async (doctorId: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this doctor? This will also delete their user account."
+      )
+    ) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`/api/admin/doctors/${doctorId}`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || "Failed to delete doctor");
+      }
+
+      setSuccessMessage("Doctor deleted successfully!");
+      await fetchDoctors();
+      await fetchDoctorStats();
+      await fetchData(); // Refresh user stats
+
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 5000);
+    } catch (err) {
+      console.error("[AdminDashboard] Error deleting doctor:", err);
+      setError(err instanceof Error ? err.message : "Failed to delete doctor");
     }
   };
 
@@ -463,6 +648,165 @@ function AdminDashboardContent() {
         )}
       </div>
 
+      {/* Doctor Management Section */}
+      <div className="mb-8 rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Doctor Management
+          </h2>
+        </div>
+
+        {/* Doctor Statistics */}
+        {doctorStats && (
+          <div className="border-b border-gray-200 px-6 py-4">
+            <div className="mb-4">
+              <h3 className="text-sm font-medium text-gray-500">
+                Total Doctors:{" "}
+                <span className="text-lg font-bold text-green-600">
+                  {doctorStats.totalDoctors}
+                </span>
+              </h3>
+            </div>
+            {Object.keys(doctorStats.doctorsBySpecialization).length > 0 && (
+              <div>
+                <h4 className="mb-2 text-sm font-medium text-gray-700">
+                  By Specialization:
+                </h4>
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(doctorStats.doctorsBySpecialization).map(
+                    ([specialization, count]) => (
+                      <span
+                        key={specialization}
+                        className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-800"
+                      >
+                        {specialization}: {count}
+                      </span>
+                    )
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Search and Filter */}
+        <div className="border-b border-gray-200 px-6 py-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="doctor-search"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Search Doctors
+              </label>
+              <input
+                type="text"
+                id="doctor-search"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search by email..."
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="specialization-filter"
+                className="block text-sm font-medium text-gray-700"
+              >
+                Filter by Specialization
+              </label>
+              <input
+                type="text"
+                id="specialization-filter"
+                value={specializationFilter}
+                onChange={(e) => setSpecializationFilter(e.target.value)}
+                placeholder="e.g., Cardiology"
+                className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Doctors Table */}
+        <div className="overflow-x-auto">
+          {doctorsLoading ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            </div>
+          ) : doctors.length === 0 ? (
+            <div className="px-6 py-12 text-center text-gray-500">
+              No doctors found
+            </div>
+          ) : (
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Email
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Specialization
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Bio
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Created
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                    Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200 bg-white">
+                {doctors.map((doctor) => (
+                  <tr key={doctor.id}>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
+                      {doctor.userEmail || "N/A"}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {doctor.specialization || (
+                        <span className="text-gray-400">Unspecified</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-gray-500">
+                      {doctor.bio ? (
+                        <span className="line-clamp-2 max-w-xs">
+                          {doctor.bio}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">No bio</span>
+                      )}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+                      {new Date(doctor.createdAt).toLocaleDateString()}
+                    </td>
+                    <td className="whitespace-nowrap px-6 py-4 text-sm">
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleEditDoctor(doctor)}
+                        >
+                          Edit
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleDeleteDoctor(doctor.id)}
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+
       {/* Users Table */}
       <div className="rounded-lg bg-white shadow">
         <div className="border-b border-gray-200 px-6 py-4">
@@ -566,6 +910,97 @@ function AdminDashboardContent() {
                 Save
               </Button>
               <Button variant="outline" onClick={() => setSelectedUser(null)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Doctor Modal */}
+      {selectedDoctor && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold">Edit Doctor Profile</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Doctor: {selectedDoctor.userEmail || "N/A"}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="edit-specialization"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Specialization
+                </label>
+                <input
+                  type="text"
+                  id="edit-specialization"
+                  value={editDoctorData.specialization}
+                  onChange={(e) =>
+                    setEditDoctorData({
+                      ...editDoctorData,
+                      specialization: e.target.value,
+                    })
+                  }
+                  placeholder="e.g., Cardiology, Pediatrics"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                    editDoctorErrors.specialization
+                      ? "border-red-500"
+                      : "border-gray-300"
+                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                />
+                {editDoctorErrors.specialization && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editDoctorErrors.specialization}
+                  </p>
+                )}
+              </div>
+              <div>
+                <label
+                  htmlFor="edit-bio"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Bio
+                </label>
+                <textarea
+                  id="edit-bio"
+                  value={editDoctorData.bio}
+                  onChange={(e) =>
+                    setEditDoctorData({
+                      ...editDoctorData,
+                      bio: e.target.value,
+                    })
+                  }
+                  rows={4}
+                  placeholder="Doctor's bio or description"
+                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                    editDoctorErrors.bio ? "border-red-500" : "border-gray-300"
+                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                />
+                {editDoctorErrors.bio && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {editDoctorErrors.bio}
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button
+                variant="primary"
+                onClick={handleUpdateDoctor}
+                disabled={editDoctorLoading}
+              >
+                {editDoctorLoading ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSelectedDoctor(null);
+                  setEditDoctorErrors({});
+                }}
+                disabled={editDoctorLoading}
+              >
                 Cancel
               </Button>
             </div>
