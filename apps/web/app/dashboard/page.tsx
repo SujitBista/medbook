@@ -279,7 +279,7 @@ export default function DashboardPage() {
                             size="sm"
                             className="w-full"
                           >
-                            View Profile
+                            Book Appointment
                           </Button>
                         </Link>
                       }

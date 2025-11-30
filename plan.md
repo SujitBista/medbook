@@ -436,16 +436,18 @@ After each task typecheck, lint, build and commit
   - [x] Integration tests for appointment API endpoints (27 comprehensive tests passing)
   - [x] Test appointment validation (conflicts, availability checks)
 
-#### 4.3.1 Appointment Booking UI (Frontend)
+#### 4.3.1 Appointment Booking UI (Frontend) ✅ COMPLETE
 
 **Goal**: Allow patients to book appointments immediately after backend is ready. Test end-to-end.
 
-- [ ] Create doctor detail page (`/doctors/[id]`) with availability display
-- [ ] Implement time slot selection UI (show available slots from doctor's availability)
-- [ ] Create booking form/modal for appointment creation
-- [ ] Add appointment confirmation page
-- [ ] Display booking success/error messages
-- [ ] Add validation for booking (time conflicts, availability checks)
+- [x] Create doctor detail page (`/doctors/[id]`) with availability display
+- [x] Implement time slot selection UI (show available slots from doctor's availability)
+- [x] Create booking form/modal for appointment creation
+- [x] Add appointment confirmation component
+- [x] Display booking success/error messages
+- [x] Add validation for booking (time conflicts, availability checks)
+- [x] Make availability visible to public (unauthenticated users can view slots)
+- [x] Create public doctors listing page (`/doctors`) with search and filtering
 - [ ] **Testing**: Write tests for appointment booking UI
   - [ ] Component tests for booking components
   - [ ] Integration tests for booking flow
@@ -511,14 +513,17 @@ After each task typecheck, lint, build and commit
   - [ ] Integration tests for dashboard navigation
   - [ ] E2E test for doctor workflow
 
-#### 4.7 Public Doctor Listing (Enhancement)
+#### 4.7 Public Doctor Listing (Enhancement) ✅ COMPLETE
 
 **Goal**: Enhance public-facing doctor browsing experience.
 
-- [ ] Enhance doctor listing page (`/doctors`) with better UI
-- [ ] Add doctor search and filtering UI (backend already exists)
-- [ ] Link to doctor detail pages (from 4.3.1)
-- [ ] Add availability preview on doctor cards (if available)
+- [x] Create public doctor listing page (`/doctors`) with modern UI
+- [x] Add doctor search and filtering UI (backend already exists)
+- [x] Link to doctor detail pages (from 4.3.1)
+- [x] Add beautiful card-based layout with doctor information
+- [x] Implement pagination for doctor listings
+- [x] Add hero section and call-to-action for unauthenticated users
+- [x] Make availability visible to all users (public viewing)
 - [ ] **Testing**: Write tests for doctor listing
   - [ ] Component tests for doctor listing page
   - [ ] Integration tests for search/filter functionality
@@ -530,7 +535,7 @@ After each task typecheck, lint, build and commit
 - ✅ Doctors can set their availability (4.2 + 4.2.1) - Backend and UI complete
 - ✅ Doctors can register and manage their profiles (self-service) - Task 4.1 complete
 - ✅ Appointment booking backend complete (4.3) - 27 tests passing
-- ⏳ Appointment booking UI pending (4.3.1) - Backend ready, frontend needed
+- ✅ Appointment booking UI complete (4.3.1) - Doctor detail page, booking form, time slot selector, and confirmation components implemented
 - ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
 - ⏳ Appointment management UI pending (4.4.1)
 - ⏳ Patient and doctor dashboards pending (4.5 + 4.6)

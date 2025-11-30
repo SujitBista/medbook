@@ -1,6 +1,6 @@
 /**
- * Availability API routes
- * Proxies availability requests to backend API with authentication
+ * Appointment API routes
+ * Proxies appointment requests to backend API with authentication
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -13,43 +13,54 @@ function generateBackendToken(userId: string, role: string): string {
 }
 
 /**
- * GET /api/availability
- * Get availabilities (requires doctor ID in query params)
- * Public endpoint - no authentication required (matches backend)
+ * GET /api/appointments
+ * Get appointments (requires patient ID or doctor ID in query params)
  */
 export async function GET(req: NextRequest) {
   try {
-    // Get doctor ID from query params
-    const { searchParams } = new URL(req.url);
-    const doctorId = searchParams.get("doctorId");
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const session = await auth();
 
-    if (!doctorId) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         {
           success: false,
-          error: { code: "VALIDATION_ERROR", message: "Doctor ID is required" },
+          error: { code: "UNAUTHORIZED", message: "Not authenticated" },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Get query params
+    const { searchParams } = new URL(req.url);
+    const patientId = searchParams.get("patientId");
+    const doctorId = searchParams.get("doctorId");
+
+    // Generate token for backend API
+    const token = generateBackendToken(session.user.id, session.user.role);
+
+    let url: string;
+    if (patientId) {
+      url = `${env.apiUrl}/appointments/patient/${patientId}`;
+    } else if (doctorId) {
+      url = `${env.apiUrl}/appointments/doctor/${doctorId}`;
+    } else {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "VALIDATION_ERROR",
+            message: "Patient ID or Doctor ID is required",
+          },
         },
         { status: 400 }
       );
     }
 
-    // Build query string
-    const queryParams = new URLSearchParams();
-    if (startDate) queryParams.append("startDate", startDate);
-    if (endDate) queryParams.append("endDate", endDate);
-
-    // Call backend API (public endpoint, no auth required)
-    const queryString = queryParams.toString();
-    const url = `${env.apiUrl}/availability/doctor/${doctorId}${
-      queryString ? `?${queryString}` : ""
-    }`;
-
-    console.log("[Availability] Fetching availabilities:", url);
+    console.log("[Appointments] Fetching appointments:", url);
 
     const response = await fetch(url, {
       headers: {
+        Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
     });
@@ -62,7 +73,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[Availability] Error fetching availabilities:", error);
+    console.error("[Appointments] Error fetching appointments:", error);
     return NextResponse.json(
       {
         success: false,
@@ -77,8 +88,8 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/availability
- * Create availability slot
+ * POST /api/appointments
+ * Create appointment (requires authentication)
  */
 export async function POST(req: NextRequest) {
   try {
@@ -99,10 +110,10 @@ export async function POST(req: NextRequest) {
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    console.log("[Availability] Creating availability:", body);
+    console.log("[Appointments] Creating appointment:", body);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/availability`, {
+    const response = await fetch(`${env.apiUrl}/appointments`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${token}`,
@@ -119,7 +130,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(data, { status: 201 });
   } catch (error) {
-    console.error("[Availability] Error creating availability:", error);
+    console.error("[Appointments] Error creating appointment:", error);
     return NextResponse.json(
       {
         success: false,
