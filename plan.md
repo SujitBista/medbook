@@ -422,6 +422,21 @@ After each task typecheck, lint, build and commit
   - [x] Test validation and error handling in UI (validation errors, API errors tested)
   - [ ] E2E test for doctor setting availability flow (pending - can be done with Playwright later)
 
+#### 4.2.2 Admin Availability Management (Future Enhancement)
+
+**Note**: Current implementation allows doctors to self-manage availability. However, the intended workflow is:
+
+- Admins communicate with doctors (outside the system) to determine schedules
+- Admins set availability on behalf of doctors via admin dashboard
+- This ensures centralized control and coordination
+
+**Status**: Doctor self-service availability management is implemented (Task 4.2.1). Admin availability management UI should be added to admin dashboard as a future enhancement to align with the intended workflow.
+
+- [ ] Add availability management section to admin dashboard
+- [ ] Allow admins to create/edit/delete availability for any doctor
+- [ ] Add doctor selection dropdown in admin availability form
+- [ ] Optionally restrict doctor self-service (or keep as optional)
+
 #### 4.3 Appointment System (Backend) ✅ COMPLETE
 
 - [x] Create Appointment model in Prisma schema
@@ -440,6 +455,16 @@ After each task typecheck, lint, build and commit
 
 **Goal**: Allow patients to book appointments immediately after backend is ready. Test end-to-end.
 
+**Note**: Enhanced landing page (`/`) was also implemented to provide proper user onboarding and discovery flow. This includes:
+
+- Marketing hero section with search bar
+- Popular specialties, testimonials, benefits sections
+- Clear CTAs directing users to booking flow (`/doctors`)
+- Footer component with navigation and links
+- Home page components (HeroSearch, PopularSpecialties, HowItWorks, TopDoctors, Testimonials, AppBenefits, Blog)
+
+This was necessary for a complete user experience, even though not explicitly in the original plan.
+
 - [x] Create doctor detail page (`/doctors/[id]`) with availability display
 - [x] Implement time slot selection UI (show available slots from doctor's availability)
 - [x] Create booking form/modal for appointment creation
@@ -448,6 +473,9 @@ After each task typecheck, lint, build and commit
 - [x] Add validation for booking (time conflicts, availability checks)
 - [x] Make availability visible to public (unauthenticated users can view slots)
 - [x] Create public doctors listing page (`/doctors`) with search and filtering
+- [x] Add marketing landing page with hero, testimonials, benefits sections
+- [x] Add Footer component
+- [x] Add Next.js API proxy routes for availability, appointments, doctors
 - [ ] **Testing**: Write tests for appointment booking UI
   - [ ] Component tests for booking components
   - [ ] Integration tests for booking flow
@@ -535,7 +563,9 @@ After each task typecheck, lint, build and commit
 - ✅ Doctors can set their availability (4.2 + 4.2.1) - Backend and UI complete
 - ✅ Doctors can register and manage their profiles (self-service) - Task 4.1 complete
 - ✅ Appointment booking backend complete (4.3) - 27 tests passing
-- ✅ Appointment booking UI complete (4.3.1) - Doctor detail page, booking form, time slot selector, and confirmation components implemented
+- ✅ Appointment booking UI complete (4.3.1) - Doctor detail page, booking form, time slot selector, confirmation components, and marketing landing page implemented
+- ✅ Marketing landing page with hero, testimonials, benefits sections, and Footer component
+- ✅ Next.js API proxy routes for availability, appointments, doctors
 - ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
 - ⏳ Appointment management UI pending (4.4.1)
 - ⏳ Patient and doctor dashboards pending (4.5 + 4.6)
@@ -548,10 +578,16 @@ After each task typecheck, lint, build and commit
      - Date picker working for recurring schedules
      - Immediate list refresh after add/delete operations
      - Correct date/time display when editing (timezone handling)
-2. **4.3** (Backend) → **4.3.1** (Frontend) → Test → ✅ Backend Complete, Frontend Pending
+2. **4.3** (Backend) → **4.3.1** (Frontend) → Test → ✅ Backend Complete, Frontend Complete
    - Backend appointment booking API complete (27 tests passing)
-   - Appointment model, endpoints, and validation implemented
-   - Frontend appointment booking UI pending
+   - Frontend appointment booking UI complete:
+     - Doctor detail page with availability display
+     - Booking form and time slot selector
+     - Appointment confirmation component
+     - Marketing landing page with discovery flow
+     - Footer component
+     - Next.js API proxy routes
+   - Testing pending
 3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ⏳ Partially Complete
    - Backend appointment management partially complete:
      - Status updates and rescheduling via update endpoint ✅
@@ -559,7 +595,7 @@ After each task typecheck, lint, build and commit
    - Frontend appointment management UI pending
 4. **4.5** (Consolidate Patient Dashboard) → Test → Pending
 5. **4.6** (Consolidate Doctor Dashboard) → Test → Pending
-6. **4.7** (Enhance Public Listing) → Test → Pending
+6. **4.7** (Enhance Public Listing) → Test → ✅ Complete (included in 4.3.1)
 
 **Estimated Time:** 8-12 days (includes 1-2 days for Task 4.0)
 
