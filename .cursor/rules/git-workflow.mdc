@@ -1,0 +1,77 @@
+---
+name: Git Workflow
+description: Always create a PR when pushing changes
+alwaysApply: true
+---
+
+# Git Workflow
+
+## Pull Request Requirement
+
+**Always create a Pull Request (PR) when pushing changes to a branch.**
+
+Never push directly to `main` or `master` branch. All changes must go through a PR for code review.
+
+### Workflow Steps
+
+1. **Create a feature branch** from main:
+   ```bash
+   git checkout main
+   git pull origin main
+   git checkout -b feature/your-feature-name
+   ```
+
+2. **Make your changes** and commit:
+   ```bash
+   git add .
+   git commit -m "feat: your descriptive commit message"
+   ```
+
+3. **Push to remote**:
+   ```bash
+   git push origin HEAD
+   ```
+
+4. **Create a Pull Request**:
+   - Use GitHub/GitLab web interface to create PR
+   - Or use GitHub CLI: `gh pr create`
+   - Include a descriptive title and description
+   - Link any related issues
+
+5. **After PR is merged**:
+   ```bash
+   git checkout main
+   git pull origin main
+   git branch -d feature/your-feature-name  # Delete local branch
+   git push origin --delete feature/your-feature-name  # Delete remote branch
+   ```
+
+### Commit Message Format
+
+Use conventional commit format:
+- `feat:` - New feature
+- `fix:` - Bug fix
+- `docs:` - Documentation changes
+- `style:` - Code style changes (formatting, etc.)
+- `refactor:` - Code refactoring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+**Example:**
+```
+fix: add Tailwind color definitions to make buttons visible
+
+- Add primary color palette (50-900) to globals.css theme
+- Add gray color palette for secondary buttons
+- Remove unnecessary inline styles from Button component
+```
+
+### When Assisting with Git Operations
+
+When the user asks to commit and push changes:
+1. Create a feature branch (never commit directly to main)
+2. Stage only the relevant files
+3. Create a descriptive commit message using conventional commits
+4. Push to the feature branch
+5. **Create a PR** using GitHub CLI or remind user to create one
+6. Do NOT merge directly to main/master

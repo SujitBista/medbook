@@ -12,6 +12,7 @@ This directory contains Cursor AI rules organized by topic. Each rule file uses 
 - **testing.mdc** - Testing standards and patterns
 - **file-organization.mdc** - Naming conventions and file structure
 - **security-performance.mdc** - Security and performance best practices
+- **git-workflow.mdc** - Git workflow and PR requirements
 
 ## Rule Metadata
 
