@@ -18,6 +18,7 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit");
     const search = searchParams.get("search");
     const specialization = searchParams.get("specialization");
+    const hasAvailability = searchParams.get("hasAvailability");
 
     // Build query string
     const queryParams = new URLSearchParams();
@@ -25,6 +26,9 @@ export async function GET(req: NextRequest) {
     if (limit) queryParams.append("limit", limit);
     if (search) queryParams.append("search", search);
     if (specialization) queryParams.append("specialization", specialization);
+    // Default to true: only show doctors with availability (public endpoint)
+    // Allow override via query parameter for admin/edge cases
+    queryParams.append("hasAvailability", hasAvailability ?? "true");
 
     const queryString = queryParams.toString();
     const url = `${env.apiUrl}/doctors${queryString ? `?${queryString}` : ""}`;

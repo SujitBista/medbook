@@ -31,6 +31,11 @@ export async function getDoctors(
       : 10;
     const search = req.query.search as string | undefined;
     const specialization = req.query.specialization as string | undefined;
+    // Default to true: only show doctors with availability (public endpoint)
+    const hasAvailability =
+      req.query.hasAvailability !== undefined
+        ? req.query.hasAvailability === "true"
+        : true;
 
     // Validate pagination parameters
     if (page < 1) {
@@ -50,6 +55,7 @@ export async function getDoctors(
       limit,
       search,
       specialization,
+      hasAvailability,
     });
 
     res.status(200).json({

@@ -13,6 +13,7 @@ import {
 import {
   createTestUser,
   createTestDoctor,
+  createTestAvailability,
   cleanupTestData,
 } from "../__tests__/db";
 
@@ -141,6 +142,132 @@ describe("doctor.service", () => {
 
       expect(result.doctors.length).toBe(0);
       expect(result.pagination.total).toBe(0);
+    });
+
+    it("should filter doctors by availability when hasAvailability is true", async () => {
+      // Create doctor with future availability
+      const doctorWithAvailability = await createTestDoctor({
+        specialization: "Cardiology",
+      });
+      await createTestAvailability({
+        doctorId: doctorWithAvailability.id,
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+      });
+
+      // Create doctor without availability
+      await createTestDoctor({ specialization: "Neurology" });
+
+      // Get doctors with availability filter
+      const result = await getAllDoctors({ hasAvailability: true });
+
+      expect(result.doctors.length).toBeGreaterThanOrEqual(1);
+      expect(
+        result.doctors.some((d) => d.id === doctorWithAvailability.id)
+      ).toBe(true);
+      // Doctor without availability should not be included
+      expect(result.doctors.length).toBe(1);
+    });
+
+    it("should return all doctors when hasAvailability is false", async () => {
+      // Create doctor with availability
+      const doctorWithAvailability = await createTestDoctor({
+        specialization: "Cardiology",
+      });
+      await createTestAvailability({
+        doctorId: doctorWithAvailability.id,
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+      });
+
+      // Create doctor without availability
+      const doctorWithoutAvailability = await createTestDoctor({
+        specialization: "Neurology",
+      });
+
+      // Get all doctors (no availability filter)
+      const result = await getAllDoctors({ hasAvailability: false });
+
+      expect(result.doctors.length).toBeGreaterThanOrEqual(2);
+      expect(
+        result.doctors.some((d) => d.id === doctorWithAvailability.id)
+      ).toBe(true);
+      expect(
+        result.doctors.some((d) => d.id === doctorWithoutAvailability.id)
+      ).toBe(true);
+    });
+
+    it("should include doctors with recurring availability", async () => {
+      const doctor = await createTestDoctor({ specialization: "Cardiology" });
+      // Create recurring availability with future validTo
+      await createTestAvailability({
+        doctorId: doctor.id,
+        isRecurring: true,
+        validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Started a week ago
+        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Valid for 30 more days
+        dayOfWeek: 1, // Monday
+        startTime: new Date("2024-01-01T09:00:00Z"),
+        endTime: new Date("2024-01-01T17:00:00Z"),
+      });
+
+      const result = await getAllDoctors({ hasAvailability: true });
+
+      expect(result.doctors.length).toBeGreaterThanOrEqual(1);
+      expect(result.doctors.some((d) => d.id === doctor.id)).toBe(true);
+    });
+
+    it("should include doctors with recurring availability with no end date", async () => {
+      const doctor = await createTestDoctor({ specialization: "Cardiology" });
+      // Create recurring availability with no validTo (indefinite)
+      await createTestAvailability({
+        doctorId: doctor.id,
+        isRecurring: true,
+        validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+        validTo: undefined, // No end date
+        dayOfWeek: 1,
+        startTime: new Date("2024-01-01T09:00:00Z"),
+        endTime: new Date("2024-01-01T17:00:00Z"),
+      });
+
+      const result = await getAllDoctors({ hasAvailability: true });
+
+      expect(result.doctors.length).toBeGreaterThanOrEqual(1);
+      expect(result.doctors.some((d) => d.id === doctor.id)).toBe(true);
+    });
+
+    it("should exclude doctors with only past availability", async () => {
+      const doctor = await createTestDoctor({ specialization: "Cardiology" });
+      // Create one-time availability in the past
+      await createTestAvailability({
+        doctorId: doctor.id,
+        isRecurring: false,
+        startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // A week ago
+        endTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
+      });
+
+      const result = await getAllDoctors({ hasAvailability: true });
+
+      // Doctor should not be included
+      expect(result.doctors.some((d) => d.id === doctor.id)).toBe(false);
+    });
+
+    it("should exclude doctors with recurring availability that has expired", async () => {
+      const doctor = await createTestDoctor({ specialization: "Cardiology" });
+      // Create recurring availability that expired
+      await createTestAvailability({
+        doctorId: doctor.id,
+        isRecurring: true,
+        validFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Started 30 days ago
+        validTo: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Expired yesterday
+        dayOfWeek: 1,
+        startTime: new Date("2024-01-01T09:00:00Z"),
+        endTime: new Date("2024-01-01T17:00:00Z"),
+      });
+
+      const result = await getAllDoctors({ hasAvailability: true });
+
+      // Doctor should not be included
+      expect(result.doctors.some((d) => d.id === doctor.id)).toBe(false);
     });
   });
 

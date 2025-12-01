@@ -300,35 +300,57 @@ export default function DoctorDetailPage() {
             />
           ) : !showBookingForm ? (
             <Card title="Available Time Slots">
-              <TimeSlotSelector
-                slots={availableSlots}
-                selectedSlot={selectedSlot}
-                onSelectSlot={handleSlotSelect}
-                loading={loading}
-              />
-              {selectedSlot && (
-                <div className="mt-6">
-                  {status === "unauthenticated" ? (
-                    <div className="space-y-3">
-                      <p className="text-sm text-gray-600 text-center">
-                        Please sign in to book this appointment
-                      </p>
-                      <Link href={`/login?callbackUrl=/doctors/${doctorId}`}>
-                        <Button variant="primary" className="w-full">
-                          Sign In to Book
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      onClick={() => setShowBookingForm(true)}
-                      className="w-full"
-                    >
-                      Book Selected Slot
+              {!loading &&
+              availabilities.length === 0 &&
+              availableSlots.length === 0 ? (
+                <div className="text-center py-12">
+                  <p className="text-gray-600 mb-2">
+                    No available time slots found for this doctor.
+                  </p>
+                  <p className="text-sm text-gray-500 mb-6">
+                    Please check back later or contact the doctor directly.
+                  </p>
+                  <Link href="/doctors">
+                    <Button variant="ghost" size="sm">
+                      ← Back to Doctors
                     </Button>
-                  )}
+                  </Link>
                 </div>
+              ) : (
+                <>
+                  <TimeSlotSelector
+                    slots={availableSlots}
+                    selectedSlot={selectedSlot}
+                    onSelectSlot={handleSlotSelect}
+                    loading={loading}
+                  />
+                  {selectedSlot && (
+                    <div className="mt-6">
+                      {status === "unauthenticated" ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600 text-center">
+                            Please sign in to book this appointment
+                          </p>
+                          <Link
+                            href={`/login?callbackUrl=/doctors/${doctorId}`}
+                          >
+                            <Button variant="primary" className="w-full">
+                              Sign In to Book
+                            </Button>
+                          </Link>
+                        </div>
+                      ) : (
+                        <Button
+                          variant="primary"
+                          onClick={() => setShowBookingForm(true)}
+                          className="w-full"
+                        >
+                          Book Selected Slot
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </>
               )}
             </Card>
           ) : (

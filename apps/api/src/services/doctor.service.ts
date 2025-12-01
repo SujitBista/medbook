@@ -86,7 +86,7 @@ export async function getDoctorByUserId(userId: string): Promise<Doctor> {
 
 /**
  * Gets all doctors with optional pagination and search
- * @param options Query options (page, limit, search)
+ * @param options Query options (page, limit, search, hasAvailability)
  * @returns List of doctors and pagination info
  */
 export async function getAllDoctors(options?: {
@@ -94,20 +94,20 @@ export async function getAllDoctors(options?: {
   limit?: number;
   search?: string;
   specialization?: string;
+  hasAvailability?: boolean;
 }) {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? 10;
   const skip = (page - 1) * limit;
   const search = options?.search?.trim().toLowerCase();
   const specialization = options?.specialization?.trim();
+  const hasAvailability = options?.hasAvailability ?? false;
+
+  const now = new Date();
 
   // Build where clause for search
-  const where: {
-    specialization?: { contains: string; mode: "insensitive" };
-    OR?: Array<{
-      user?: { email?: { contains: string; mode: "insensitive" } };
-    }>;
-  } = {};
+  // Using 'any' for complex Prisma nested types
+  const where: any = {};
 
   if (specialization) {
     where.specialization = {
@@ -127,6 +127,34 @@ export async function getAllDoctors(options?: {
         },
       },
     ];
+  }
+
+  // Filter by availability if requested
+  if (hasAvailability) {
+    where.availabilities = {
+      some: {
+        OR: [
+          // One-time slots: endTime >= now
+          {
+            AND: [{ isRecurring: false }, { endTime: { gte: now } }],
+          },
+          // Recurring slots:
+          // - validFrom must be null OR validFrom <= now (already started or no start date)
+          // - validTo must be null OR validTo >= now (not expired or no end date)
+          {
+            AND: [
+              { isRecurring: true },
+              {
+                OR: [{ validFrom: null }, { validFrom: { lte: now } }],
+              },
+              {
+                OR: [{ validTo: null }, { validTo: { gte: now } }],
+              },
+            ],
+          },
+        ],
+      },
+    };
   }
 
   const [doctors, total] = await Promise.all([
