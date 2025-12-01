@@ -374,6 +374,66 @@ After each task typecheck, lint, build and commit
 
 ---
 
+#### 4.0.1 Admin Dashboard with Tabs and Doctor Schedule Management
+
+**Goal**: Enhance admin dashboard with tabbed interface and enable admins to set schedules for doctors.
+
+**Note**: This task builds upon the existing admin dashboard (Task 4.0) and availability management backend (Task 4.2). The admin dashboard currently displays all features in a single page. This enhancement will organize the dashboard into tabs for better UX and add schedule management capabilities.
+
+- [ ] **Admin Dashboard Tabbed Interface**
+  - [ ] Refactor admin dashboard to use tab navigation
+  - [ ] Create "General" tab with:
+    - [ ] System statistics cards (total users, by role)
+    - [ ] All users table with role management
+    - [ ] User management actions (change role, delete)
+  - [ ] Create "Manage Doctor" tab with:
+    - [ ] Doctor registration form
+    - [ ] Doctor management section (view, edit, delete doctors)
+    - [ ] Doctor statistics display
+    - [ ] Search/filter functionality for doctors
+  - [ ] Add tab navigation component with active state styling
+  - [ ] Ensure responsive design for mobile/tablet views
+
+- [ ] **Admin Doctor Schedule Management**
+  - [ ] Add schedule management section to "Manage Doctor" tab
+  - [ ] Display list of doctors with ability to select a doctor
+  - [ ] Show existing availability/schedule for selected doctor
+  - [ ] Add form to create new availability slots for selected doctor:
+    - [ ] Support one-time slots (specific date/time)
+    - [ ] Support recurring slots (day of week, time range, validFrom/validTo dates)
+    - [ ] Doctor selection dropdown (required before creating schedule)
+  - [ ] Add ability to edit existing availability slots
+  - [ ] Add ability to delete availability slots
+  - [ ] Add date range filtering for viewing schedules
+  - [ ] Display validation feedback (overlaps, invalid times)
+  - [ ] Reuse availability management components/logic from doctor self-service (Task 4.2.1)
+
+- [ ] **Backend API Support** (if needed)
+  - [ ] Verify admin can create/edit/delete availability for any doctor (existing endpoints should support this)
+  - [ ] Ensure admin-only access control for schedule management endpoints
+  - [ ] Add admin-specific availability endpoints if needed (or reuse existing endpoints with admin role check)
+
+- [ ] **Testing**
+  - [ ] Test tab navigation and switching between tabs
+  - [ ] Test admin can create schedules for any doctor
+  - [ ] Test admin can edit schedules for any doctor
+  - [ ] Test admin can delete schedules for any doctor
+  - [ ] Test validation (overlaps, invalid times) in admin context
+  - [ ] Test doctor selection and schedule display
+  - [ ] Test responsive design on mobile/tablet
+
+**Deliverables:**
+
+- ✅ Admin dashboard organized into "General" and "Manage Doctor" tabs
+- ✅ Admin can set schedules for doctors via "Manage Doctor" tab
+- ✅ Admin can view, create, edit, and delete doctor schedules
+- ✅ Schedule management UI integrated into admin dashboard
+- ✅ Responsive tabbed interface for better UX
+
+**Estimated Time:** 1-2 days
+
+---
+
 #### 4.1 Doctor Management (Backend & Public API)
 
 - [x] Create Doctor model in Prisma schema
@@ -422,20 +482,15 @@ After each task typecheck, lint, build and commit
   - [x] Test validation and error handling in UI (validation errors, API errors tested)
   - [ ] E2E test for doctor setting availability flow (pending - can be done with Playwright later)
 
-#### 4.2.2 Admin Availability Management (Future Enhancement)
+#### 4.2.2 Admin Availability Management ✅ MOVED TO TASK 4.0.1
 
-**Note**: Current implementation allows doctors to self-manage availability. However, the intended workflow is:
+**Note**: This task has been moved to Task 4.0.1 "Admin Dashboard with Tabs and Doctor Schedule Management" to consolidate admin dashboard enhancements. The implementation will include:
 
-- Admins communicate with doctors (outside the system) to determine schedules
-- Admins set availability on behalf of doctors via admin dashboard
-- This ensures centralized control and coordination
+- Tabbed interface for better organization
+- Schedule management integrated into "Manage Doctor" tab
+- Admin can set schedules for any doctor
 
-**Status**: Doctor self-service availability management is implemented (Task 4.2.1). Admin availability management UI should be added to admin dashboard as a future enhancement to align with the intended workflow.
-
-- [ ] Add availability management section to admin dashboard
-- [ ] Allow admins to create/edit/delete availability for any doctor
-- [ ] Add doctor selection dropdown in admin availability form
-- [ ] Optionally restrict doctor self-service (or keep as optional)
+**Status**: See Task 4.0.1 for implementation details.
 
 #### 4.3 Appointment System (Backend) ✅ COMPLETE
 
@@ -567,6 +622,7 @@ This was necessary for a complete user experience, even though not explicitly in
 **Deliverables:**
 
 - ✅ Admin can register doctors and manage doctor profiles (Task 4.0 - PRIORITY)
+- ⏳ Admin dashboard with tabs and doctor schedule management (Task 4.0.1) - Pending implementation
 - ✅ Doctors can set their availability (4.2 + 4.2.1) - Backend and UI complete
 - ✅ Doctors can register and manage their profiles (self-service) - Task 4.1 complete
 - ✅ Appointment booking backend complete (4.3) - 27 tests passing
