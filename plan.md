@@ -552,6 +552,13 @@ This was necessary for a complete user experience, even though not explicitly in
 - [x] Implement pagination for doctor listings
 - [x] Add hero section and call-to-action for unauthenticated users
 - [x] Make availability visible to all users (public viewing)
+- [x] **Filter doctors by availability** ✅ COMPLETE
+  - [x] Add `hasAvailability` filter option to `getAllDoctors()` service
+  - [x] Filter doctors to only show those with future availability slots (for public endpoints)
+  - [x] Public doctor listing endpoint defaults to `hasAvailability=true` (only shows doctors with availability)
+  - [x] Admin endpoints show all doctors (no availability filter)
+  - [x] Support for one-time slots (endTime >= now) and recurring slots (validTo >= now or null)
+  - [x] Add comprehensive tests for availability filtering (service and route tests)
 - [ ] **Testing**: Write tests for doctor listing
   - [ ] Component tests for doctor listing page
   - [ ] Integration tests for search/filter functionality

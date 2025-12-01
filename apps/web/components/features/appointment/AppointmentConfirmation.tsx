@@ -101,7 +101,10 @@ export function AppointmentConfirmation({
           )}
         </div>
 
-        <div className="pt-4 border-t border-gray-200 flex gap-3">
+        <div
+          className="pt-4 border-t border-gray-200 flex gap-3"
+          style={{ visibility: "visible", display: "flex" }}
+        >
           <Link href="/dashboard" className="flex-1">
             <Button variant="primary" className="w-full">
               View My Appointments

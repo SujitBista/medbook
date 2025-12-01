@@ -62,23 +62,39 @@ export async function getAvailabilitiesByDoctorId(
     endDate?: Date;
   }
 ): Promise<Availability[]> {
-  const where: {
-    doctorId: string;
-    startTime?: { gte?: Date; lte?: Date };
-    endTime?: { gte?: Date; lte?: Date };
-  } = {
-    doctorId,
-  };
+  const now = new Date();
+  const startDate = options?.startDate ?? now;
+  const endDate = options?.endDate;
 
-  if (options?.startDate || options?.endDate) {
-    where.startTime = {};
-    if (options.startDate) {
-      where.startTime.gte = options.startDate;
-    }
-    if (options.endDate) {
-      where.endTime = { lte: options.endDate };
-    }
-  }
+  // Build where clause - need to handle one-time vs recurring differently
+  const where: any = {
+    doctorId,
+    OR: [
+      // One-time slots: endTime must be >= startDate (slot hasn't ended before search window)
+      {
+        AND: [
+          { isRecurring: false },
+          { endTime: { gte: startDate } },
+          ...(endDate ? [{ startTime: { lte: endDate } }] : []),
+        ],
+      },
+      // Recurring slots: check validFrom and validTo
+      {
+        AND: [
+          { isRecurring: true },
+          {
+            OR: [
+              { validFrom: null },
+              { validFrom: { lte: endDate ?? new Date("2100-01-01") } },
+            ],
+          },
+          {
+            OR: [{ validTo: null }, { validTo: { gte: startDate } }],
+          },
+        ],
+      },
+    ],
+  };
 
   const availabilities = await query((prisma) =>
     prisma.availability.findMany({

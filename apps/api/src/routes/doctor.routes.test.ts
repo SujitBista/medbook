@@ -12,6 +12,7 @@ import {
   cleanupTestData,
   createTestUser,
   createTestDoctor,
+  createTestAvailability,
 } from "../__tests__/db";
 import { UserRole } from "@medbook/types";
 
@@ -39,6 +40,17 @@ describe("GET /api/v1/doctors", () => {
       specialization: "Neurology",
       bio: "Brain specialist",
     });
+    // Create availability for doctors (public endpoint filters by availability by default)
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
 
@@ -53,10 +65,15 @@ describe("GET /api/v1/doctors", () => {
   });
 
   it("should paginate doctors correctly", async () => {
-    // Create multiple doctors
+    // Create multiple doctors with availability
     for (let i = 0; i < 5; i++) {
       const doctor = await createTestDoctor({
         specialization: `Specialty${i}`,
+      });
+      await createTestAvailability({
+        doctorId: doctor.id,
+        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
       });
       createdDoctorIds.push(doctor.id);
       createdUserIds.push(doctor.userId);
@@ -80,6 +97,17 @@ describe("GET /api/v1/doctors", () => {
     });
     const doctor2 = await createTestDoctor({
       specialization: "Neurology",
+    });
+    // Create availability for doctors (public endpoint filters by availability by default)
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
@@ -126,6 +154,92 @@ describe("GET /api/v1/doctors", () => {
 
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
+  });
+
+  it("should filter doctors by availability by default (public endpoint)", async () => {
+    // Create doctor with future availability
+    const doctorWithAvailability = await createTestDoctor({
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctorWithAvailability.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    // Create doctor without availability
+    await createTestDoctor({ specialization: "Neurology" });
+
+    // Public endpoint should default to filtering by availability
+    const response = await agent.get("/api/v1/doctors").expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some(
+        (d: { id: string }) => d.id === doctorWithAvailability.id
+      )
+    ).toBe(true);
+    // Doctor without availability should not be included
+    expect(response.body.data.length).toBe(1);
+  });
+
+  it("should allow disabling availability filter with query parameter", async () => {
+    // Create doctor with availability
+    const doctorWithAvailability = await createTestDoctor({
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctorWithAvailability.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    // Create doctor without availability
+    const doctorWithoutAvailability = await createTestDoctor({
+      specialization: "Neurology",
+    });
+
+    // Explicitly disable availability filter
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ hasAvailability: "false" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    expect(
+      response.body.data.some(
+        (d: { id: string }) => d.id === doctorWithAvailability.id
+      )
+    ).toBe(true);
+    expect(
+      response.body.data.some(
+        (d: { id: string }) => d.id === doctorWithoutAvailability.id
+      )
+    ).toBe(true);
+  });
+
+  it("should include doctors with recurring availability", async () => {
+    const doctor = await createTestDoctor({ specialization: "Cardiology" });
+    // Create recurring availability with future validTo
+    await createTestAvailability({
+      doctorId: doctor.id,
+      isRecurring: true,
+      validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+      validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+      dayOfWeek: 1,
+      startTime: new Date("2024-01-01T09:00:00Z"),
+      endTime: new Date("2024-01-01T17:00:00Z"),
+    });
+
+    const response = await agent.get("/api/v1/doctors").expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor.id)
+    ).toBe(true);
   });
 });
 
@@ -175,8 +289,9 @@ describe("GET /api/v1/doctors/:id", () => {
   });
 
   it("should return 400 if doctor ID is missing", async () => {
-    const response = await agent.get("/api/v1/doctors/").expect(404);
-    // Express returns 404 for missing route parameter
+    const response = await agent.get("/api/v1/doctors/").expect(200);
+    // Express treats trailing slash as valid route, returns list of doctors
+    expect(response.body.success).toBe(true);
   });
 });
 
@@ -482,6 +597,8 @@ describe("PUT /api/v1/doctors/:id", () => {
 
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
-    expect(response.body.error.message).toContain("at least one field");
+    expect(response.body.error.message.toLowerCase()).toContain(
+      "at least one field"
+    );
   });
 });

@@ -101,7 +101,10 @@ export function BookingForm({
             </div>
           )}
 
-          <div className="flex gap-3 pt-4">
+          <div
+            className="flex gap-3 pt-4"
+            style={{ visibility: "visible", display: "flex" }}
+          >
             <Button
               type="submit"
               variant="primary"
