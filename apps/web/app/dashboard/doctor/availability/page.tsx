@@ -67,7 +67,15 @@ export default function AvailabilityManagementPage() {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<CreateAvailabilityInput>({
+  const [formData, setFormData] = useState<{
+    doctorId: string;
+    startTime: string;
+    endTime: string;
+    isRecurring: boolean;
+    dayOfWeek?: number;
+    validFrom?: string;
+    validTo?: string;
+  }>({
     doctorId: "",
     startTime: new Date().toISOString().slice(0, 16),
     endTime: new Date().toISOString().slice(0, 16),
@@ -448,46 +456,41 @@ export default function AvailabilityManagementPage() {
         )}
 
         {/* Filters */}
-        <Card className="mb-6">
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold text-gray-900">
-              Filter Availability
-            </h3>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-              <Input
-                label="Start Date"
-                type="date"
-                value={filterStartDate}
-                onChange={(e) => setFilterStartDate(e.target.value)}
-              />
-              <Input
-                label="End Date"
-                type="date"
-                value={filterEndDate}
-                onChange={(e) => setFilterEndDate(e.target.value)}
-              />
-              <div className="flex items-end">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setFilterStartDate("");
-                    setFilterEndDate("");
-                  }}
-                  className="w-full"
-                >
-                  Clear Filters
-                </Button>
-              </div>
+        <Card title="Filter Availability" className="mb-6">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <Input
+              label="Start Date"
+              type="date"
+              value={filterStartDate}
+              onChange={(e) => setFilterStartDate(e.target.value)}
+            />
+            <Input
+              label="End Date"
+              type="date"
+              value={filterEndDate}
+              onChange={(e) => setFilterEndDate(e.target.value)}
+            />
+            <div className="flex items-end">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setFilterStartDate("");
+                  setFilterEndDate("");
+                }}
+                className="w-full"
+              >
+                Clear Filters
+              </Button>
             </div>
           </div>
         </Card>
 
         {/* Create/Edit Form */}
         {showForm && (
-          <Card className="mb-6">
-            <h3 className="mb-4 text-lg font-semibold text-gray-900">
-              {editingId ? "Edit Availability" : "Add New Availability"}
-            </h3>
+          <Card
+            title={editingId ? "Edit Availability" : "Add New Availability"}
+            className="mb-6"
+          >
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                 <Input

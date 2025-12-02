@@ -2,12 +2,14 @@
  * Utility functions for appointment booking
  */
 
-import { Availability, Appointment } from "@medbook/types";
+import { Availability, Appointment, Slot, SlotStatus } from "@medbook/types";
 
 export interface TimeSlot {
+  id?: string;
   startTime: Date;
   endTime: Date;
   availabilityId?: string;
+  status?: SlotStatus;
 }
 
 /**

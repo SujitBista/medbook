@@ -15,6 +15,7 @@ import {
   createConflictError,
 } from "../utils/errors";
 import { logger } from "../utils/logger";
+import { generateSlotsFromAvailability } from "./slot.service";
 
 /**
  * Gets availability by ID
@@ -269,6 +270,24 @@ export async function createAvailability(
       availabilityId: availability.id,
       doctorId,
     });
+
+    // Generate slots from availability (async, don't wait, but log success)
+    generateSlotsFromAvailability(availability.id, doctorId)
+      .then((slots) => {
+        logger.info("Generated slots from availability", {
+          availabilityId: availability.id,
+          doctorId,
+          slotCount: slots.length,
+        });
+      })
+      .catch((err) => {
+        logger.error("Failed to generate slots from availability", {
+          availabilityId: availability.id,
+          doctorId,
+          error: err instanceof Error ? err.message : String(err),
+          stack: err instanceof Error ? err.stack : undefined,
+        });
+      });
 
     return {
       id: availability.id,

@@ -3,12 +3,13 @@
  * Handles appointment booking and management business logic
  */
 
-import { query } from "@app/db";
+import { query, withTransaction } from "@app/db";
 import {
   Appointment,
   CreateAppointmentInput,
   UpdateAppointmentInput,
   AppointmentStatus,
+  SlotStatus,
 } from "@medbook/types";
 import {
   createNotFoundError,
@@ -17,6 +18,7 @@ import {
 } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { getAvailabilityById } from "./availability.service";
+import { getSlotById, updateSlotStatus } from "./slot.service";
 
 /**
  * Gets appointment by ID
@@ -42,6 +44,7 @@ export async function getAppointmentById(
     patientId: appointment.patientId,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
+    slotId: appointment.slotId ?? undefined,
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
@@ -104,6 +107,7 @@ export async function getAppointmentsByPatientId(
     patientId: appointment.patientId,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
+    slotId: appointment.slotId ?? undefined,
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
@@ -166,6 +170,7 @@ export async function getAppointmentsByDoctorId(
     patientId: appointment.patientId,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
+    slotId: appointment.slotId ?? undefined,
     startTime: appointment.startTime,
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
@@ -406,6 +411,86 @@ async function isWithinAvailability(
 }
 
 /**
+ * Creates a new appointment from a slot (atomic booking)
+ * @param slotId Slot ID
+ * @param patientId Patient ID
+ * @param notes Optional notes
+ * @returns Created appointment data
+ * @throws AppError if slot not found, not available, or conflict detected
+ */
+export async function createAppointmentFromSlot(
+  slotId: string,
+  patientId: string,
+  notes?: string
+): Promise<Appointment> {
+  // Use transaction to ensure atomicity
+  return await withTransaction(async (tx) => {
+    // Lock the slot row (SELECT FOR UPDATE equivalent via findUnique)
+    const slot = await tx.slot.findUnique({
+      where: { id: slotId },
+    });
+
+    if (!slot) {
+      throw createNotFoundError("Slot not found");
+    }
+
+    if (slot.status !== SlotStatus.AVAILABLE) {
+      throw createConflictError("Slot is not available for booking");
+    }
+
+    // Verify patient exists
+    const patient = await tx.user.findUnique({
+      where: { id: patientId },
+    });
+
+    if (!patient) {
+      throw createNotFoundError("Patient not found");
+    }
+
+    // Create appointment
+    const appointment = await tx.appointment.create({
+      data: {
+        patientId,
+        doctorId: slot.doctorId,
+        availabilityId: slot.availabilityId ?? null,
+        slotId: slot.id,
+        startTime: slot.startTime,
+        endTime: slot.endTime,
+        status: AppointmentStatus.PENDING,
+        notes: notes ?? null,
+      },
+    });
+
+    // Update slot status atomically
+    await tx.slot.update({
+      where: { id: slotId },
+      data: { status: SlotStatus.BOOKED },
+    });
+
+    logger.info("Appointment created from slot", {
+      appointmentId: appointment.id,
+      slotId,
+      patientId,
+      doctorId: slot.doctorId,
+    });
+
+    return {
+      id: appointment.id,
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      availabilityId: appointment.availabilityId ?? undefined,
+      slotId: appointment.slotId ?? undefined,
+      startTime: appointment.startTime,
+      endTime: appointment.endTime,
+      status: appointment.status as AppointmentStatus,
+      notes: appointment.notes ?? undefined,
+      createdAt: appointment.createdAt,
+      updatedAt: appointment.updatedAt,
+    };
+  });
+}
+
+/**
  * Creates a new appointment
  * @param input Appointment creation input
  * @returns Created appointment data
@@ -414,6 +499,15 @@ async function isWithinAvailability(
 export async function createAppointment(
   input: CreateAppointmentInput
 ): Promise<Appointment> {
+  // If slotId is provided, use slot-based booking
+  if (input.slotId) {
+    return await createAppointmentFromSlot(
+      input.slotId,
+      input.patientId,
+      input.notes
+    );
+  }
+
   const { patientId, doctorId, availabilityId, startTime, endTime, notes } =
     input;
 
@@ -472,6 +566,7 @@ export async function createAppointment(
           patientId,
           doctorId,
           availabilityId: availabilityId ?? null,
+          slotId: null, // No slot for legacy booking
           startTime,
           endTime,
           status: AppointmentStatus.PENDING,
@@ -574,8 +669,21 @@ export async function updateAppointment(
     }
   }
 
-  // Update appointment
+  // Update appointment and handle slot status if needed
   try {
+    // If cancelling an appointment with a slot, update slot status
+    if (
+      status === AppointmentStatus.CANCELLED &&
+      existingAppointment.slotId &&
+      existingAppointment.status !== AppointmentStatus.CANCELLED
+    ) {
+      await updateSlotStatus(existingAppointment.slotId, SlotStatus.AVAILABLE);
+      logger.info("Slot freed due to appointment cancellation", {
+        slotId: existingAppointment.slotId,
+        appointmentId,
+      });
+    }
+
     const appointment = await query((prisma) =>
       prisma.appointment.update({
         where: { id: appointmentId },
@@ -595,6 +703,7 @@ export async function updateAppointment(
       patientId: appointment.patientId,
       doctorId: appointment.doctorId,
       availabilityId: appointment.availabilityId ?? undefined,
+      slotId: appointment.slotId ?? undefined,
       startTime: appointment.startTime,
       endTime: appointment.endTime,
       status: appointment.status as AppointmentStatus,
