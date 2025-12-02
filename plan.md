@@ -374,6 +374,148 @@ After each task typecheck, lint, build and commit
 
 ---
 
+#### 4.0.1 Admin Dashboard with Tabs and Doctor Schedule Management
+
+**Goal**: Enhance admin dashboard with tabbed interface and enable admins to schedule doctors for specific dates and times in an intuitive, date-first workflow.
+
+**Note**: This task builds upon the existing admin dashboard (Task 4.0) and availability management backend (Task 4.2). The current system uses `startTime`/`endTime` DateTime fields which can be confusing. This enhancement will provide a more intuitive date-based scheduling workflow that aligns with real-world clinic scheduling patterns.
+
+**Improved Scheduling Workflow**:
+
+1. Admin selects a doctor from dropdown
+2. Admin selects a specific date (or multiple dates for bulk scheduling)
+3. Admin selects time slots for that date:
+   - Option A: Time range (e.g., "2:00 PM - 5:00 PM") → auto-generates slots based on SlotTemplate
+   - Option B: Individual time slots (checkboxes: 9:00 AM, 9:30 AM, 10:00 AM, etc.)
+4. System auto-generates Availability + Slot records based on SlotTemplate duration
+
+- [ ] **Admin Dashboard Tabbed Interface**
+  - [ ] Refactor admin dashboard to use tab navigation
+  - [ ] Create "General" tab with:
+    - [ ] System statistics cards (total users, by role)
+    - [ ] All users table with role management
+    - [ ] User management actions (change role, delete)
+  - [ ] Create "Manage Doctor" tab with:
+    - [ ] Doctor registration form
+    - [ ] Doctor management section (view, edit, delete doctors)
+    - [ ] Doctor statistics display
+    - [ ] Search/filter functionality for doctors
+    - [ ] Schedule management section (see below)
+  - [ ] Add tab navigation component with active state styling
+  - [ ] Ensure responsive design for mobile/tablet views
+
+- [ ] **Admin Doctor Schedule Management UI**
+  - [ ] Add schedule management section to "Manage Doctor" tab
+  - [ ] Doctor selector dropdown (required before scheduling)
+  - [ ] Date picker for selecting date(s):
+    - [ ] Single date picker for one-time scheduling
+    - [ ] Date range picker for bulk scheduling (schedule same time slots for multiple dates)
+    - [ ] Calendar view showing doctor's scheduled dates (visual indicator)
+  - [ ] Time slot selector:
+    - [ ] Option A: Time range picker (start time - end time) with "Generate Slots" button
+      - [ ] Shows preview of generated slots based on SlotTemplate.durationMinutes
+      - [ ] Allows editing individual slots before confirming
+    - [ ] Option B: Individual slot selector (grid of time slots based on SlotTemplate)
+      - [ ] Shows available time slots (e.g., 9:00 AM, 9:30 AM, 10:00 AM, etc.)
+      - [ ] Checkboxes to select multiple slots
+      - [ ] Respects SlotTemplate.durationMinutes and bufferMinutes
+  - [ ] Display existing schedule for selected doctor:
+    - [ ] Calendar view with scheduled dates highlighted
+    - [ ] List view showing all scheduled slots (grouped by date)
+    - [ ] Date range filtering for viewing schedules
+  - [ ] Add ability to edit existing availability slots:
+    - [ ] Click on scheduled slot to edit
+    - [ ] Update date/time with same intuitive UI
+  - [ ] Add ability to delete availability slots:
+    - [ ] Delete individual slots
+    - [ ] Bulk delete (select multiple slots)
+  - [ ] Display validation feedback:
+    - [ ] Overlaps detection (warn if scheduling conflicts with existing slots)
+    - [ ] Invalid times (e.g., end time before start time)
+    - [ ] Past dates (prevent scheduling in the past)
+  - [ ] Show SlotTemplate settings for selected doctor (duration, buffer, advance booking days)
+  - [ ] Allow admin to update SlotTemplate for doctor (if needed)
+
+- [ ] **Backend API Enhancements**
+  - [ ] Create new date-based scheduling endpoint: `POST /api/v1/admin/doctors/:doctorId/schedule`
+    - [ ] Accept date-first format:
+      ```typescript
+      {
+        dates: Date[]; // Array of dates to schedule (e.g., ["2024-01-15", "2024-01-16"])
+        timeRange?: { start: string, end: string }; // e.g., "09:00" - "17:00" (24-hour format)
+        timeSlots?: { startTime: string, endTime: string }[]; // Specific slots: ["09:00", "10:00"]
+        generateSlots: boolean; // Auto-generate slots based on SlotTemplate
+      }
+      ```
+    - [ ] Auto-generate individual Slot records from time range + SlotTemplate
+    - [ ] Create Availability records for each date + time range
+    - [ ] Support bulk date scheduling (same time slots for multiple dates)
+    - [ ] Validate overlaps and conflicts
+  - [ ] Enhance existing availability endpoints to support admin role:
+    - [ ] Verify admin can create/edit/delete availability for any doctor
+    - [ ] Ensure admin-only access control for schedule management endpoints
+  - [ ] Add endpoint to get SlotTemplate for doctor: `GET /api/v1/admin/doctors/:doctorId/slot-template`
+  - [ ] Add endpoint to update SlotTemplate: `PUT /api/v1/admin/doctors/:doctorId/slot-template`
+  - [ ] Add endpoint to get doctor's schedule in calendar format: `GET /api/v1/admin/doctors/:doctorId/schedule?startDate=&endDate=`
+
+- [ ] **Slot Generation Logic**
+  - [ ] Implement slot generation from time range + SlotTemplate:
+    - [ ] Use SlotTemplate.durationMinutes to calculate slot intervals
+    - [ ] Apply SlotTemplate.bufferMinutes between slots
+    - [ ] Generate slots from start time to end time
+    - [ ] Example: 2:00 PM - 5:00 PM with 30min duration → [2:00-2:30, 2:30-3:00, 3:00-3:30, 3:30-4:00, 4:00-4:30, 4:30-5:00]
+  - [ ] Create Availability record for the time range
+  - [ ] Create individual Slot records linked to Availability
+  - [ ] Handle edge cases (partial hours, buffer requirements)
+
+- [ ] **Testing**
+  - [ ] Test tab navigation and switching between tabs
+  - [ ] Test admin can schedule doctor for specific date + time slots
+  - [ ] Test bulk date scheduling (multiple dates with same time slots)
+  - [ ] Test slot auto-generation from time range + SlotTemplate
+  - [ ] Test admin can edit schedules for any doctor
+  - [ ] Test admin can delete schedules for any doctor
+  - [ ] Test validation (overlaps, invalid times, past dates)
+  - [ ] Test doctor selection and schedule display (calendar + list views)
+  - [ ] Test SlotTemplate management (view, update)
+  - [ ] Test responsive design on mobile/tablet
+  - [ ] Integration tests for new date-based scheduling endpoint
+  - [ ] Unit tests for slot generation logic
+
+**Deliverables:**
+
+- ✅ Admin dashboard organized into "General" and "Manage Doctor" tabs
+- ✅ Intuitive date-first scheduling workflow (select doctor → select date → select time slots)
+- ✅ Admin can schedule doctors for specific dates and times via "Manage Doctor" tab
+- ✅ Auto-generation of slots from time range + SlotTemplate
+- ✅ Bulk scheduling support (schedule same time slots for multiple dates)
+- ✅ Calendar view showing doctor's scheduled dates
+- ✅ Admin can view, create, edit, and delete doctor schedules
+- ✅ Schedule management UI integrated into admin dashboard
+- ✅ Responsive tabbed interface for better UX
+
+**Example User Flow:**
+
+```
+Admin Dashboard → Manage Doctor Tab → Schedule Management
+1. Select Doctor: "Dr. Smith" [dropdown]
+2. Select Date(s): January 15, 2024 [date picker] (or select multiple dates)
+3. Select Time Range: 2:00 PM - 5:00 PM [time pickers]
+4. Slot Duration: 30 minutes (from SlotTemplate, displayed)
+5. Click "Generate Slots" → Shows preview:
+   - 2:00 PM - 2:30 PM
+   - 2:30 PM - 3:00 PM
+   - 3:00 PM - 3:30 PM
+   - 3:30 PM - 4:00 PM
+   - 4:00 PM - 4:30 PM
+   - 4:30 PM - 5:00 PM
+6. Click "Schedule" → Creates Availability + 6 Slots for selected date(s)
+```
+
+**Estimated Time:** 2-3 days (increased due to enhanced scheduling workflow and slot generation logic)
+
+---
+
 #### 4.1 Doctor Management (Backend & Public API)
 
 - [x] Create Doctor model in Prisma schema
@@ -422,20 +564,15 @@ After each task typecheck, lint, build and commit
   - [x] Test validation and error handling in UI (validation errors, API errors tested)
   - [ ] E2E test for doctor setting availability flow (pending - can be done with Playwright later)
 
-#### 4.2.2 Admin Availability Management (Future Enhancement)
+#### 4.2.2 Admin Availability Management ✅ MOVED TO TASK 4.0.1
 
-**Note**: Current implementation allows doctors to self-manage availability. However, the intended workflow is:
+**Note**: This task has been moved to Task 4.0.1 "Admin Dashboard with Tabs and Doctor Schedule Management" to consolidate admin dashboard enhancements. The implementation will include:
 
-- Admins communicate with doctors (outside the system) to determine schedules
-- Admins set availability on behalf of doctors via admin dashboard
-- This ensures centralized control and coordination
+- Tabbed interface for better organization
+- Schedule management integrated into "Manage Doctor" tab
+- Admin can set schedules for any doctor
 
-**Status**: Doctor self-service availability management is implemented (Task 4.2.1). Admin availability management UI should be added to admin dashboard as a future enhancement to align with the intended workflow.
-
-- [ ] Add availability management section to admin dashboard
-- [ ] Allow admins to create/edit/delete availability for any doctor
-- [ ] Add doctor selection dropdown in admin availability form
-- [ ] Optionally restrict doctor self-service (or keep as optional)
+**Status**: See Task 4.0.1 for implementation details.
 
 #### 4.3 Appointment System (Backend) ✅ COMPLETE
 
@@ -567,6 +704,7 @@ This was necessary for a complete user experience, even though not explicitly in
 **Deliverables:**
 
 - ✅ Admin can register doctors and manage doctor profiles (Task 4.0 - PRIORITY)
+- ⏳ Admin dashboard with tabs and doctor schedule management (Task 4.0.1) - Pending implementation
 - ✅ Doctors can set their availability (4.2 + 4.2.1) - Backend and UI complete
 - ✅ Doctors can register and manage their profiles (self-service) - Task 4.1 complete
 - ✅ Appointment booking backend complete (4.3) - 27 tests passing

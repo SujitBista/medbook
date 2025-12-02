@@ -15,6 +15,7 @@ export interface Appointment {
   patientId: string;
   doctorId: string;
   availabilityId?: string; // Optional: link to specific availability slot
+  slotId?: string; // Optional: link to specific slot (for slot-based booking)
   startTime: Date;
   endTime: Date;
   status: AppointmentStatus;
@@ -27,6 +28,7 @@ export interface CreateAppointmentInput {
   patientId: string;
   doctorId: string;
   availabilityId?: string; // Optional: link to specific availability slot
+  slotId?: string; // Optional: link to specific slot (for slot-based booking)
   startTime: Date;
   endTime: Date;
   notes?: string;

@@ -7,4 +7,5 @@ export * from "./user.types";
 export * from "./doctor.types";
 export * from "./appointment.types";
 export * from "./availability.types";
+export * from "./slot.types";
 export * from "./api.types";

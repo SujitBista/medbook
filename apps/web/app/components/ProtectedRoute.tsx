@@ -20,10 +20,7 @@ interface ProtectedRouteProps {
  * Shows loading state while checking authentication
  * Redirects to login if not authenticated
  */
-export function ProtectedRoute({
-  children,
-  requiredRoles,
-}: ProtectedRouteProps) {
+function ProtectedRoute({ children, requiredRoles }: ProtectedRouteProps) {
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
@@ -82,3 +79,5 @@ export function ProtectedRoute({
 
   return <>{children}</>;
 }
+
+export { ProtectedRoute };

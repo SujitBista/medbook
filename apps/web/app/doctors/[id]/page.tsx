@@ -14,9 +14,9 @@ import {
   TimeSlotSelector,
   BookingForm,
   AppointmentConfirmation,
-  generateAvailableTimeSlots,
   TimeSlot,
 } from "@/components/features/appointment";
+import { Slot, SlotStatus } from "@medbook/types";
 import Link from "next/link";
 
 interface DoctorResponse {
@@ -27,6 +27,11 @@ interface DoctorResponse {
 interface AvailabilitiesResponse {
   success: boolean;
   availabilities: Availability[];
+}
+
+interface SlotsResponse {
+  success: boolean;
+  slots: Slot[];
 }
 
 interface AppointmentsResponse {
@@ -50,10 +55,6 @@ export default function DoctorDetailPage() {
   const doctorId = params.id as string;
 
   const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [availabilities, setAvailabilities] = useState<Availability[]>([]);
-  const [existingAppointments, setExistingAppointments] = useState<
-    Appointment[]
-  >([]);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -63,23 +64,12 @@ export default function DoctorDetailPage() {
   const [bookedAppointment, setBookedAppointment] =
     useState<Appointment | null>(null);
 
-  // Fetch doctor details, availability, and existing appointments
+  // Fetch doctor details and slots
   useEffect(() => {
     if (doctorId) {
       fetchDoctorData();
     }
   }, [doctorId]);
-
-  // Generate available slots when data changes
-  useEffect(() => {
-    if (availabilities.length > 0) {
-      const slots = generateAvailableTimeSlots(
-        availabilities,
-        existingAppointments
-      );
-      setAvailableSlots(slots);
-    }
-  }, [availabilities, existingAppointments]);
 
   const fetchDoctorData = async () => {
     try {
@@ -97,38 +87,36 @@ export default function DoctorDetailPage() {
       }
       setDoctor(doctorData.doctor);
 
-      // Fetch availabilities (public endpoint)
-      const params = new URLSearchParams({ doctorId });
-      // Get availability for next 30 days
+      // Fetch available slots from backend Slot API
+      // Get slots for next 30 days, only AVAILABLE status
       const startDate = new Date();
       const endDate = new Date();
       endDate.setDate(endDate.getDate() + 30);
+
+      const params = new URLSearchParams();
       params.append("startDate", startDate.toISOString());
       params.append("endDate", endDate.toISOString());
+      params.append("status", SlotStatus.AVAILABLE);
 
-      const availResponse = await fetch(
-        `/api/availability?${params.toString()}`
+      const slotsResponse = await fetch(
+        `/api/slots/doctor/${doctorId}?${params.toString()}`
       );
-      if (availResponse.ok) {
-        const availData: AvailabilitiesResponse = await availResponse.json();
-        if (availData.success) {
-          setAvailabilities(availData.availabilities);
+      if (slotsResponse.ok) {
+        const slotsData: SlotsResponse = await slotsResponse.json();
+        if (slotsData.success && slotsData.slots) {
+          // Convert backend Slot[] to TimeSlot[]
+          const timeSlots: TimeSlot[] = slotsData.slots.map((slot) => ({
+            id: slot.id,
+            startTime: new Date(slot.startTime),
+            endTime: new Date(slot.endTime),
+            availabilityId: slot.availabilityId,
+            status: slot.status,
+          }));
+          setAvailableSlots(timeSlots);
         }
-      }
-
-      // Fetch existing appointments for this doctor to exclude booked slots
-      // Only if authenticated (appointments endpoint requires auth)
-      if (status === "authenticated" && session?.user?.id) {
-        const appointmentsResponse = await fetch(
-          `/api/appointments?doctorId=${doctorId}`
-        );
-        if (appointmentsResponse.ok) {
-          const appointmentsData: AppointmentsResponse =
-            await appointmentsResponse.json();
-          if (appointmentsData.success) {
-            setExistingAppointments(appointmentsData.data);
-          }
-        }
+      } else {
+        console.warn("[DoctorDetail] Failed to fetch slots, using empty array");
+        setAvailableSlots([]);
       }
     } catch (err) {
       console.error("[DoctorDetail] Error fetching data:", err);
@@ -300,9 +288,7 @@ export default function DoctorDetailPage() {
             />
           ) : !showBookingForm ? (
             <Card title="Available Time Slots">
-              {!loading &&
-              availabilities.length === 0 &&
-              availableSlots.length === 0 ? (
+              {!loading && availableSlots.length === 0 ? (
                 <div className="text-center py-12">
                   <p className="text-gray-600 mb-2">
                     No available time slots found for this doctor.

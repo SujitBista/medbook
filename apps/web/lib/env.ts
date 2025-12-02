@@ -1,6 +1,7 @@
 /**
  * Environment variables configuration
  * This file provides type-safe access to environment variables
+ * Compatible with Edge Runtime (used in middleware)
  */
 
 function getEnvVar(key: string, defaultValue?: string): string {
@@ -51,15 +52,20 @@ function getNextAuthSecret(): string {
 
   // Build time or development: allow fallback with warning
   // Note: For self-hosted deployments, ensure NEXTAUTH_SECRET is set when running next start
-  if (process.env.NODE_ENV === "production") {
-    console.warn(
-      "⚠️  Using development NEXTAUTH_SECRET during build. " +
-        "CRITICAL: Set NEXTAUTH_SECRET when running 'next start' in production!"
-    );
-  } else {
-    console.warn(
-      "⚠️  Using development NEXTAUTH_SECRET. Set NEXTAUTH_SECRET in production!"
-    );
+  // Note: In Edge Runtime, console.warn may not be available, so we use a try-catch
+  try {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "⚠️  Using development NEXTAUTH_SECRET during build. " +
+          "CRITICAL: Set NEXTAUTH_SECRET when running 'next start' in production!"
+      );
+    } else {
+      console.warn(
+        "⚠️  Using development NEXTAUTH_SECRET. Set NEXTAUTH_SECRET in production!"
+      );
+    }
+  } catch {
+    // Ignore if console is not available (Edge Runtime)
   }
   return "development-secret-change-in-production";
 }
@@ -73,15 +79,20 @@ function getJwtSecret(): string {
 
   // Use same fallback as backend for development
   // In production, JWT_SECRET should be set to match backend
-  if (process.env.NODE_ENV === "production") {
-    console.warn(
-      "⚠️  JWT_SECRET is not set. This should match the backend JWT_SECRET in production!"
-    );
+  try {
+    if (process.env.NODE_ENV === "production") {
+      console.warn(
+        "⚠️  JWT_SECRET is not set. This should match the backend JWT_SECRET in production!"
+      );
+    }
+  } catch {
+    // Ignore if console is not available (Edge Runtime)
   }
   return "development-jwt-secret-change-in-production";
 }
 
-export const env = {
+// Export env object - ensure it's a named export for Edge Runtime compatibility
+const env = {
   // NextAuth
   nextAuthUrl: getEnvVar("NEXTAUTH_URL", "http://localhost:3000"),
   // NEXTAUTH_SECRET is required for production but can use a default for development builds
@@ -94,3 +105,5 @@ export const env = {
   // API
   apiUrl: getEnvVar("NEXT_PUBLIC_API_URL", "http://localhost:4000/api/v1"),
 } as const;
+
+export { env };

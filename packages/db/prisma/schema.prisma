@@ -38,6 +38,8 @@ model Doctor {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   availabilities Availability[]
   appointments Appointment[]
+  slotTemplate SlotTemplate?
+  slots Slot[]
 
   @@map("doctors")
 }
@@ -57,6 +59,7 @@ model Availability {
   // Relations
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   appointments Appointment[]
+  slots Slot[]
 
   @@index([doctorId])
   @@index([startTime])
@@ -69,6 +72,7 @@ model Appointment {
   patientId     String
   doctorId      String
   availabilityId String?           // Optional: link to specific availability slot
+  slotId        String?            @unique // Link to specific slot (unique for one-to-one)
   startTime     DateTime
   endTime       DateTime
   status        AppointmentStatus  @default(PENDING)
@@ -80,6 +84,7 @@ model Appointment {
   patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   availability Availability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+  slot Slot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
 
   @@index([patientId])
   @@index([doctorId])
@@ -100,5 +105,50 @@ enum AppointmentStatus {
   CONFIRMED
   CANCELLED
   COMPLETED
+}
+
+model SlotTemplate {
+  id                String   @id @default(uuid())
+  doctorId          String   @unique
+  durationMinutes   Int      @default(30)  // Slot duration (15, 30, 60, etc.)
+  bufferMinutes     Int      @default(0)    // Buffer between slots
+  advanceBookingDays Int     @default(30)   // How far ahead can patients book
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+
+  @@map("slot_templates")
+}
+
+model Slot {
+  id            String     @id @default(uuid())
+  doctorId      String
+  availabilityId String?
+  startTime     DateTime
+  endTime       DateTime
+  status        SlotStatus @default(AVAILABLE)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  // Relations
+  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  availability Availability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
+  appointment Appointment?
+
+  @@index([doctorId])
+  @@index([startTime])
+  @@index([endTime])
+  @@index([status])
+  @@unique([doctorId, startTime, endTime])  // Prevent duplicate slots
+  @@map("slots")
+}
+
+enum SlotStatus {
+  AVAILABLE    // Available for booking
+  BOOKED       // Has an appointment
+  BLOCKED      // Doctor blocked this slot
+  CANCELLED    // Appointment cancelled, slot available again
 }
 

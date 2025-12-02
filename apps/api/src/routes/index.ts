@@ -6,6 +6,7 @@ import adminRoutes from "./admin.routes";
 import doctorRoutes from "./doctor.routes";
 import availabilityRoutes from "./availability.routes";
 import appointmentRoutes from "./appointment.routes";
+import slotRoutes from "./slot.routes";
 
 /**
  * Main router aggregator
@@ -33,5 +34,6 @@ router.use("/admin", adminRoutes);
 router.use("/doctors", doctorRoutes);
 router.use("/availability", availabilityRoutes);
 router.use("/appointments", appointmentRoutes);
+router.use("/slots", slotRoutes);
 
 export default router;
