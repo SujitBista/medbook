@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState, Suspense, useCallback } from "react";
+import { useEffect, useState, Suspense, useCallback, useMemo } from "react";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
 import {
   UserRole,
   Availability,
   CreateAvailabilityInput,
+  SlotTemplate,
 } from "@medbook/types";
 import { Button, Input, Card } from "@medbook/ui";
 import { TimePicker } from "@/components/forms/TimePicker";
@@ -189,6 +190,31 @@ function AdminDashboardContent() {
   const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
   const [scheduleFilterStartDate, setScheduleFilterStartDate] = useState("");
   const [scheduleFilterEndDate, setScheduleFilterEndDate] = useState("");
+  // SlotTemplate state
+  const [slotTemplate, setSlotTemplate] = useState<SlotTemplate | null>(null);
+  const [slotTemplateLoading, setSlotTemplateLoading] = useState(false);
+  const [showSlotTemplateForm, setShowSlotTemplateForm] = useState(false);
+  const [slotTemplateFormData, setSlotTemplateFormData] = useState({
+    durationMinutes: 30,
+    bufferMinutes: 0,
+    advanceBookingDays: 30,
+  });
+  // Improved scheduling state
+  const [schedulingMode, setSchedulingMode] = useState<
+    "timeRange" | "individual"
+  >("timeRange");
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const [useDateRange, setUseDateRange] = useState(false);
+  const [dateRangeStart, setDateRangeStart] = useState("");
+  const [dateRangeEnd, setDateRangeEnd] = useState("");
+  const [timeRangeStart, setTimeRangeStart] = useState("09:00");
+  const [timeRangeEnd, setTimeRangeEnd] = useState("17:00");
+  const [previewSlots, setPreviewSlots] = useState<
+    Array<{ start: string; end: string }>
+  >([]);
+  const [selectedIndividualSlots, setSelectedIndividualSlots] = useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
     fetchData();
@@ -244,6 +270,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     if (selectedDoctorForSchedule) {
       fetchAvailabilities();
+      fetchSlotTemplate();
       // Update search query to show selected doctor (only when doctor changes, not filters)
       // Check if this is a doctor change by comparing previous values
       const isDoctorChange = !scheduleFilterStartDate && !scheduleFilterEndDate;
@@ -254,6 +281,7 @@ function AdminDashboardContent() {
       }
     } else {
       setAvailabilities([]);
+      setSlotTemplate(null);
     }
   }, [
     selectedDoctorForSchedule,
@@ -261,6 +289,33 @@ function AdminDashboardContent() {
     scheduleFilterEndDate,
     fetchAvailabilities,
   ]);
+
+  const fetchSlotTemplate = async () => {
+    if (!selectedDoctorForSchedule) return;
+
+    try {
+      setSlotTemplateLoading(true);
+      const response = await fetch(
+        `/api/slots/template/${selectedDoctorForSchedule.id}`
+      );
+      if (!response.ok) {
+        throw new Error("Failed to fetch slot template");
+      }
+      const data = await response.json();
+      if (data.success && data.template) {
+        setSlotTemplate(data.template);
+        setSlotTemplateFormData({
+          durationMinutes: data.template.durationMinutes,
+          bufferMinutes: data.template.bufferMinutes,
+          advanceBookingDays: data.template.advanceBookingDays,
+        });
+      }
+    } catch (err) {
+      console.error("[AdminDashboard] Error fetching slot template:", err);
+    } finally {
+      setSlotTemplateLoading(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -683,54 +738,254 @@ function AdminDashboardContent() {
   const handleScheduleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!validateScheduleForm()) {
+    // Validate new form
+    if (!selectedDoctorForSchedule) {
+      setScheduleFormErrors({ doctorId: "Please select a doctor" });
       return;
+    }
+
+    if (scheduleFormData.isRecurring) {
+      // Validate recurring schedule
+      if (scheduleFormData.dayOfWeek === undefined) {
+        setScheduleFormErrors({ dayOfWeek: "Day of week is required" });
+        return;
+      }
+      if (!scheduleFormData.validFrom) {
+        setScheduleFormErrors({ validFrom: "Start date is required" });
+        return;
+      }
+      if (!scheduleFormData.startTime || !scheduleFormData.endTime) {
+        setScheduleFormErrors({
+          startTime: "Start and end times are required",
+        });
+        return;
+      }
+    } else {
+      // Validate one-time schedule
+      if (useDateRange) {
+        // Validate date range for bulk scheduling
+        if (!dateRangeStart) {
+          setScheduleFormErrors({ dateRangeStart: "Start date is required" });
+          return;
+        }
+        if (!dateRangeEnd) {
+          setScheduleFormErrors({ dateRangeEnd: "End date is required" });
+          return;
+        }
+        if (dateRangeEnd < dateRangeStart) {
+          setScheduleFormErrors({
+            dateRange: "End date must be after start date",
+          });
+          return;
+        }
+        if (selectedDates.length === 0) {
+          setScheduleFormErrors({ dates: "Please select valid dates" });
+          return;
+        }
+      } else {
+        // Validate single date selection
+        if (selectedDates.length === 0) {
+          setScheduleFormErrors({ dates: "Please select at least one date" });
+          return;
+        }
+        // Validate that the date is in correct format
+        if (selectedDates[0] && !/^\d{4}-\d{2}-\d{2}$/.test(selectedDates[0])) {
+          setScheduleFormErrors({ dates: "Please select a valid date" });
+          return;
+        }
+      }
+
+      if (schedulingMode === "timeRange") {
+        if (!timeRangeStart || !timeRangeEnd) {
+          setScheduleFormErrors({
+            timeRange: "Start and end times are required",
+          });
+          return;
+        }
+        if (timeRangeEnd <= timeRangeStart) {
+          setScheduleFormErrors({
+            timeRange: "End time must be after start time",
+          });
+          return;
+        }
+      } else {
+        if (selectedIndividualSlots.size === 0) {
+          setScheduleFormErrors({
+            slots: "Please select at least one time slot",
+          });
+          return;
+        }
+      }
     }
 
     try {
       setScheduleSubmitting(true);
       setError(null);
 
-      // Convert local time from datetime-local inputs to UTC Date objects
-      // datetime-local inputs provide values in local time (e.g., "2024-01-15T14:30")
-      // localToUtcDate interprets them as local time, and JSON.stringify converts to UTC
-      const payload: CreateAvailabilityInput = {
-        doctorId: selectedDoctorForSchedule!.id,
-        startTime: localToUtcDate(scheduleFormData.startTime!),
-        endTime: localToUtcDate(scheduleFormData.endTime!),
-        isRecurring: scheduleFormData.isRecurring || false,
-        dayOfWeek: scheduleFormData.isRecurring
-          ? scheduleFormData.dayOfWeek
-          : undefined,
-        validFrom:
-          scheduleFormData.isRecurring && scheduleFormData.validFrom
-            ? // Date inputs return "YYYY-MM-DD", interpret as local midnight
-              localToUtcDate(`${scheduleFormData.validFrom}T00:00`)
+      if (scheduleFormData.isRecurring) {
+        // Handle recurring schedule (existing logic)
+        const payload: CreateAvailabilityInput = {
+          doctorId: selectedDoctorForSchedule.id,
+          startTime: localToUtcDate(scheduleFormData.startTime!),
+          endTime: localToUtcDate(scheduleFormData.endTime!),
+          isRecurring: true,
+          dayOfWeek: scheduleFormData.dayOfWeek,
+          validFrom: scheduleFormData.validFrom
+            ? localToUtcDate(`${scheduleFormData.validFrom}T00:00`)
             : undefined,
-        validTo:
-          scheduleFormData.isRecurring && scheduleFormData.validTo
-            ? // Date inputs return "YYYY-MM-DD", interpret as local end of day
-              localToUtcDate(`${scheduleFormData.validTo}T23:59`)
+          validTo: scheduleFormData.validTo
+            ? localToUtcDate(`${scheduleFormData.validTo}T23:59`)
             : undefined,
-      };
+        };
 
-      const url = editingScheduleId
-        ? `/api/availability/${editingScheduleId}`
-        : "/api/availability";
-      const method = editingScheduleId ? "PUT" : "POST";
+        const url = editingScheduleId
+          ? `/api/availability/${editingScheduleId}`
+          : "/api/availability";
+        const method = editingScheduleId ? "PUT" : "POST";
 
-      const response = await fetch(url, {
-        method,
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
+        const response = await fetch(url, {
+          method,
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error?.message || "Failed to save schedule");
+        if (!response.ok) {
+          throw new Error(data.error?.message || "Failed to save schedule");
+        }
+      } else {
+        // Handle one-time schedules (new improved logic)
+        const datesToSchedule = selectedDates;
+
+        if (datesToSchedule.length === 0) {
+          setScheduleFormErrors({ dates: "Please select at least one date" });
+          return;
+        }
+
+        const promises: Promise<Response>[] = [];
+
+        if (schedulingMode === "timeRange") {
+          // Create availability for each date with time range
+          for (const date of datesToSchedule) {
+            const startDateTime = localToUtcDate(`${date}T${timeRangeStart}`);
+            const endDateTime = localToUtcDate(`${date}T${timeRangeEnd}`);
+
+            const payload: CreateAvailabilityInput = {
+              doctorId: selectedDoctorForSchedule.id,
+              startTime: startDateTime,
+              endTime: endDateTime,
+              isRecurring: false,
+            };
+
+            // Only use PUT if editing a single schedule (not bulk)
+            const url =
+              editingScheduleId && datesToSchedule.length === 1
+                ? `/api/availability/${editingScheduleId}`
+                : "/api/availability";
+            const method =
+              editingScheduleId && datesToSchedule.length === 1
+                ? "PUT"
+                : "POST";
+
+            promises.push(
+              fetch(url, {
+                method,
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(payload),
+              })
+            );
+          }
+        } else {
+          // Create availability for each selected slot
+          if (selectedIndividualSlots.size === 0) {
+            setScheduleFormErrors({
+              slots: "Please select at least one time slot",
+            });
+            return;
+          }
+
+          for (const date of datesToSchedule) {
+            for (const slotKey of selectedIndividualSlots) {
+              const slot = individualSlots.find((s) => s.key === slotKey);
+              if (!slot) continue;
+
+              const startDateTime = localToUtcDate(`${date}T${slot.start}`);
+              const endDateTime = localToUtcDate(`${date}T${slot.end}`);
+
+              const payload: CreateAvailabilityInput = {
+                doctorId: selectedDoctorForSchedule.id,
+                startTime: startDateTime,
+                endTime: endDateTime,
+                isRecurring: false,
+              };
+
+              // Only use PUT if editing a single schedule (not bulk)
+              const url =
+                editingScheduleId &&
+                datesToSchedule.length === 1 &&
+                selectedIndividualSlots.size === 1
+                  ? `/api/availability/${editingScheduleId}`
+                  : "/api/availability";
+              const method =
+                editingScheduleId &&
+                datesToSchedule.length === 1 &&
+                selectedIndividualSlots.size === 1
+                  ? "PUT"
+                  : "POST";
+
+              promises.push(
+                fetch(url, {
+                  method,
+                  headers: {
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify(payload),
+                })
+              );
+            }
+          }
+        }
+
+        if (promises.length === 0) {
+          throw new Error("No schedules to create");
+        }
+
+        const responses = await Promise.all(promises);
+        const results = await Promise.all(
+          responses.map(async (r) => {
+            if (!r.ok) {
+              const errorData = await r.json().catch(() => ({}));
+              return { success: false, error: errorData };
+            }
+            return r.json();
+          })
+        );
+
+        const failed = results.filter((r) => !r.success);
+        if (failed.length > 0) {
+          // Extract error message from API response structure: { success: false, error: { code, message, details } }
+          const errorResponse = failed[0].error;
+          let errorMessage = "Failed to save some schedules";
+
+          if (errorResponse) {
+            // API returns: { success: false, error: { code, message, details } }
+            // errorResponse is the entire response object
+            if (errorResponse.error?.message) {
+              errorMessage = errorResponse.error.message;
+            } else if (typeof errorResponse === "string") {
+              errorMessage = errorResponse;
+            } else if (errorResponse.message) {
+              errorMessage = errorResponse.message;
+            }
+          }
+
+          throw new Error(errorMessage);
+        }
       }
 
       setSuccessMessage(
@@ -741,6 +996,14 @@ function AdminDashboardContent() {
       setShowScheduleForm(false);
       setEditingScheduleId(null);
       resetScheduleForm();
+      // Reset new form state
+      setSelectedDates([]);
+      setUseDateRange(false);
+      setDateRangeStart("");
+      setDateRangeEnd("");
+      setTimeRangeStart("09:00");
+      setTimeRangeEnd("17:00");
+      setSelectedIndividualSlots(new Set());
       await fetchAvailabilities();
 
       setTimeout(() => {
@@ -748,6 +1011,18 @@ function AdminDashboardContent() {
       }, 5000);
     } catch (err) {
       console.error("[AdminDashboard] Error saving schedule:", err);
+      console.error("[AdminDashboard] Schedule form data:", {
+        isRecurring: scheduleFormData.isRecurring,
+        useDateRange,
+        selectedDates,
+        dateRangeStart,
+        dateRangeEnd,
+        schedulingMode,
+        timeRangeStart,
+        timeRangeEnd,
+        selectedIndividualSlots: Array.from(selectedIndividualSlots),
+        editingScheduleId,
+      });
       setError(err instanceof Error ? err.message : "Failed to save schedule");
     } finally {
       setScheduleSubmitting(false);
@@ -777,6 +1052,24 @@ function AdminDashboardContent() {
         ? formatDateLocal(availability.validTo)
         : undefined,
     });
+
+    // Populate new form fields for non-recurring schedules
+    if (!availability.isRecurring) {
+      const dateStr = formatDateLocal(startDate);
+      setSelectedDates([dateStr]);
+      setUseDateRange(false);
+      setDateRangeStart("");
+      setDateRangeEnd("");
+
+      // Extract time from start/end dates
+      const startTimeStr = `${String(startDate.getHours()).padStart(2, "0")}:${String(startDate.getMinutes()).padStart(2, "0")}`;
+      const endTimeStr = `${String(endDate.getHours()).padStart(2, "0")}:${String(endDate.getMinutes()).padStart(2, "0")}`;
+      setTimeRangeStart(startTimeStr);
+      setTimeRangeEnd(endTimeStr);
+      setSchedulingMode("timeRange");
+      setSelectedIndividualSlots(new Set());
+    }
+
     setShowScheduleForm(true);
     setScheduleFormErrors({});
   };
@@ -824,6 +1117,15 @@ function AdminDashboardContent() {
       validTo: undefined,
     });
     setScheduleFormErrors({});
+    // Reset new form state
+    setSelectedDates([]);
+    setUseDateRange(false);
+    setDateRangeStart("");
+    setDateRangeEnd("");
+    setTimeRangeStart("09:00");
+    setTimeRangeEnd("17:00");
+    setSelectedIndividualSlots(new Set());
+    setSchedulingMode("timeRange");
   };
 
   // Update scheduleFormData.doctorId when doctor is selected
@@ -932,6 +1234,145 @@ function AdminDashboardContent() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, [showDoctorDropdown]);
+
+  // Generate slot preview from time range
+  const generateSlotPreview = useCallback(() => {
+    if (!slotTemplate || !timeRangeStart || !timeRangeEnd) {
+      setPreviewSlots([]);
+      return;
+    }
+
+    const [startHour, startMin] = timeRangeStart.split(":").map(Number);
+    const [endHour, endMin] = timeRangeEnd.split(":").map(Number);
+
+    const startMinutes = startHour * 60 + startMin;
+    const endMinutes = endHour * 60 + endMin;
+
+    if (endMinutes <= startMinutes) {
+      setPreviewSlots([]);
+      return;
+    }
+
+    const slots: Array<{ start: string; end: string }> = [];
+    let currentMinutes = startMinutes;
+    const duration = slotTemplate.durationMinutes;
+    const buffer = slotTemplate.bufferMinutes;
+
+    while (currentMinutes + duration <= endMinutes) {
+      const slotStartMinutes = currentMinutes;
+      const slotEndMinutes = currentMinutes + duration;
+
+      const startHourStr = Math.floor(slotStartMinutes / 60)
+        .toString()
+        .padStart(2, "0");
+      const startMinStr = (slotStartMinutes % 60).toString().padStart(2, "0");
+      const endHourStr = Math.floor(slotEndMinutes / 60)
+        .toString()
+        .padStart(2, "0");
+      const endMinStr = (slotEndMinutes % 60).toString().padStart(2, "0");
+
+      slots.push({
+        start: `${startHourStr}:${startMinStr}`,
+        end: `${endHourStr}:${endMinStr}`,
+      });
+
+      currentMinutes = slotEndMinutes + buffer;
+    }
+
+    setPreviewSlots(slots);
+  }, [slotTemplate, timeRangeStart, timeRangeEnd]);
+
+  useEffect(() => {
+    if (schedulingMode === "timeRange") {
+      generateSlotPreview();
+    }
+  }, [schedulingMode, generateSlotPreview]);
+
+  // Generate individual slots for selection
+  const individualSlots = useMemo(() => {
+    if (!slotTemplate) return [];
+
+    const slots: Array<{ start: string; end: string; key: string }> = [];
+    const startHour = 0;
+    const endHour = 24;
+    const duration = slotTemplate.durationMinutes;
+    const buffer = slotTemplate.bufferMinutes;
+
+    let currentMinutes = startHour * 60;
+    const maxMinutes = endHour * 60;
+
+    while (currentMinutes + duration <= maxMinutes) {
+      const slotStartMinutes = currentMinutes;
+      const slotEndMinutes = currentMinutes + duration;
+
+      const startHourStr = Math.floor(slotStartMinutes / 60)
+        .toString()
+        .padStart(2, "0");
+      const startMinStr = (slotStartMinutes % 60).toString().padStart(2, "0");
+      const endHourStr = Math.floor(slotEndMinutes / 60)
+        .toString()
+        .padStart(2, "0");
+      const endMinStr = (slotEndMinutes % 60).toString().padStart(2, "0");
+
+      const key = `${startHourStr}:${startMinStr}`;
+      slots.push({
+        start: `${startHourStr}:${startMinStr}`,
+        end: `${endHourStr}:${endMinStr}`,
+        key,
+      });
+
+      currentMinutes = slotEndMinutes + buffer;
+    }
+
+    return slots;
+  }, [slotTemplate]);
+
+  // Format time for display (12-hour format)
+  const formatTimeDisplay = (time24: string): string => {
+    const [hours, minutes] = time24.split(":").map(Number);
+    const period = hours >= 12 ? "PM" : "AM";
+    const hours12 = hours % 12 || 12;
+    return `${hours12}:${minutes.toString().padStart(2, "0")} ${period}`;
+  };
+
+  // Generate date range array
+  const generateDateRange = (startDate: string, endDate: string): string[] => {
+    if (!startDate || !endDate) return [];
+
+    // Parse dates as local dates (YYYY-MM-DD format)
+    // Split and create date objects to avoid timezone issues
+    const [startYear, startMonth, startDay] = startDate.split("-").map(Number);
+    const [endYear, endMonth, endDay] = endDate.split("-").map(Number);
+
+    if (
+      !startYear ||
+      !startMonth ||
+      !startDay ||
+      !endYear ||
+      !endMonth ||
+      !endDay
+    ) {
+      return [];
+    }
+
+    const start = new Date(startYear, startMonth - 1, startDay);
+    const end = new Date(endYear, endMonth - 1, endDay);
+
+    // Validate dates
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || start > end) {
+      return [];
+    }
+
+    const dates: string[] = [];
+    const current = new Date(start);
+
+    while (current <= end) {
+      dates.push(formatDateLocal(current));
+      current.setDate(current.getDate() + 1);
+    }
+
+    return dates;
+  };
 
   if (loading) {
     return (
@@ -1537,6 +1978,47 @@ function AdminDashboardContent() {
 
               {selectedDoctorForSchedule && (
                 <>
+                  {/* Slot Template Display */}
+                  {slotTemplate && (
+                    <Card title="Slot Template Settings" className="mb-6">
+                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Slot Duration
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {slotTemplate.durationMinutes} minutes
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Buffer Between Slots
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {slotTemplate.bufferMinutes} minutes
+                          </p>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700">
+                            Advance Booking Days
+                          </label>
+                          <p className="mt-1 text-sm text-gray-900">
+                            {slotTemplate.advanceBookingDays} days
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setShowSlotTemplateForm(true)}
+                        >
+                          Update Template
+                        </Button>
+                      </div>
+                    </Card>
+                  )}
+
                   {/* Schedule Filters */}
                   <Card title="Filter Schedules" className="mb-6">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
@@ -1582,6 +2064,7 @@ function AdminDashboardContent() {
                     >
                       <form
                         onSubmit={handleScheduleSubmit}
+                        noValidate
                         className="space-y-4"
                       >
                         <div>
@@ -1745,146 +2228,457 @@ function AdminDashboardContent() {
                             </div>
                           </>
                         ) : (
-                          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <>
+                            {/* Date Selection - Single or Range */}
                             <div className="space-y-4">
-                              <label
-                                htmlFor="one-time-start-date"
-                                className="block text-sm font-medium text-gray-700"
-                              >
-                                Start Date & Time{" "}
-                                <span className="text-red-500">*</span>
-                              </label>
-                              <div className="space-y-3">
+                              <div>
+                                <label className="mb-2 block text-sm font-medium text-gray-700">
+                                  <input
+                                    type="checkbox"
+                                    checked={useDateRange}
+                                    onChange={(e) => {
+                                      setUseDateRange(e.target.checked);
+                                      if (!e.target.checked) {
+                                        setDateRangeStart("");
+                                        setDateRangeEnd("");
+                                        setSelectedDates([]);
+                                        // Clear date range errors
+                                        setScheduleFormErrors((prev) => {
+                                          const newErrors = { ...prev };
+                                          delete newErrors.dateRangeStart;
+                                          delete newErrors.dateRangeEnd;
+                                          delete newErrors.dateRange;
+                                          return newErrors;
+                                        });
+                                      }
+                                    }}
+                                    className="mr-2"
+                                  />
+                                  Schedule for multiple dates (bulk scheduling)
+                                </label>
+                              </div>
+
+                              {useDateRange ? (
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                  <div>
+                                    <label
+                                      htmlFor="date-range-start"
+                                      className="block text-sm font-medium text-gray-700"
+                                    >
+                                      Start Date{" "}
+                                      <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="date"
+                                      id="date-range-start"
+                                      value={dateRangeStart}
+                                      onChange={(e) => {
+                                        const newStartDate = e.target.value;
+                                        // Ensure the date is in valid format (YYYY-MM-DD)
+                                        if (
+                                          newStartDate &&
+                                          !/^\d{4}-\d{2}-\d{2}$/.test(
+                                            newStartDate
+                                          )
+                                        ) {
+                                          return; // Invalid format, don't update
+                                        }
+                                        setDateRangeStart(newStartDate);
+                                        // Clear errors for this field
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRangeStart: "",
+                                          dateRange: "",
+                                        }));
+                                        // Generate date list
+                                        if (newStartDate && dateRangeEnd) {
+                                          const dates = generateDateRange(
+                                            newStartDate,
+                                            dateRangeEnd
+                                          );
+                                          setSelectedDates(dates);
+                                          // Validate date range
+                                          if (
+                                            dates.length === 0 &&
+                                            dateRangeEnd < newStartDate
+                                          ) {
+                                            setScheduleFormErrors((prev) => ({
+                                              ...prev,
+                                              dateRange:
+                                                "End date must be after start date",
+                                            }));
+                                          }
+                                        } else {
+                                          setSelectedDates([]);
+                                        }
+                                      }}
+                                      onInvalid={(e) => {
+                                        e.preventDefault();
+                                        const target =
+                                          e.target as HTMLInputElement;
+                                        if (!target.value) {
+                                          setScheduleFormErrors((prev) => ({
+                                            ...prev,
+                                            dateRangeStart:
+                                              "Start date is required",
+                                          }));
+                                        } else {
+                                          setScheduleFormErrors((prev) => ({
+                                            ...prev,
+                                            dateRangeStart:
+                                              "Please select a valid start date",
+                                          }));
+                                        }
+                                      }}
+                                      min={formatDateLocal(new Date())}
+                                      required={useDateRange}
+                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                        scheduleFormErrors.dateRangeStart ||
+                                        scheduleFormErrors.dateRange
+                                          ? "border-red-500"
+                                          : "border-gray-300"
+                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                    />
+                                    {scheduleFormErrors.dateRangeStart && (
+                                      <p className="mt-1 text-sm text-red-600">
+                                        {scheduleFormErrors.dateRangeStart}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div>
+                                    <label
+                                      htmlFor="date-range-end"
+                                      className="block text-sm font-medium text-gray-700"
+                                    >
+                                      End Date{" "}
+                                      <span className="text-red-500">*</span>
+                                    </label>
+                                    <input
+                                      type="date"
+                                      id="date-range-end"
+                                      value={dateRangeEnd}
+                                      onChange={(e) => {
+                                        const newEndDate = e.target.value;
+                                        // Ensure the date is in valid format (YYYY-MM-DD)
+                                        if (
+                                          newEndDate &&
+                                          !/^\d{4}-\d{2}-\d{2}$/.test(
+                                            newEndDate
+                                          )
+                                        ) {
+                                          return; // Invalid format, don't update
+                                        }
+                                        setDateRangeEnd(newEndDate);
+                                        // Clear errors for this field
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRangeEnd: "",
+                                          dateRange: "",
+                                        }));
+                                        // Generate date list
+                                        if (dateRangeStart && newEndDate) {
+                                          const dates = generateDateRange(
+                                            dateRangeStart,
+                                            newEndDate
+                                          );
+                                          setSelectedDates(dates);
+                                          // Validate date range
+                                          if (dates.length === 0) {
+                                            setScheduleFormErrors((prev) => ({
+                                              ...prev,
+                                              dateRange:
+                                                "End date must be after start date",
+                                            }));
+                                          }
+                                        } else {
+                                          setSelectedDates([]);
+                                        }
+                                      }}
+                                      onInvalid={(e) => {
+                                        e.preventDefault();
+                                        const target =
+                                          e.target as HTMLInputElement;
+                                        if (!target.value) {
+                                          setScheduleFormErrors((prev) => ({
+                                            ...prev,
+                                            dateRangeEnd:
+                                              "End date is required",
+                                          }));
+                                        } else {
+                                          setScheduleFormErrors((prev) => ({
+                                            ...prev,
+                                            dateRangeEnd:
+                                              "Please select a valid end date",
+                                          }));
+                                        }
+                                      }}
+                                      min={
+                                        dateRangeStart ||
+                                        formatDateLocal(new Date())
+                                      }
+                                      required={useDateRange}
+                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                        scheduleFormErrors.dateRangeEnd ||
+                                        scheduleFormErrors.dateRange
+                                          ? "border-red-500"
+                                          : "border-gray-300"
+                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                    />
+                                    {scheduleFormErrors.dateRangeEnd && (
+                                      <p className="mt-1 text-sm text-red-600">
+                                        {scheduleFormErrors.dateRangeEnd}
+                                      </p>
+                                    )}
+                                    {scheduleFormErrors.dateRange && (
+                                      <p className="mt-1 text-sm text-red-600">
+                                        {scheduleFormErrors.dateRange}
+                                      </p>
+                                    )}
+                                  </div>
+                                </div>
+                              ) : (
                                 <div>
                                   <label
-                                    htmlFor="one-time-start-date"
-                                    className="block text-xs font-medium text-gray-600 mb-1"
+                                    htmlFor="single-date"
+                                    className="block text-sm font-medium text-gray-700"
                                   >
-                                    Date
+                                    Select Date{" "}
+                                    <span className="text-red-500">*</span>
                                   </label>
                                   <input
                                     type="date"
-                                    id="one-time-start-date"
-                                    value={
-                                      scheduleFormData.startTime
-                                        ? scheduleFormData.startTime.split(
-                                            "T"
-                                          )[0] || ""
-                                        : ""
-                                    }
+                                    id="single-date"
+                                    value={selectedDates[0] || ""}
                                     onChange={(e) => {
-                                      const timePart =
-                                        scheduleFormData.startTime.split(
-                                          "T"
-                                        )[1] || "00:00";
-                                      setScheduleFormData((prev) => ({
-                                        ...prev,
-                                        startTime: `${e.target.value}T${timePart}`,
-                                      }));
+                                      const newDate = e.target.value;
+                                      // HTML date inputs always return YYYY-MM-DD format
+                                      // Update state if date is valid or empty
+                                      if (newDate) {
+                                        // Validate format (YYYY-MM-DD)
+                                        if (
+                                          /^\d{4}-\d{2}-\d{2}$/.test(newDate)
+                                        ) {
+                                          setSelectedDates([newDate]);
+                                          // Clear errors for this field
+                                          setScheduleFormErrors((prev) => {
+                                            const newErrors = { ...prev };
+                                            delete newErrors.dates;
+                                            return newErrors;
+                                          });
+                                        }
+                                      } else {
+                                        // Empty value - clear selection
+                                        setSelectedDates([]);
+                                        // Clear errors for this field
+                                        setScheduleFormErrors((prev) => {
+                                          const newErrors = { ...prev };
+                                          delete newErrors.dates;
+                                          return newErrors;
+                                        });
+                                      }
                                     }}
+                                    onInvalid={(e) => {
+                                      e.preventDefault();
+                                      const target =
+                                        e.target as HTMLInputElement;
+                                      if (!target.value) {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dates: "Please select a date",
+                                        }));
+                                      } else {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dates: "Please select a valid date",
+                                        }));
+                                      }
+                                    }}
+                                    min={formatDateLocal(new Date())}
                                     required
-                                    className={`w-full rounded-md border px-3 py-2 ${
-                                      scheduleFormErrors.startTime
+                                    className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                      scheduleFormErrors.dates
                                         ? "border-red-500"
                                         : "border-gray-300"
                                     } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
                                   />
+                                  {scheduleFormErrors.dates && (
+                                    <p className="mt-1 text-sm text-red-600">
+                                      {scheduleFormErrors.dates}
+                                    </p>
+                                  )}
                                 </div>
-                                <TimePicker
-                                  id="one-time-start-time"
-                                  value={
-                                    scheduleFormData.startTime
-                                      ? scheduleFormData.startTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
-                                  }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.startTime.split(
-                                        "T"
-                                      )[0] || formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      startTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  label="Time"
-                                  required
-                                  error={scheduleFormErrors.startTime}
-                                />
+                              )}
+
+                              {selectedDates.length > 0 && (
+                                <div className="rounded-md bg-blue-50 p-3">
+                                  <p className="text-sm font-medium text-blue-900">
+                                    {selectedDates.length} date
+                                    {selectedDates.length > 1 ? "s" : ""}{" "}
+                                    selected
+                                  </p>
+                                  <p className="mt-1 text-xs text-blue-700">
+                                    {selectedDates.slice(0, 5).join(", ")}
+                                    {selectedDates.length > 5 &&
+                                      ` ... and ${selectedDates.length - 5} more`}
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Scheduling Mode Selection */}
+                            <div className="space-y-4">
+                              <label className="block text-sm font-medium text-gray-700">
+                                Scheduling Mode
+                              </label>
+                              <div className="flex gap-4">
+                                <label className="flex items-center">
+                                  <input
+                                    type="radio"
+                                    name="schedulingMode"
+                                    value="timeRange"
+                                    checked={schedulingMode === "timeRange"}
+                                    onChange={(e) =>
+                                      setSchedulingMode(
+                                        e.target.value as
+                                          | "timeRange"
+                                          | "individual"
+                                      )
+                                    }
+                                    className="mr-2"
+                                  />
+                                  Time Range (auto-generate slots)
+                                </label>
+                                <label className="flex items-center">
+                                  <input
+                                    type="radio"
+                                    name="schedulingMode"
+                                    value="individual"
+                                    checked={schedulingMode === "individual"}
+                                    onChange={(e) =>
+                                      setSchedulingMode(
+                                        e.target.value as
+                                          | "timeRange"
+                                          | "individual"
+                                      )
+                                    }
+                                    className="mr-2"
+                                  />
+                                  Individual Slots
+                                </label>
                               </div>
                             </div>
 
-                            <div className="space-y-4">
-                              <label
-                                htmlFor="one-time-end-date"
-                                className="block text-sm font-medium text-gray-700"
-                              >
-                                End Date & Time{" "}
-                                <span className="text-red-500">*</span>
-                              </label>
-                              <div className="space-y-3">
-                                <div>
-                                  <label
-                                    htmlFor="one-time-end-date"
-                                    className="block text-xs font-medium text-gray-600 mb-1"
-                                  >
-                                    Date
-                                  </label>
-                                  <input
-                                    type="date"
-                                    id="one-time-end-date"
-                                    value={
-                                      scheduleFormData.endTime
-                                        ? scheduleFormData.endTime.split(
-                                            "T"
-                                          )[0] || ""
-                                        : ""
-                                    }
-                                    onChange={(e) => {
-                                      const timePart =
-                                        scheduleFormData.endTime.split(
-                                          "T"
-                                        )[1] || "00:00";
-                                      setScheduleFormData((prev) => ({
-                                        ...prev,
-                                        endTime: `${e.target.value}T${timePart}`,
-                                      }));
-                                    }}
-                                    required
-                                    className={`w-full rounded-md border px-3 py-2 ${
-                                      scheduleFormErrors.endTime
-                                        ? "border-red-500"
-                                        : "border-gray-300"
-                                    } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                  />
+                            {/* Time Range Mode */}
+                            {schedulingMode === "timeRange" && (
+                              <div className="space-y-4">
+                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                  <div>
+                                    <TimePicker
+                                      id="time-range-start"
+                                      label="Start Time"
+                                      value={timeRangeStart}
+                                      onChange={setTimeRangeStart}
+                                      required
+                                    />
+                                  </div>
+                                  <div>
+                                    <TimePicker
+                                      id="time-range-end"
+                                      label="End Time"
+                                      value={timeRangeEnd}
+                                      onChange={setTimeRangeEnd}
+                                      required
+                                    />
+                                  </div>
                                 </div>
-                                <TimePicker
-                                  id="one-time-end-time"
-                                  value={
-                                    scheduleFormData.endTime
-                                      ? scheduleFormData.endTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
-                                  }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.endTime.split("T")[0] ||
-                                      formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      endTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  label="Time"
-                                  required
-                                  error={scheduleFormErrors.endTime}
-                                />
+
+                                {/* Slot Preview */}
+                                {previewSlots.length > 0 && (
+                                  <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                                    <p className="mb-2 text-sm font-medium text-gray-700">
+                                      Preview: {previewSlots.length} slot
+                                      {previewSlots.length > 1 ? "s" : ""} will
+                                      be generated
+                                    </p>
+                                    <div className="max-h-40 overflow-y-auto">
+                                      <div className="grid grid-cols-2 gap-2 text-xs">
+                                        {previewSlots
+                                          .slice(0, 10)
+                                          .map((slot, idx) => (
+                                            <div
+                                              key={idx}
+                                              className="rounded bg-white px-2 py-1"
+                                            >
+                                              {formatTimeDisplay(slot.start)} -{" "}
+                                              {formatTimeDisplay(slot.end)}
+                                            </div>
+                                          ))}
+                                        {previewSlots.length > 10 && (
+                                          <div className="col-span-2 text-center text-gray-500">
+                                            ... and {previewSlots.length - 10}{" "}
+                                            more
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          </div>
+                            )}
+
+                            {/* Individual Slots Mode */}
+                            {schedulingMode === "individual" && (
+                              <div className="space-y-4">
+                                <p className="text-sm text-gray-600">
+                                  Select individual time slots to schedule
+                                  (based on slot template:{" "}
+                                  {slotTemplate?.durationMinutes || 30} min
+                                  duration)
+                                </p>
+                                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
+                                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                    {individualSlots.map((slot) => (
+                                      <label
+                                        key={slot.key}
+                                        className="flex items-center rounded border p-2 hover:bg-gray-50"
+                                      >
+                                        <input
+                                          type="checkbox"
+                                          checked={selectedIndividualSlots.has(
+                                            slot.key
+                                          )}
+                                          onChange={(e) => {
+                                            const newSet = new Set(
+                                              selectedIndividualSlots
+                                            );
+                                            if (e.target.checked) {
+                                              newSet.add(slot.key);
+                                            } else {
+                                              newSet.delete(slot.key);
+                                            }
+                                            setSelectedIndividualSlots(newSet);
+                                          }}
+                                          className="mr-2"
+                                        />
+                                        <span className="text-sm">
+                                          {formatTimeDisplay(slot.start)}
+                                        </span>
+                                      </label>
+                                    ))}
+                                  </div>
+                                </div>
+                                {selectedIndividualSlots.size > 0 && (
+                                  <p className="text-sm text-gray-600">
+                                    {selectedIndividualSlots.size} slot
+                                    {selectedIndividualSlots.size > 1
+                                      ? "s"
+                                      : ""}{" "}
+                                    selected
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                          </>
                         )}
 
                         <div className="flex gap-2">
@@ -2175,6 +2969,155 @@ function AdminDashboardContent() {
                   setEditDoctorErrors({});
                 }}
                 disabled={editDoctorLoading}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Slot Template Update Modal */}
+      {showSlotTemplateForm && selectedDoctorForSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-lg font-semibold">Update Slot Template</h3>
+            <p className="mb-4 text-sm text-gray-600">
+              Doctor: {selectedDoctorForSchedule.userEmail || "N/A"}
+            </p>
+            <div className="space-y-4">
+              <div>
+                <label
+                  htmlFor="duration-minutes"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Slot Duration (minutes){" "}
+                  <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="duration-minutes"
+                  min="5"
+                  max="480"
+                  value={slotTemplateFormData.durationMinutes}
+                  onChange={(e) =>
+                    setSlotTemplateFormData({
+                      ...slotTemplateFormData,
+                      durationMinutes: parseInt(e.target.value, 10) || 30,
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Minimum 5 minutes, maximum 480 minutes (8 hours)
+                </p>
+              </div>
+              <div>
+                <label
+                  htmlFor="buffer-minutes"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Buffer Between Slots (minutes)
+                </label>
+                <input
+                  type="number"
+                  id="buffer-minutes"
+                  min="0"
+                  value={slotTemplateFormData.bufferMinutes}
+                  onChange={(e) =>
+                    setSlotTemplateFormData({
+                      ...slotTemplateFormData,
+                      bufferMinutes: parseInt(e.target.value, 10) || 0,
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+              <div>
+                <label
+                  htmlFor="advance-booking-days"
+                  className="block text-sm font-medium text-gray-700"
+                >
+                  Advance Booking Days <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  id="advance-booking-days"
+                  min="1"
+                  value={slotTemplateFormData.advanceBookingDays}
+                  onChange={(e) =>
+                    setSlotTemplateFormData({
+                      ...slotTemplateFormData,
+                      advanceBookingDays: parseInt(e.target.value, 10) || 30,
+                    })
+                  }
+                  className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+            <div className="mt-6 flex gap-2">
+              <Button
+                variant="primary"
+                onClick={async () => {
+                  try {
+                    setSlotTemplateLoading(true);
+                    const response = await fetch("/api/slots/template", {
+                      method: "POST",
+                      headers: {
+                        "Content-Type": "application/json",
+                      },
+                      body: JSON.stringify({
+                        doctorId: selectedDoctorForSchedule.id,
+                        ...slotTemplateFormData,
+                      }),
+                    });
+
+                    const data = await response.json();
+
+                    if (!response.ok) {
+                      throw new Error(
+                        data.error?.message || "Failed to update template"
+                      );
+                    }
+
+                    setSuccessMessage("Slot template updated successfully!");
+                    setShowSlotTemplateForm(false);
+                    await fetchSlotTemplate();
+
+                    setTimeout(() => {
+                      setSuccessMessage(null);
+                    }, 5000);
+                  } catch (err) {
+                    console.error(
+                      "[AdminDashboard] Error updating slot template:",
+                      err
+                    );
+                    setError(
+                      err instanceof Error
+                        ? err.message
+                        : "Failed to update template"
+                    );
+                  } finally {
+                    setSlotTemplateLoading(false);
+                  }
+                }}
+                disabled={slotTemplateLoading}
+              >
+                {slotTemplateLoading ? "Saving..." : "Save"}
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setShowSlotTemplateForm(false);
+                  if (slotTemplate) {
+                    setSlotTemplateFormData({
+                      durationMinutes: slotTemplate.durationMinutes,
+                      bufferMinutes: slotTemplate.bufferMinutes,
+                      advanceBookingDays: slotTemplate.advanceBookingDays,
+                    });
+                  }
+                }}
+                disabled={slotTemplateLoading}
               >
                 Cancel
               </Button>
