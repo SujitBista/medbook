@@ -32,6 +32,13 @@ export async function getAppointmentById(
   const appointment = await query((prisma) =>
     prisma.appointment.findUnique({
       where: { id: appointmentId },
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
     })
   );
 
@@ -42,6 +49,7 @@ export async function getAppointmentById(
   return {
     id: appointment.id,
     patientId: appointment.patientId,
+    patientEmail: appointment.patient.email,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
     slotId: appointment.slotId ?? undefined,
@@ -96,6 +104,13 @@ export async function getAppointmentsByPatientId(
   const appointments = await query((prisma) =>
     prisma.appointment.findMany({
       where,
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
       orderBy: {
         startTime: "asc",
       },
@@ -105,6 +120,7 @@ export async function getAppointmentsByPatientId(
   return appointments.map((appointment) => ({
     id: appointment.id,
     patientId: appointment.patientId,
+    patientEmail: appointment.patient.email,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
     slotId: appointment.slotId ?? undefined,
@@ -159,6 +175,13 @@ export async function getAppointmentsByDoctorId(
   const appointments = await query((prisma) =>
     prisma.appointment.findMany({
       where,
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
       orderBy: {
         startTime: "asc",
       },
@@ -168,6 +191,7 @@ export async function getAppointmentsByDoctorId(
   return appointments.map((appointment) => ({
     id: appointment.id,
     patientId: appointment.patientId,
+    patientEmail: appointment.patient.email,
     doctorId: appointment.doctorId,
     availabilityId: appointment.availabilityId ?? undefined,
     slotId: appointment.slotId ?? undefined,
@@ -477,6 +501,7 @@ export async function createAppointmentFromSlot(
     return {
       id: appointment.id,
       patientId: appointment.patientId,
+      patientEmail: patient.email,
       doctorId: appointment.doctorId,
       availabilityId: appointment.availabilityId ?? undefined,
       slotId: appointment.slotId ?? undefined,
@@ -560,6 +585,18 @@ export async function createAppointment(
 
   // Create appointment
   try {
+    // Fetch patient email for response
+    const patient = await query((prisma) =>
+      prisma.user.findUnique({
+        where: { id: patientId },
+        select: { email: true },
+      })
+    );
+
+    if (!patient) {
+      throw createNotFoundError("Patient not found");
+    }
+
     const appointment = await query((prisma) =>
       prisma.appointment.create({
         data: {
@@ -584,6 +621,7 @@ export async function createAppointment(
     return {
       id: appointment.id,
       patientId: appointment.patientId,
+      patientEmail: patient.email,
       doctorId: appointment.doctorId,
       availabilityId: appointment.availabilityId ?? undefined,
       startTime: appointment.startTime,
@@ -687,6 +725,13 @@ export async function updateAppointment(
     const appointment = await query((prisma) =>
       prisma.appointment.update({
         where: { id: appointmentId },
+        include: {
+          patient: {
+            select: {
+              email: true,
+            },
+          },
+        },
         data: {
           ...(startTime !== undefined && { startTime: finalStartTime }),
           ...(endTime !== undefined && { endTime: finalEndTime }),
@@ -701,6 +746,7 @@ export async function updateAppointment(
     return {
       id: appointment.id,
       patientId: appointment.patientId,
+      patientEmail: appointment.patient.email,
       doctorId: appointment.doctorId,
       availabilityId: appointment.availabilityId ?? undefined,
       slotId: appointment.slotId ?? undefined,

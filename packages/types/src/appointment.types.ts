@@ -13,6 +13,7 @@ export enum AppointmentStatus {
 export interface Appointment {
   id: string;
   patientId: string;
+  patientEmail?: string; // Patient email for display purposes
   doctorId: string;
   availabilityId?: string; // Optional: link to specific availability slot
   slotId?: string; // Optional: link to specific slot (for slot-based booking)

@@ -37,11 +37,17 @@ export function BookingForm({
       return;
     }
 
+    if (!patientId || patientId.trim() === "") {
+      setError("Please select a patient");
+      return;
+    }
+
     try {
       const input: CreateAppointmentInput = {
         patientId,
         doctorId,
         availabilityId: selectedSlot.availabilityId,
+        slotId: selectedSlot.id, // Include slotId for atomic slot-based booking
         startTime: selectedSlot.startTime,
         endTime: selectedSlot.endTime,
         notes: notes.trim() || undefined,

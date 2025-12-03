@@ -142,6 +142,14 @@ export default function DoctorDetailPage() {
       return;
     }
 
+    // Prevent admins from booking
+    if (session.user.role === "ADMIN") {
+      setError(
+        "Admins cannot book appointments. Please use the admin dashboard."
+      );
+      return;
+    }
+
     try {
       setBooking(true);
       setError(null);
@@ -322,6 +330,18 @@ export default function DoctorDetailPage() {
                           >
                             <Button variant="primary" className="w-full">
                               Sign In to Book
+                            </Button>
+                          </Link>
+                        </div>
+                      ) : session?.user?.role === "ADMIN" ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600 text-center">
+                            Admins cannot book appointments. Please use the
+                            admin dashboard to manage appointments.
+                          </p>
+                          <Link href="/admin">
+                            <Button variant="outline" className="w-full">
+                              Go to Admin Dashboard
                             </Button>
                           </Link>
                         </div>

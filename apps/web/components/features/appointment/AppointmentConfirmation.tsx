@@ -57,6 +57,15 @@ export function AppointmentConfirmation({
             </div>
           )}
 
+          {appointment.patientEmail && (
+            <div>
+              <p className="text-sm text-gray-600">Patient</p>
+              <p className="font-semibold text-gray-900">
+                {appointment.patientEmail}
+              </p>
+            </div>
+          )}
+
           <div>
             <p className="text-sm text-gray-600">Date & Time</p>
             <p className="font-semibold text-gray-900">
@@ -68,8 +77,8 @@ export function AppointmentConfirmation({
             <p className="text-sm text-gray-600">Duration</p>
             <p className="text-gray-900">
               {Math.round(
-                (appointment.endTime.getTime() -
-                  appointment.startTime.getTime()) /
+                (new Date(appointment.endTime).getTime() -
+                  new Date(appointment.startTime).getTime()) /
                   60000
               )}{" "}
               minutes
