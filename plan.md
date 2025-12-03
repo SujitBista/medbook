@@ -644,16 +644,18 @@ This was necessary for a complete user experience, even though not explicitly in
   - [x] Integration tests for appointment update endpoint (included in appointment.routes.test.ts)
   - [ ] Test cancellation rules and time limits (pending - cancellation rules not implemented yet)
 
-#### 4.4.1 Appointment Management UI (Frontend)
+#### 4.4.1 Appointment Management UI (Frontend) ✅ COMPLETE
 
 **Goal**: Allow users to manage appointments immediately after backend is ready. Test end-to-end.
 
-- [ ] Create appointment detail page (`/appointments/[id]`)
-- [ ] Add appointment cancellation UI (with validation for time limits)
-- [ ] Add appointment rescheduling UI (with availability selection)
-- [ ] Implement appointment status updates (for doctors)
-- [ ] Add appointment history view with filtering
-- [ ] Display appointment information (patient, doctor, time, status)
+- [x] Create appointment detail page (`/appointments/[id]`)
+- [x] Add appointment cancellation UI (with validation for time limits)
+- [x] Add appointment rescheduling UI (with availability selection - redirects to doctor page)
+- [x] Implement appointment status updates (for doctors)
+- [x] Add appointment history view with filtering (`/appointments`)
+- [x] Display appointment information (patient, doctor, time, status)
+- [x] Add Next.js API route for updating appointments (`PUT /api/appointments/[id]`)
+- [x] Add appointment management links to dashboards
 - [ ] **Testing**: Write tests for appointment management UI
   - [ ] Component tests for appointment management components
   - [ ] Integration tests for cancellation/rescheduling flows
@@ -738,7 +740,7 @@ This was necessary for a complete user experience, even though not explicitly in
 - ✅ Marketing landing page with hero, testimonials, benefits sections, and Footer component
 - ✅ Next.js API proxy routes for availability, appointments, doctors, slots
 - ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
-- ⏳ Appointment management UI pending (4.4.1)
+- ✅ Appointment management UI complete (4.4.1) - Detail page, cancellation, rescheduling, status updates, history view
 - ⏳ Patient and doctor dashboards pending (4.5 + 4.6)
 
 **Development Flow:**

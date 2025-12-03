@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input } from "@medbook/ui";
 import { Doctor } from "@medbook/types";
+import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import Link from "next/link";
 
 const API_URL =
@@ -151,25 +152,40 @@ export default function DashboardPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <h1 className="text-xl font-bold text-gray-900">MedBook</h1>
           <div className="flex items-center gap-4">
-            {session && (
-              <span className="text-sm text-gray-600">
-                {session.user.email} ({session.user.role})
-              </span>
+            {session?.user?.role === "PATIENT" ? (
+              <UserProfileDropdown />
+            ) : (
+              <>
+                {session && (
+                  <span className="text-sm text-gray-600">
+                    {session.user.email} ({session.user.role})
+                  </span>
+                )}
+                <div className="flex gap-2">
+                  {session?.user?.role === "DOCTOR" && (
+                    <>
+                      <Link href="/dashboard/doctor/availability">
+                        <Button variant="outline" size="sm">
+                          Manage Availability
+                        </Button>
+                      </Link>
+                      <Link href="/appointments">
+                        <Button variant="outline" size="sm">
+                          My Appointments
+                        </Button>
+                      </Link>
+                    </>
+                  )}
+                  {session?.user?.role !== "PATIENT" && (
+                    <Link href="/">
+                      <Button variant="outline" size="sm">
+                        Home
+                      </Button>
+                    </Link>
+                  )}
+                </div>
+              </>
             )}
-            <div className="flex gap-2">
-              {session?.user?.role === "DOCTOR" && (
-                <Link href="/dashboard/doctor/availability">
-                  <Button variant="outline" size="sm">
-                    Manage Availability
-                  </Button>
-                </Link>
-              )}
-              <Link href="/">
-                <Button variant="outline" size="sm">
-                  Home
-                </Button>
-              </Link>
-            </div>
           </div>
         </div>
       </header>
@@ -177,10 +193,21 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Doctor Directory</h2>
-          <p className="mt-2 text-gray-600">
-            Browse and search for doctors to book appointments
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">
+                Doctor Directory
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Browse and search for doctors to book appointments
+              </p>
+            </div>
+            {session?.user?.role === "DOCTOR" && (
+              <Link href="/appointments">
+                <Button variant="primary">View My Appointments</Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Search and Filter */}
