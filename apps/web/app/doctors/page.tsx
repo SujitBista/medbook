@@ -331,7 +331,11 @@ export default function DoctorsPage() {
                               }
                             }}
                           >
-                            {session ? "Book Appointment" : "View Profile"}
+                            {!session
+                              ? "View Profile"
+                              : session.user?.role === "PATIENT"
+                                ? "Book Appointment"
+                                : "View Profile"}
                           </Button>
                         </Link>
                       </div>

@@ -345,6 +345,19 @@ export default function DoctorDetailPage() {
                             </Button>
                           </Link>
                         </div>
+                      ) : session?.user?.role === "DOCTOR" ? (
+                        <div className="space-y-3">
+                          <p className="text-sm text-gray-600 text-center">
+                            Doctors cannot book appointments with other doctors.
+                            Please use the appointments page to manage your own
+                            appointments.
+                          </p>
+                          <Link href="/appointments">
+                            <Button variant="outline" className="w-full">
+                              View My Appointments
+                            </Button>
+                          </Link>
+                        </div>
                       ) : (
                         <Button
                           variant="primary"
