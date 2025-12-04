@@ -306,7 +306,9 @@ export default function DashboardPage() {
                             size="sm"
                             className="w-full"
                           >
-                            Book Appointment
+                            {session?.user?.role === "PATIENT"
+                              ? "Book Appointment"
+                              : "View Profile"}
                           </Button>
                         </Link>
                       }
