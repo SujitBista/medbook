@@ -64,7 +64,7 @@ export default async function Home() {
               </Link>
               {session?.user?.role === "PATIENT" && (
                 <Link
-                  href="/dashboard"
+                  href="/dashboard/patient"
                   className="w-full sm:w-auto no-underline"
                 >
                   <Button

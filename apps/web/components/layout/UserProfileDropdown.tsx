@@ -22,8 +22,9 @@ export function UserProfileDropdown({
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Check if user is on dashboard page
-  const isOnDashboard = pathname === "/dashboard";
+  // Check if user is on dashboard page (patient or doctor)
+  const isOnDashboard =
+    pathname === "/dashboard" || pathname === "/dashboard/patient";
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -117,7 +118,7 @@ export function UserProfileDropdown({
               <>
                 {!isOnDashboard && (
                   <Link
-                    href="/dashboard"
+                    href="/dashboard/patient"
                     className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors"
                     onClick={() => setIsOpen(false)}
                   >

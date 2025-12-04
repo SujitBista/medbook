@@ -697,24 +697,24 @@ This was necessary for a complete user experience, even though not explicitly in
   - [ ] E2E test for appointment management workflow
   - [ ] Test cancellation rules and time limits in UI
 
-#### 4.5 Patient Dashboard (Consolidation)
+#### 4.5 Patient Dashboard (Consolidation) ✅ COMPLETE
 
 **Goal**: Consolidate patient-facing features into a unified dashboard.
 
-**Status**: Most functionality exists but needs consolidation. The `/appointments` page has appointment listing, filtering, and booking functionality. The `/dashboard` page currently shows a doctor directory for both patients and doctors. Need to create a patient-specific dashboard that consolidates these features.
-
-- [ ] Create patient dashboard page (`/dashboard/patient`)
-  - [x] Display upcoming appointments (using appointment listing endpoint) - ✅ Exists in `/appointments` page
-  - [x] Show appointment history with filtering - ✅ Exists in `/appointments` page (status filter, upcoming only toggle)
-  - [x] Add quick "Book Appointment" button/link - ✅ Exists in `/appointments` page
-  - [x] Implement appointment filtering and search - ✅ Exists in `/appointments` page (status filter, upcoming only)
-  - [x] Link to appointment detail pages - ✅ Exists via AppointmentList component
-  - [x] Add navigation to doctor listing page - ✅ Exists in `/appointments` page ("Book New Appointment" button links to `/doctors`)
-  - [ ] Consolidate into single `/dashboard/patient` page that combines:
-    - [ ] Upcoming appointments section (from `/appointments` page)
-    - [ ] Appointment history section (from `/appointments` page)
-    - [ ] Quick actions (Book Appointment, View All Appointments)
-    - [ ] Doctor directory quick access (from current `/dashboard` page)
+- [x] Create patient dashboard page (`/dashboard/patient`) ✅ COMPLETE
+  - [x] Display upcoming appointments (using appointment listing endpoint) - ✅ Shows up to 5 upcoming appointments
+  - [x] Show appointment history with filtering - ✅ Shows recent appointments (up to 5)
+  - [x] Add quick "Book Appointment" button/link - ✅ Quick action card linking to `/doctors`
+  - [x] Implement appointment filtering and search - ✅ Upcoming/recent filtering logic implemented
+  - [x] Link to appointment detail pages - ✅ Uses AppointmentList component with links
+  - [x] Add navigation to doctor listing page - ✅ "Browse Doctors" quick action card
+  - [x] Consolidate into single `/dashboard/patient` page that combines:
+    - [x] Upcoming appointments section (shows next 5 upcoming appointments)
+    - [x] Appointment history section (shows recent 5 appointments)
+    - [x] Quick actions (Book Appointment, View All Appointments, Browse Doctors)
+    - [x] Welcome section with user-friendly messaging
+- [x] Update `/dashboard` page to redirect patients to `/dashboard/patient` ✅ COMPLETE
+- [x] Update UserProfileDropdown to recognize patient dashboard route ✅ COMPLETE
 - [ ] **Testing**: Write tests for patient dashboard
   - [ ] Component tests for dashboard page
   - [ ] Integration tests for appointment listing/filtering

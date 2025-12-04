@@ -44,18 +44,21 @@ export default function DashboardPage() {
     } else if (status === "authenticated" && session?.user?.role === "ADMIN") {
       // Redirect admins to admin dashboard
       router.push("/admin");
+    } else if (
+      status === "authenticated" &&
+      session?.user?.role === "PATIENT"
+    ) {
+      // Redirect patients to patient dashboard
+      router.push("/dashboard/patient");
     }
   }, [status, session, router]);
 
-  // Fetch doctors (for patients and doctors - admins are redirected)
+  // Fetch doctors (for doctors only - patients and admins are redirected)
   useEffect(() => {
-    if (
-      status === "authenticated" &&
-      (session?.user?.role === "PATIENT" || session?.user?.role === "DOCTOR")
-    ) {
+    if (status === "authenticated" && session?.user?.role === "DOCTOR") {
       fetchDoctors();
     } else if (status === "authenticated") {
-      // For admins, don't fetch doctors here (they're redirected)
+      // For patients and admins, don't fetch doctors here (they're redirected)
       setLoading(false);
     }
   }, [status, session, pagination.page, searchTerm, specializationFilter]);
@@ -131,14 +134,19 @@ export default function DashboardPage() {
     return null; // Will redirect via useEffect
   }
 
-  // Show loading or redirect message for admins (they're redirected)
-  if (status === "authenticated" && session?.user?.role === "ADMIN") {
+  // Show loading or redirect message for admins and patients (they're redirected)
+  if (
+    status === "authenticated" &&
+    (session?.user?.role === "ADMIN" || session?.user?.role === "PATIENT")
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
           <p className="mt-4 text-gray-600">
-            Redirecting to admin dashboard...
+            {session?.user?.role === "ADMIN"
+              ? "Redirecting to admin dashboard..."
+              : "Redirecting to patient dashboard..."}
           </p>
         </div>
       </div>
@@ -152,40 +160,32 @@ export default function DashboardPage() {
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <h1 className="text-xl font-bold text-gray-900">MedBook</h1>
           <div className="flex items-center gap-4">
-            {session?.user?.role === "PATIENT" ? (
-              <UserProfileDropdown />
-            ) : (
-              <>
-                {session && (
-                  <span className="text-sm text-gray-600">
-                    {session.user.email} ({session.user.role})
-                  </span>
-                )}
-                <div className="flex gap-2">
-                  {session?.user?.role === "DOCTOR" && (
-                    <>
-                      <Link href="/dashboard/doctor/availability">
-                        <Button variant="outline" size="sm">
-                          Manage Availability
-                        </Button>
-                      </Link>
-                      <Link href="/appointments">
-                        <Button variant="outline" size="sm">
-                          My Appointments
-                        </Button>
-                      </Link>
-                    </>
-                  )}
-                  {session?.user?.role !== "PATIENT" && (
-                    <Link href="/">
-                      <Button variant="outline" size="sm">
-                        Home
-                      </Button>
-                    </Link>
-                  )}
-                </div>
-              </>
+            {session && (
+              <span className="text-sm text-gray-600">
+                {session.user.email} ({session.user.role})
+              </span>
             )}
+            <div className="flex gap-2">
+              {session?.user?.role === "DOCTOR" && (
+                <>
+                  <Link href="/dashboard/doctor/availability">
+                    <Button variant="outline" size="sm">
+                      Manage Availability
+                    </Button>
+                  </Link>
+                  <Link href="/appointments">
+                    <Button variant="outline" size="sm">
+                      My Appointments
+                    </Button>
+                  </Link>
+                </>
+              )}
+              <Link href="/">
+                <Button variant="outline" size="sm">
+                  Home
+                </Button>
+              </Link>
+            </div>
           </div>
         </div>
       </header>
