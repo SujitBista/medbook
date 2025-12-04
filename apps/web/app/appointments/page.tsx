@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Appointment, AppointmentStatus } from "@medbook/types";
+import { Appointment, AppointmentStatus, Doctor } from "@medbook/types";
 import { AppointmentList } from "@/components/features/appointment";
 import { Button, Card } from "@medbook/ui";
 import Link from "next/link";
@@ -22,6 +22,7 @@ export default function AppointmentsPage() {
   const router = useRouter();
 
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loggedInDoctor, setLoggedInDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "ALL">(
@@ -36,12 +37,39 @@ export default function AppointmentsPage() {
     }
   }, [status, router]);
 
+  // Fetch logged-in doctor's profile if user is a doctor
+  useEffect(() => {
+    if (session?.user?.role === "DOCTOR" && session.user.id) {
+      fetchLoggedInDoctor();
+    }
+  }, [session?.user?.role, session?.user?.id]);
+
   // Fetch appointments
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
+      // For doctors, wait until doctor profile is loaded
+      if (session?.user?.role === "DOCTOR" && !loggedInDoctor) {
+        return;
+      }
       fetchAppointments();
     }
-  }, [status, session?.user?.id]);
+  }, [status, session?.user?.id, loggedInDoctor]);
+
+  const fetchLoggedInDoctor = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const response = await fetch(`/api/doctors/user/${session.user.id}`);
+      const data = await response.json();
+
+      if (response.ok && data.success && data.doctor) {
+        setLoggedInDoctor(data.doctor);
+      }
+    } catch (err) {
+      console.error("[Appointments] Error fetching logged-in doctor:", err);
+      // Don't set error here, doctor info is optional
+    }
+  };
 
   const fetchAppointments = async () => {
     try {
@@ -59,7 +87,12 @@ export default function AppointmentsPage() {
       if (isPatient) {
         url = `/api/appointments?patientId=${userId}`;
       } else if (isDoctor) {
-        url = `/api/appointments?doctorId=${userId}`;
+        // Use doctor profile ID instead of user ID
+        if (!loggedInDoctor) {
+          setError("Doctor profile not found. Please contact support.");
+          return;
+        }
+        url = `/api/appointments?doctorId=${loggedInDoctor.id}`;
       } else {
         // Admin or other roles - show error
         setError("Unable to fetch appointments for your role");
