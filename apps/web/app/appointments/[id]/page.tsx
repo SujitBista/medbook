@@ -30,6 +30,7 @@ export default function AppointmentDetailPage() {
 
   const [appointment, setAppointment] = useState<Appointment | null>(null);
   const [doctor, setDoctor] = useState<Doctor | null>(null);
+  const [loggedInDoctor, setLoggedInDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -57,6 +58,13 @@ export default function AppointmentDetailPage() {
       fetchDoctor();
     }
   }, [appointment?.doctorId]);
+
+  // Fetch logged-in doctor's profile if user is a doctor
+  useEffect(() => {
+    if (session?.user?.role === "DOCTOR" && session.user.id) {
+      fetchLoggedInDoctor();
+    }
+  }, [session?.user?.role, session?.user?.id]);
 
   const fetchAppointment = async () => {
     try {
@@ -97,6 +105,25 @@ export default function AppointmentDetailPage() {
       }
     } catch (err) {
       console.error("[AppointmentDetail] Error fetching doctor:", err);
+      // Don't set error here, doctor info is optional
+    }
+  };
+
+  const fetchLoggedInDoctor = async () => {
+    if (!session?.user?.id) return;
+
+    try {
+      const response = await fetch(`/api/doctors/user/${session.user.id}`);
+      const data: DoctorResponse = await response.json();
+
+      if (response.ok && data.success && data.doctor) {
+        setLoggedInDoctor(data.doctor);
+      }
+    } catch (err) {
+      console.error(
+        "[AppointmentDetail] Error fetching logged-in doctor:",
+        err
+      );
       // Don't set error here, doctor info is optional
     }
   };
@@ -200,6 +227,10 @@ export default function AppointmentDetailPage() {
     session?.user?.role === "PATIENT" &&
     appointment?.patientId === session.user.id;
   const isAdmin = session?.user?.role === "ADMIN";
+
+  // Check if the appointment belongs to the logged-in doctor
+  const isAppointmentDoctor =
+    isDoctor && loggedInDoctor && appointment?.doctorId === loggedInDoctor.id;
 
   // Show loading state
   if (status === "loading" || loading) {
@@ -425,7 +456,7 @@ export default function AppointmentDetailPage() {
               )}
 
               {/* Doctor Actions */}
-              {isDoctor && appointment.doctorId === session.user.id && (
+              {isAppointmentDoctor && (
                 <>
                   {appointment.status === AppointmentStatus.PENDING && (
                     <Button
