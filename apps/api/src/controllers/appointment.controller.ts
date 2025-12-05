@@ -188,16 +188,52 @@ export async function createAppointmentSlot(
       return;
     }
 
-    const { patientId, doctorId, availabilityId, startTime, endTime, notes } =
-      req.body;
+    const {
+      patientId,
+      doctorId,
+      availabilityId,
+      slotId,
+      startTime,
+      endTime,
+      notes,
+    } = req.body;
 
     // Validate required fields
-    if (!patientId) {
+    if (
+      !patientId ||
+      (typeof patientId === "string" && patientId.trim() === "")
+    ) {
       const error = createValidationError("Patient ID is required");
       next(error);
       return;
     }
 
+    // If slotId is provided, use slot-based booking (startTime/endTime not required)
+    if (slotId) {
+      // doctorId is still required for type safety, but service will use slot's doctorId
+      if (!doctorId) {
+        const error = createValidationError("Doctor ID is required");
+        next(error);
+        return;
+      }
+
+      const input: CreateAppointmentInput = {
+        patientId,
+        doctorId,
+        slotId,
+        notes,
+      };
+
+      const appointment = await createAppointment(input);
+
+      res.status(201).json({
+        success: true,
+        data: appointment,
+      });
+      return;
+    }
+
+    // Legacy booking path requires doctorId, startTime, and endTime
     if (!doctorId) {
       const error = createValidationError("Doctor ID is required");
       next(error);

@@ -644,33 +644,77 @@ This was necessary for a complete user experience, even though not explicitly in
   - [x] Integration tests for appointment update endpoint (included in appointment.routes.test.ts)
   - [ ] Test cancellation rules and time limits (pending - cancellation rules not implemented yet)
 
-#### 4.4.1 Appointment Management UI (Frontend)
+#### 4.4.1 Appointment Management UI (Frontend) ✅ COMPLETE
 
 **Goal**: Allow users to manage appointments immediately after backend is ready. Test end-to-end.
 
-- [ ] Create appointment detail page (`/appointments/[id]`)
-- [ ] Add appointment cancellation UI (with validation for time limits)
-- [ ] Add appointment rescheduling UI (with availability selection)
-- [ ] Implement appointment status updates (for doctors)
-- [ ] Add appointment history view with filtering
-- [ ] Display appointment information (patient, doctor, time, status)
+- [x] Create appointment detail page (`/appointments/[id]`)
+  - Full appointment information display (ID, status, date/time, doctor, patient, notes)
+  - Role-based action buttons (patients: cancel/reschedule, doctors: confirm/complete/cancel, admins: all status updates)
+  - Confirmation dialog for cancellation
+  - Success/error message handling
+  - Links to doctor profile
+- [x] Add appointment cancellation UI (with validation for time limits)
+  - Cancel button for patients (only for future appointments)
+  - Confirmation dialog before cancellation
+  - Status update to CANCELLED
+  - Automatic slot freeing when appointment has slotId
+- [x] Add appointment rescheduling UI (with availability selection - redirects to doctor page)
+  - Reschedule button redirects to doctor detail page to select new time slot
+  - Only available for future appointments that aren't cancelled/completed
+- [x] Implement appointment status updates (for doctors)
+  - Doctors can confirm pending appointments
+  - Doctors can mark confirmed appointments as completed
+  - Doctors can cancel appointments
+  - Admins can update status to any value
+- [x] Add appointment history view with filtering (`/appointments`)
+  - List view of all appointments for logged-in user
+  - Status filter (All, Pending, Confirmed, Completed, Cancelled)
+  - "Upcoming only" toggle filter
+  - Role-specific display (patients see doctor info, doctors see patient email)
+  - Quick link to book new appointments
+  - Links to appointment detail pages
+- [x] Display appointment information (patient, doctor, time, status)
+  - Appointment detail page shows all relevant information
+  - AppointmentList component for reusable list display
+  - Status badges with color coding
+- [x] Add Next.js API route for updating appointments (`PUT /api/appointments/[id]`)
+  - GET route for fetching individual appointments
+  - PUT route for updating appointments (status, times, notes)
+  - Proper authentication and error handling
+- [x] Add appointment management links to dashboards
+  - "My Appointments" link in dashboard header (for doctors)
+  - "View My Appointments" button in dashboard main content (for doctors)
+  - Links removed for patients (replaced with profile dropdown)
+- [x] **Additional Features**:
+  - Created AppointmentList reusable component
+  - Added profile dropdown with logout functionality
+  - Added "Go to Dashboard" button on homepage for logged-in patients
+  - Conditional Dashboard link in dropdown (hidden when already on dashboard)
 - [ ] **Testing**: Write tests for appointment management UI
   - [ ] Component tests for appointment management components
   - [ ] Integration tests for cancellation/rescheduling flows
   - [ ] E2E test for appointment management workflow
   - [ ] Test cancellation rules and time limits in UI
 
-#### 4.5 Patient Dashboard (Consolidation)
+#### 4.5 Patient Dashboard (Consolidation) ✅ COMPLETE
 
 **Goal**: Consolidate patient-facing features into a unified dashboard.
 
-- [ ] Create patient dashboard page (`/dashboard/patient`)
-- [ ] Display upcoming appointments (using appointment listing endpoint)
-- [ ] Show appointment history with filtering
-- [ ] Add quick "Book Appointment" button/link
-- [ ] Implement appointment filtering and search
-- [ ] Link to appointment detail pages
-- [ ] Add navigation to doctor listing page
+- [x] Create patient dashboard page (`/dashboard/patient`) ✅ COMPLETE
+  - [x] Display upcoming appointments (using appointment listing endpoint) - ✅ Shows up to 5 upcoming appointments
+  - [x] Show appointment history with filtering - ✅ Shows recent appointments (up to 5)
+  - [x] Add quick "Book Appointment" button/link - ✅ Quick action card linking to `/doctors`
+  - [x] Implement appointment filtering and search - ✅ Upcoming/recent filtering logic implemented
+  - [x] Link to appointment detail pages - ✅ Uses AppointmentList component with links
+  - [x] Add navigation to doctor listing page - ✅ "Browse Doctors" quick action card
+  - [x] Consolidate into single `/dashboard/patient` page that combines:
+    - [x] Upcoming appointments section (shows next 5 upcoming appointments)
+    - [x] Appointment history section (shows recent 5 appointments)
+    - [x] Quick actions (Book Appointment, View All Appointments, Browse Doctors)
+    - [x] Welcome section with user-friendly messaging
+- [x] Update `/dashboard` page to redirect patients to `/dashboard/patient` ✅ COMPLETE
+- [x] Update UserProfileDropdown to recognize patient dashboard route ✅ COMPLETE
 - [ ] **Testing**: Write tests for patient dashboard
   - [ ] Component tests for dashboard page
   - [ ] Integration tests for appointment listing/filtering
@@ -738,7 +782,8 @@ This was necessary for a complete user experience, even though not explicitly in
 - ✅ Marketing landing page with hero, testimonials, benefits sections, and Footer component
 - ✅ Next.js API proxy routes for availability, appointments, doctors, slots
 - ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
-- ⏳ Appointment management UI pending (4.4.1)
+- ✅ Appointment management UI complete (4.4.1) - Detail page, cancellation, rescheduling, status updates, history view, AppointmentList component, Next.js API routes
+- ✅ Patient profile dropdown and navigation improvements - UserProfileDropdown component with logout, conditional dashboard link, homepage integration
 - ⏳ Patient and doctor dashboards pending (4.5 + 4.6)
 
 **Development Flow:**
@@ -759,11 +804,18 @@ This was necessary for a complete user experience, even though not explicitly in
      - Footer component
      - Next.js API proxy routes
    - Testing pending
-3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ⏳ Partially Complete
+3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ⏳ Backend Partially Complete, Frontend Complete
    - Backend appointment management partially complete:
      - Status updates and rescheduling via update endpoint ✅
      - Cancellation rules (time limits) pending ❌
-   - Frontend appointment management UI pending
+   - Frontend appointment management UI complete ✅:
+     - Appointment detail page with role-based actions
+     - Cancellation and rescheduling UI
+     - Appointment history/list page with filtering
+     - AppointmentList reusable component
+     - Next.js API routes for individual appointments
+     - Profile dropdown with logout functionality
+     - Dashboard navigation improvements
 4. **4.5** (Consolidate Patient Dashboard) → Test → Pending
 5. **4.6** (Consolidate Doctor Dashboard) → Test → Pending
 6. **4.7** (Enhance Public Listing) → Test → ✅ Complete (included in 4.3.1)

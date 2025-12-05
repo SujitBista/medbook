@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Button, Card, Input } from "@medbook/ui";
 import { Doctor } from "@medbook/types";
+import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import Link from "next/link";
 
 const API_URL =
@@ -43,18 +44,21 @@ export default function DashboardPage() {
     } else if (status === "authenticated" && session?.user?.role === "ADMIN") {
       // Redirect admins to admin dashboard
       router.push("/admin");
+    } else if (
+      status === "authenticated" &&
+      session?.user?.role === "PATIENT"
+    ) {
+      // Redirect patients to patient dashboard
+      router.push("/dashboard/patient");
     }
   }, [status, session, router]);
 
-  // Fetch doctors (for patients and doctors - admins are redirected)
+  // Fetch doctors (for doctors only - patients and admins are redirected)
   useEffect(() => {
-    if (
-      status === "authenticated" &&
-      (session?.user?.role === "PATIENT" || session?.user?.role === "DOCTOR")
-    ) {
+    if (status === "authenticated" && session?.user?.role === "DOCTOR") {
       fetchDoctors();
     } else if (status === "authenticated") {
-      // For admins, don't fetch doctors here (they're redirected)
+      // For patients and admins, don't fetch doctors here (they're redirected)
       setLoading(false);
     }
   }, [status, session, pagination.page, searchTerm, specializationFilter]);
@@ -130,14 +134,19 @@ export default function DashboardPage() {
     return null; // Will redirect via useEffect
   }
 
-  // Show loading or redirect message for admins (they're redirected)
-  if (status === "authenticated" && session?.user?.role === "ADMIN") {
+  // Show loading or redirect message for admins and patients (they're redirected)
+  if (
+    status === "authenticated" &&
+    (session?.user?.role === "ADMIN" || session?.user?.role === "PATIENT")
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
           <p className="mt-4 text-gray-600">
-            Redirecting to admin dashboard...
+            {session?.user?.role === "ADMIN"
+              ? "Redirecting to admin dashboard..."
+              : "Redirecting to patient dashboard..."}
           </p>
         </div>
       </div>
@@ -158,11 +167,18 @@ export default function DashboardPage() {
             )}
             <div className="flex gap-2">
               {session?.user?.role === "DOCTOR" && (
-                <Link href="/dashboard/doctor/availability">
-                  <Button variant="outline" size="sm">
-                    Manage Availability
-                  </Button>
-                </Link>
+                <>
+                  <Link href="/dashboard/doctor/availability">
+                    <Button variant="outline" size="sm">
+                      Manage Availability
+                    </Button>
+                  </Link>
+                  <Link href="/appointments">
+                    <Button variant="outline" size="sm">
+                      My Appointments
+                    </Button>
+                  </Link>
+                </>
               )}
               <Link href="/">
                 <Button variant="outline" size="sm">
@@ -177,10 +193,21 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6 lg:px-8">
         <div className="mb-8">
-          <h2 className="text-3xl font-bold text-gray-900">Doctor Directory</h2>
-          <p className="mt-2 text-gray-600">
-            Browse and search for doctors to book appointments
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl font-bold text-gray-900">
+                Doctor Directory
+              </h2>
+              <p className="mt-2 text-gray-600">
+                Browse and search for doctors to book appointments
+              </p>
+            </div>
+            {session?.user?.role === "DOCTOR" && (
+              <Link href="/appointments">
+                <Button variant="primary">View My Appointments</Button>
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Search and Filter */}
@@ -279,7 +306,9 @@ export default function DashboardPage() {
                             size="sm"
                             className="w-full"
                           >
-                            Book Appointment
+                            {session?.user?.role === "PATIENT"
+                              ? "Book Appointment"
+                              : "View Profile"}
                           </Button>
                         </Link>
                       }

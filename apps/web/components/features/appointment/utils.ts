@@ -2,7 +2,7 @@
  * Utility functions for appointment booking
  */
 
-import { Availability, Appointment, Slot, SlotStatus } from "@medbook/types";
+import { Availability, Appointment, SlotStatus } from "@medbook/types";
 
 export interface TimeSlot {
   id?: string;
@@ -126,32 +126,65 @@ export function generateAvailableTimeSlots(
 }
 
 /**
- * Formats a date to a readable string
+ * Converts a date value (Date object or string) to a Date object
+ * @param date Date object or ISO date string
+ * @returns Date object
+ * @throws Error if date is invalid
  */
-export function formatDate(date: Date): string {
+function toDate(date: Date | string): Date {
+  if (date instanceof Date) {
+    if (isNaN(date.getTime())) {
+      throw new Error("Invalid date value");
+    }
+    return date;
+  }
+
+  if (typeof date === "string") {
+    const parsed = new Date(date);
+    if (isNaN(parsed.getTime())) {
+      throw new Error(`Invalid date string: ${date}`);
+    }
+    return parsed;
+  }
+
+  throw new Error(`Invalid date type: ${typeof date}`);
+}
+
+/**
+ * Formats a date to a readable string
+ * @param date Date object or ISO date string
+ * @returns Formatted date string
+ */
+export function formatDate(date: Date | string): string {
+  const dateObj = toDate(date);
   return new Intl.DateTimeFormat("en-US", {
     weekday: "long",
     year: "numeric",
     month: "long",
     day: "numeric",
-  }).format(date);
+  }).format(dateObj);
 }
 
 /**
  * Formats a time to a readable string
+ * @param date Date object or ISO date string
+ * @returns Formatted time string
  */
-export function formatTime(date: Date): string {
+export function formatTime(date: Date | string): string {
+  const dateObj = toDate(date);
   return new Intl.DateTimeFormat("en-US", {
     hour: "numeric",
     minute: "2-digit",
     hour12: true,
-  }).format(date);
+  }).format(dateObj);
 }
 
 /**
  * Formats a date and time together
+ * @param date Date object or ISO date string
+ * @returns Formatted date and time string
  */
-export function formatDateTime(date: Date): string {
+export function formatDateTime(date: Date | string): string {
   return `${formatDate(date)} at ${formatTime(date)}`;
 }
 

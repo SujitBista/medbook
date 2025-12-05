@@ -1,4 +1,4 @@
-import { AuthStatus } from "./components/AuthStatus";
+import { HomeHeader } from "./components/HomeHeader";
 import { auth } from "@/lib/auth";
 import Link from "next/link";
 import { Button } from "@medbook/ui";
@@ -19,14 +19,7 @@ export default async function Home() {
   return (
     <div className="flex min-h-screen flex-col bg-white">
       {/* Header */}
-      <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/">
-            <h1 className="text-2xl font-bold text-primary-600">MedBook</h1>
-          </Link>
-          <AuthStatus />
-        </div>
-      </header>
+      <HomeHeader />
 
       {/* Hero Section */}
       <section className="relative bg-white overflow-hidden border-b border-gray-100">
@@ -69,6 +62,20 @@ export default async function Home() {
                   Book Now
                 </Button>
               </Link>
+              {session?.user?.role === "PATIENT" && (
+                <Link
+                  href="/dashboard/patient"
+                  className="w-full sm:w-auto no-underline"
+                >
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="border-2 border-primary-600 text-primary-600 hover:bg-primary-50 hover:border-primary-700 w-full sm:w-auto px-8 py-6 text-base font-semibold"
+                  >
+                    Go to Dashboard
+                  </Button>
+                </Link>
+              )}
               {!session && (
                 <Link href="/register">
                   <Button
