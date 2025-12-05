@@ -784,7 +784,8 @@ This was necessary for a complete user experience, even though not explicitly in
 - ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
 - ✅ Appointment management UI complete (4.4.1) - Detail page, cancellation, rescheduling, status updates, history view, AppointmentList component, Next.js API routes
 - ✅ Patient profile dropdown and navigation improvements - UserProfileDropdown component with logout, conditional dashboard link, homepage integration
-- ⏳ Patient and doctor dashboards pending (4.5 + 4.6)
+- ✅ Patient dashboard complete (4.5) - Consolidated dashboard with upcoming appointments, history, and quick actions
+- ⏳ Doctor dashboard pending (4.6)
 
 **Development Flow:**
 
@@ -816,7 +817,7 @@ This was necessary for a complete user experience, even though not explicitly in
      - Next.js API routes for individual appointments
      - Profile dropdown with logout functionality
      - Dashboard navigation improvements
-4. **4.5** (Consolidate Patient Dashboard) → Test → Pending
+4. **4.5** (Consolidate Patient Dashboard) → Test → ✅ Complete
 5. **4.6** (Consolidate Doctor Dashboard) → Test → Pending
 6. **4.7** (Enhance Public Listing) → Test → ✅ Complete (included in 4.3.1)
 
