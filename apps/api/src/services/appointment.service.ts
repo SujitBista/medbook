@@ -8,8 +8,10 @@ import {
   Appointment,
   CreateAppointmentInput,
   UpdateAppointmentInput,
+  CancelAppointmentInput,
   AppointmentStatus,
   SlotStatus,
+  CANCELLATION_RULES,
 } from "@medbook/types";
 import {
   createNotFoundError,
@@ -769,4 +771,168 @@ export async function updateAppointment(
     }
     throw error;
   }
+}
+
+/**
+ * Validates if a user can cancel an appointment based on role and time rules
+ * @param appointment The appointment to cancel
+ * @param userRole The role of the user attempting to cancel
+ * @param userId The ID of the user attempting to cancel
+ * @throws AppError if cancellation is not allowed
+ */
+function validateCancellationRules(
+  appointment: {
+    id: string;
+    patientId: string;
+    doctorId: string;
+    startTime: Date;
+    status: string;
+  },
+  userRole: "PATIENT" | "DOCTOR" | "ADMIN",
+  userId: string
+): void {
+  // Check if appointment is already cancelled or completed
+  if (appointment.status === AppointmentStatus.CANCELLED) {
+    throw createValidationError("Appointment is already cancelled");
+  }
+
+  if (appointment.status === AppointmentStatus.COMPLETED) {
+    throw createValidationError("Cannot cancel a completed appointment");
+  }
+
+  const now = new Date();
+  const appointmentStartTime = new Date(appointment.startTime);
+  const hoursUntilAppointment =
+    (appointmentStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  // Role-based cancellation rules
+  switch (userRole) {
+    case "ADMIN":
+      // Admins can cancel any appointment at any time
+      if (!CANCELLATION_RULES.ADMIN_CAN_CANCEL_ANYTIME) {
+        throw createValidationError("Admin cancellation is not allowed");
+      }
+      break;
+
+    case "DOCTOR":
+      // Doctors can cancel appointments assigned to them at any time
+      if (!CANCELLATION_RULES.DOCTOR_CAN_CANCEL_ANYTIME) {
+        throw createValidationError("Doctor cancellation is not allowed");
+      }
+      // Note: Authorization (checking if this is the doctor's appointment) should be done in the controller
+      break;
+
+    case "PATIENT":
+      // Patients can only cancel their own appointments
+      if (appointment.patientId !== userId) {
+        throw createValidationError(
+          "You can only cancel your own appointments"
+        );
+      }
+
+      // Check if appointment is in the past
+      if (appointmentStartTime <= now) {
+        throw createValidationError("Cannot cancel past appointments");
+      }
+
+      // Check if cancellation is within allowed time window
+      if (hoursUntilAppointment < CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE) {
+        throw createValidationError(
+          `Appointments must be cancelled at least ${CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE} hours in advance`
+        );
+      }
+      break;
+
+    default:
+      throw createValidationError("Invalid user role for cancellation");
+  }
+}
+
+/**
+ * Cancels an appointment with role-based rules
+ * @param input Cancellation input including user info and appointment ID
+ * @returns Cancelled appointment data
+ * @throws AppError if cancellation is not allowed or appointment not found
+ */
+export async function cancelAppointment(
+  input: CancelAppointmentInput
+): Promise<Appointment> {
+  const { appointmentId, userId, userRole, reason } = input;
+
+  // Check if appointment exists
+  const existingAppointment = await query((prisma) =>
+    prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    })
+  );
+
+  if (!existingAppointment) {
+    throw createNotFoundError("Appointment not found");
+  }
+
+  // Validate cancellation rules
+  validateCancellationRules(existingAppointment, userRole, userId);
+
+  // If the appointment has a slot, free it
+  if (
+    existingAppointment.slotId &&
+    existingAppointment.status !== AppointmentStatus.CANCELLED
+  ) {
+    await updateSlotStatus(existingAppointment.slotId, SlotStatus.AVAILABLE);
+    logger.info("Slot freed due to appointment cancellation", {
+      slotId: existingAppointment.slotId,
+      appointmentId,
+    });
+  }
+
+  // Update appointment status to CANCELLED
+  const appointment = await query((prisma) =>
+    prisma.appointment.update({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
+      data: {
+        status: AppointmentStatus.CANCELLED,
+        notes: reason
+          ? existingAppointment.notes
+            ? `${existingAppointment.notes}\n\nCancellation reason: ${reason}`
+            : `Cancellation reason: ${reason}`
+          : existingAppointment.notes,
+      },
+    })
+  );
+
+  logger.info("Appointment cancelled", {
+    appointmentId,
+    cancelledBy: userId,
+    userRole,
+    reason,
+  });
+
+  return {
+    id: appointment.id,
+    patientId: appointment.patientId,
+    patientEmail: appointment.patient.email,
+    doctorId: appointment.doctorId,
+    availabilityId: appointment.availabilityId ?? undefined,
+    slotId: appointment.slotId ?? undefined,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    status: appointment.status as AppointmentStatus,
+    notes: appointment.notes ?? undefined,
+    createdAt: appointment.createdAt,
+    updatedAt: appointment.updatedAt,
+  };
 }
