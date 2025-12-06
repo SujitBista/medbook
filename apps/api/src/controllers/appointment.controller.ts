@@ -10,11 +10,13 @@ import {
   getAppointmentsByDoctorId,
   createAppointment,
   updateAppointment,
+  cancelAppointment,
 } from "../services/appointment.service";
 import {
   CreateAppointmentInput,
   UpdateAppointmentInput,
   AppointmentStatus,
+  CancelAppointmentInput,
 } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
@@ -350,6 +352,62 @@ export async function updateAppointmentSlot(
     res.status(200).json({
       success: true,
       data: appointment,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Cancel appointment
+ * POST /api/v1/appointments/:id/cancel
+ * Applies role-based cancellation rules:
+ * - Patients: Can cancel their own appointments at least 24 hours in advance
+ * - Doctors: Can cancel appointments assigned to them at any time
+ * - Admins: Can cancel any appointment at any time
+ */
+export async function cancelAppointmentSlot(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    if (!id) {
+      const error = createValidationError("Appointment ID is required");
+      next(error);
+      return;
+    }
+
+    // Validate user role
+    const userRole = req.user.role as "PATIENT" | "DOCTOR" | "ADMIN";
+    if (!["PATIENT", "DOCTOR", "ADMIN"].includes(userRole)) {
+      const error = createValidationError("Invalid user role");
+      next(error);
+      return;
+    }
+
+    const input: CancelAppointmentInput = {
+      appointmentId: id,
+      userId: req.user.id,
+      userRole,
+      reason,
+    };
+
+    const appointment = await cancelAppointment(input);
+
+    res.status(200).json({
+      success: true,
+      data: appointment,
+      message: "Appointment cancelled successfully",
     });
   } catch (error) {
     next(error);

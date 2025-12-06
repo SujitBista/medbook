@@ -633,16 +633,21 @@ This was necessary for a complete user experience, even though not explicitly in
   - [ ] E2E test for complete booking journey
   - [ ] Test time slot selection and validation
 
-#### 4.4 Appointment Management (Backend) ⏳ PARTIALLY COMPLETE
+#### 4.4 Appointment Management (Backend) ✅ COMPLETE
 
 - [x] Add appointment status update endpoints (via `PUT /api/v1/appointments/:id` - can update status)
 - [x] Create appointment rescheduling functionality (via `PUT /api/v1/appointments/:id` - can update startTime/endTime)
 - [x] Create appointment history endpoint (via listing endpoints with status/date filters)
-- [ ] Create dedicated appointment cancellation API endpoint (currently can cancel via status update)
-- [ ] Implement cancellation rules (time limits, etc.)
+- [x] Create dedicated appointment cancellation API endpoint (`POST /api/v1/appointments/:id/cancel`)
+- [x] Implement cancellation rules (time limits, etc.)
+  - Patients: Can only cancel their own appointments at least 24 hours in advance
+  - Doctors: Can cancel appointments assigned to them at any time
+  - Admins: Can cancel any appointment at any time
+  - Cannot cancel already cancelled or completed appointments
+  - Cancellation reason is appended to appointment notes
 - [x] **Testing**: Write tests for appointment management
   - [x] Integration tests for appointment update endpoint (included in appointment.routes.test.ts)
-  - [ ] Test cancellation rules and time limits (pending - cancellation rules not implemented yet)
+  - [x] Test cancellation rules and time limits (10 test cases added)
 
 #### 4.4.1 Appointment Management UI (Frontend) ✅ COMPLETE
 
@@ -781,7 +786,7 @@ This was necessary for a complete user experience, even though not explicitly in
 - ✅ Appointment booking UI complete (4.3.1) - Doctor detail page, booking form, time slot selector, confirmation components, and marketing landing page implemented
 - ✅ Marketing landing page with hero, testimonials, benefits sections, and Footer component
 - ✅ Next.js API proxy routes for availability, appointments, doctors, slots
-- ⏳ Appointment management backend partially complete (4.4) - Status updates/rescheduling work, cancellation rules pending
+- ✅ Appointment management backend complete (4.4) - Status updates, rescheduling, and cancellation rules with 24-hour patient time limit
 - ✅ Appointment management UI complete (4.4.1) - Detail page, cancellation, rescheduling, status updates, history view, AppointmentList component, Next.js API routes
 - ✅ Patient profile dropdown and navigation improvements - UserProfileDropdown component with logout, conditional dashboard link, homepage integration
 - ✅ Patient dashboard complete (4.5) - Consolidated dashboard with upcoming appointments, history, and quick actions
@@ -805,10 +810,13 @@ This was necessary for a complete user experience, even though not explicitly in
      - Footer component
      - Next.js API proxy routes
    - Testing pending
-3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ⏳ Backend Partially Complete, Frontend Complete
-   - Backend appointment management partially complete:
+3. **4.4** (Backend) → **4.4.1** (Frontend) → Test → ✅ Complete
+   - Backend appointment management complete:
      - Status updates and rescheduling via update endpoint ✅
-     - Cancellation rules (time limits) pending ❌
+     - Dedicated cancellation endpoint with role-based rules ✅
+     - 24-hour cancellation time limit for patients ✅
+     - Doctors and admins can cancel at any time ✅
+     - 10 integration tests for cancellation rules ✅
    - Frontend appointment management UI complete ✅:
      - Appointment detail page with role-based actions
      - Cancellation and rescheduling UI

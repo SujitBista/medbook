@@ -11,6 +11,7 @@ import {
   getAppointmentsByDoctor,
   createAppointmentSlot,
   updateAppointmentSlot,
+  cancelAppointmentSlot,
 } from "../controllers/appointment.controller";
 
 const router: IRouter = Router();
@@ -46,5 +47,14 @@ router.post("/", authenticate, createAppointmentSlot);
  * Update appointment (requires authentication)
  */
 router.put("/:id", authenticate, updateAppointmentSlot);
+
+/**
+ * POST /api/v1/appointments/:id/cancel
+ * Cancel appointment with role-based rules (requires authentication)
+ * - Patients: Can cancel their own appointments at least 24 hours in advance
+ * - Doctors: Can cancel appointments assigned to them at any time
+ * - Admins: Can cancel any appointment at any time
+ */
+router.post("/:id/cancel", authenticate, cancelAppointmentSlot);
 
 export default router;

@@ -41,3 +41,26 @@ export interface UpdateAppointmentInput {
   status?: AppointmentStatus;
   notes?: string;
 }
+
+/**
+ * Input for cancelling an appointment
+ * Includes user role for role-based cancellation rules
+ */
+export interface CancelAppointmentInput {
+  appointmentId: string;
+  userId: string;
+  userRole: "PATIENT" | "DOCTOR" | "ADMIN";
+  reason?: string;
+}
+
+/**
+ * Cancellation rules configuration
+ */
+export const CANCELLATION_RULES = {
+  /** Minimum hours before appointment that patients can cancel */
+  PATIENT_MIN_HOURS_BEFORE: 24,
+  /** Whether doctors can cancel at any time */
+  DOCTOR_CAN_CANCEL_ANYTIME: true,
+  /** Whether admins can cancel at any time */
+  ADMIN_CAN_CANCEL_ANYTIME: true,
+} as const;
