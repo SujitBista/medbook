@@ -61,7 +61,8 @@ export default function AppointmentsPage() {
       }
       fetchAppointments();
     }
-  }, [status, session?.user?.id, loggedInDoctor, doctorProfileLoading, error]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session?.user?.id, loggedInDoctor, doctorProfileLoading]);
 
   const fetchLoggedInDoctor = async () => {
     if (!session?.user?.id) return;
