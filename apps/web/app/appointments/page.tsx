@@ -299,7 +299,11 @@ export default function AppointmentsPage() {
       <AppointmentList
         appointments={filteredAppointments}
         title={`${filteredAppointments.length} Appointment${filteredAppointments.length !== 1 ? "s" : ""}`}
-        emptyMessage="No appointments found. Book your first appointment to get started!"
+        emptyMessage={
+          isDoctor
+            ? "No appointments yet"
+            : "No appointments found. Book your first appointment to get started!"
+        }
         showPatientEmail={isDoctor}
         showDoctorInfo={isPatient}
       />
