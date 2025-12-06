@@ -4,6 +4,7 @@ This directory contains Cursor AI rules organized by topic. Each rule file uses 
 
 ## Rule Files
 
+- **task-planning.mdc** - Multi-step planning process for complex tasks and clarification requirements
 - **service-architecture.mdc** - Functional services pattern, database helpers
 - **backend-logging.mdc** - Backend logging with centralized logger utility
 - **frontend-logging.mdc** - Frontend console logging with prefixes
