@@ -1,0 +1,105 @@
+---
+name: Task Planning and Workflow
+description: Multi-step planning process for complex tasks and clarification requirements
+alwaysApply: true
+---
+
+# Task Planning and Workflow
+
+## Multi-Step Planning Process
+
+Whenever the user asks for a task that affects multiple files, automatically create a multi-step plan before touching any code.
+
+### Planning Structure
+
+Always break complex tasks into the following phases:
+
+1. **Deep Analysis (GPT-5.1)**
+   - Understand the full scope of the task
+   - Identify all affected files and components
+   - Analyze dependencies and potential impacts
+   - Review existing code patterns and conventions
+
+2. **High-Level Plan (GPT-5.1)**
+   - Create a structured outline of the approach
+   - Define major phases and milestones
+   - Identify key decision points
+   - Outline the overall architecture or changes
+
+3. **Implementation Steps (GPT-5.1)**
+   - Break down the high-level plan into concrete steps
+   - Define the order of operations
+   - Identify prerequisites and dependencies
+   - Specify what needs to be created, modified, or deleted
+
+4. **Coding Actions (Composer-1)**
+   - Execute the implementation steps
+   - Make code changes systematically
+   - Follow project conventions and patterns
+   - Ensure consistency across all affected files
+
+5. **Validation Check (GPT-5.1)**
+   - Review the implemented changes
+   - Verify all requirements are met
+   - Check for potential issues or edge cases
+   - Ensure code quality and consistency
+
+6. **Apply Diffs (Composer-1)**
+   - Finalize and commit changes
+   - Ensure all files are properly updated
+   - Verify the implementation is complete
+
+## Clarification Requirements
+
+### When to Ask Questions
+
+If instructions are unclear, ask clarifying questions **BEFORE** coding. Do not proceed with implementation if:
+
+- The task scope is ambiguous
+- Multiple interpretations are possible
+- Required details are missing (e.g., specific values, formats, behaviors)
+- The approach or pattern is unclear
+- There are conflicting requirements
+
+### How to Ask
+
+When clarification is needed:
+
+1. **Acknowledge** what you understand from the request
+2. **Identify** the specific points that need clarification
+3. **Propose** possible interpretations or approaches
+4. **Ask** specific questions to resolve ambiguity
+5. **Wait** for confirmation before proceeding
+
+**Example:**
+
+```
+I understand you want to add user authentication. To proceed correctly, I need clarification on:
+
+1. Should this use JWT tokens or session-based auth?
+2. What user roles should be supported initially?
+3. Should password reset functionality be included in this task?
+4. Are there any specific security requirements I should follow?
+
+Please confirm these details so I can create an accurate implementation plan.
+```
+
+## Task Complexity Assessment
+
+### Simple Tasks (No Planning Required)
+
+- Single file edits
+- Adding a single function or component
+- Simple refactoring in one location
+- Documentation updates
+
+### Complex Tasks (Planning Required)
+
+- Multiple files affected
+- New features requiring multiple components
+- Database schema changes
+- API endpoint creation with multiple layers
+- Refactoring across multiple modules
+- Integration of new services or libraries
+
+When in doubt, create a plan. It's better to plan and clarify than to implement incorrectly.

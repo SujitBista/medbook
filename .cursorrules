@@ -225,3 +225,17 @@ const user = await query((prisma) => prisma.user.findUnique({ where: { id } }));
 - Include setup instructions
 - Document environment variables
 - Include examples of usage
+
+## AI Assistant Workflow
+
+### Multi-file and Complex Tasks
+
+- Whenever the user asks for a task that affects multiple files, the assistant must first create a multi-step plan before touching any code.
+- The assistant must always break complex tasks into the following phases:
+  1. Deep analysis (GPT-5.1)
+  2. High-level plan (GPT-5.1)
+  3. Implementation steps (GPT-5.1)
+  4. Coding actions (Composer-1)
+  5. Validation check (GPT-5.1)
+  6. Apply diffs (Composer-1)
+- If instructions are unclear, the assistant must ask clarifying questions before coding.
