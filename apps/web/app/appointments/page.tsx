@@ -25,6 +25,7 @@ export default function AppointmentsPage() {
   const [loggedInDoctor, setLoggedInDoctor] = useState<Doctor | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [doctorProfileLoading, setDoctorProfileLoading] = useState(false);
   const [statusFilter, setStatusFilter] = useState<AppointmentStatus | "ALL">(
     "ALL"
   );
@@ -41,33 +42,59 @@ export default function AppointmentsPage() {
   useEffect(() => {
     if (session?.user?.role === "DOCTOR" && session.user.id) {
       fetchLoggedInDoctor();
+    } else if (session?.user?.role !== "DOCTOR") {
+      // For non-doctors, we can proceed without doctor profile
+      setDoctorProfileLoading(false);
     }
   }, [session?.user?.role, session?.user?.id]);
 
   // Fetch appointments
   useEffect(() => {
     if (status === "authenticated" && session?.user?.id) {
-      // For doctors, wait until doctor profile is loaded
-      if (session?.user?.role === "DOCTOR" && !loggedInDoctor) {
+      // For doctors, wait until doctor profile loading is complete (success or failure)
+      if (session?.user?.role === "DOCTOR" && doctorProfileLoading) {
+        return;
+      }
+      // For doctors, only fetch if we have a doctor profile OR if there's an error
+      if (session?.user?.role === "DOCTOR" && !loggedInDoctor && !error) {
         return;
       }
       fetchAppointments();
     }
-  }, [status, session?.user?.id, loggedInDoctor]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, session?.user?.id, loggedInDoctor, doctorProfileLoading]);
 
   const fetchLoggedInDoctor = async () => {
     if (!session?.user?.id) return;
 
     try {
+      setDoctorProfileLoading(true);
+      setError(null);
+
       const response = await fetch(`/api/doctors/user/${session.user.id}`);
       const data = await response.json();
 
       if (response.ok && data.success && data.doctor) {
         setLoggedInDoctor(data.doctor);
+      } else {
+        // Doctor profile not found - this is a critical error for doctors
+        const errorMessage =
+          data.error?.message ||
+          "Doctor profile not found. Please contact an administrator to create your doctor profile.";
+        setError(errorMessage);
+        console.error(
+          "[Appointments] Doctor profile not found:",
+          response.status,
+          data
+        );
       }
     } catch (err) {
       console.error("[Appointments] Error fetching logged-in doctor:", err);
-      // Don't set error here, doctor info is optional
+      setError(
+        "Failed to load doctor profile. Please check your connection and try again."
+      );
+    } finally {
+      setDoctorProfileLoading(false);
     }
   };
 
@@ -123,24 +150,41 @@ export default function AppointmentsPage() {
   const isDoctor = session?.user?.role === "DOCTOR";
 
   // Show loading state
-  if (status === "loading" || loading) {
+  if (
+    status === "loading" ||
+    loading ||
+    (session?.user?.role === "DOCTOR" && doctorProfileLoading)
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
           <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading appointments...</p>
+          <p className="mt-4 text-gray-600">
+            {session?.user?.role === "DOCTOR" && doctorProfileLoading
+              ? "Loading doctor profile..."
+              : "Loading appointments..."}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Show error state
+  // Show error state (especially for doctor profile errors)
   if (error && appointments.length === 0) {
+    const isDoctorProfileError =
+      session?.user?.role === "DOCTOR" && !loggedInDoctor;
+
     return (
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         <Card>
           <div className="text-center py-8">
             <p className="text-red-600 mb-4">{error}</p>
+            {isDoctorProfileError && (
+              <p className="text-gray-600 mb-4 text-sm">
+                You need a doctor profile to view appointments. Please contact
+                an administrator to set up your doctor profile.
+              </p>
+            )}
             <div className="flex gap-4 justify-center">
               <Button
                 variant="outline"
@@ -148,9 +192,11 @@ export default function AppointmentsPage() {
               >
                 Go to Dashboard
               </Button>
-              <Button variant="primary" onClick={fetchAppointments}>
-                Retry
-              </Button>
+              {!isDoctorProfileError && (
+                <Button variant="primary" onClick={fetchAppointments}>
+                  Retry
+                </Button>
+              )}
             </div>
           </div>
         </Card>
