@@ -530,6 +530,106 @@ Admin Dashboard → Manage Doctor Tab → Schedule Management
 
 ---
 
+#### 4.0.2 Admin Appointment Management UI ✅ COMPLETE
+
+**Goal**: Enable admins to view, search, filter, and manage all appointments in the system with a scalable, user-friendly interface.
+
+**Note**: This task adds an "Appointments" tab to the admin dashboard, providing comprehensive appointment oversight capabilities for administrators.
+
+- [x] **Appointments Tab in Admin Dashboard**
+  - [x] Add "Appointments" tab to admin dashboard navigation
+  - [x] Stats dashboard showing appointment counts (Total, Pending, Confirmed, Completed)
+  - [x] Real-time stats with color-coded cards
+
+- [x] **Search Functionality**
+  - [x] Full-width search bar with icon
+  - [x] Search by appointment ID
+  - [x] Search by patient email
+  - [x] Search by doctor email
+  - [x] Search by doctor specialization
+  - [x] Clear search button
+
+- [x] **Advanced Filters (Collapsible Panel)**
+  - [x] Status filter dropdown (All, Pending, Confirmed, Completed, Cancelled)
+  - [x] Doctor filter dropdown (All doctors list)
+  - [x] Date range filters (From date, To date)
+  - [x] "Upcoming Only" checkbox toggle
+  - [x] "Clear All" button to reset filters
+  - [x] Filter count badge showing active filters
+
+- [x] **Pagination**
+  - [x] Items per page selector (10, 25, 50)
+  - [x] First/Previous/Next/Last page buttons
+  - [x] Page number buttons (up to 5 visible)
+  - [x] "Showing X to Y of Z" counter
+  - [x] Automatic page reset when filters change
+
+- [x] **Enhanced Table Layout**
+  - [x] Row status colors (subtle background based on status)
+    - Red tint for cancelled appointments
+    - Green tint for completed appointments
+    - Blue tint for confirmed & upcoming appointments
+    - Yellow tint for past pending appointments (needs attention)
+  - [x] Compact spacing for better data density
+  - [x] Columns: ID, Patient, Doctor, Date & Time, Visit Type, Payment, Status, Actions
+
+- [x] **Doctor Information Modal**
+  - [x] Clickable doctor names in table
+  - [x] Modal displays: Avatar, Email, Doctor ID, Specialization, Join date, Bio
+  - [x] "View Full Profile" link to doctor page
+  - [x] Close button and overlay click to dismiss
+
+- [x] **New Data Columns (Mock Data)**
+  - [x] Visit Type column (In-Person, Video Call, Phone, Follow-up, Initial Consultation)
+  - [x] Payment Info column (Paid, Pending, Insurance, Partial) with amount
+
+- [x] **Action Buttons with Tooltips**
+  - [x] View appointment (eye icon) - "View appointment"
+  - [x] Confirm appointment (check icon) - "Confirm appointment"
+  - [x] Mark as completed (circle check icon) - "Mark as completed"
+  - [x] Cancel appointment (X icon) - "Cancel appointment"
+  - [x] Icon-based buttons with hover states
+
+- [x] **Status Badges**
+  - [x] Color-coded badges with borders for stronger visual contrast
+  - [x] Status indicator dot
+  - [x] PENDING: Yellow background + yellow border
+  - [x] CONFIRMED: Blue background + blue border
+  - [x] COMPLETED: Green background + green border
+  - [x] CANCELLED: Red background + red border
+
+- [x] **Empty State Handling**
+  - [x] Custom illustration when no appointments found
+  - [x] Different messages for:
+    - No appointments in system
+    - No matches for current filters
+  - [x] "Clear All Filters" button when filters are active
+
+- [x] **Loading State**
+  - [x] Centered spinner with loading message
+  - [x] Disabled refresh button during loading
+
+- [x] **API Fixes**
+  - [x] Fixed `/api/appointments` route to fetch doctors correctly
+    - Changed `doctorsData.doctors` to `doctorsData.data` (correct API response field)
+    - Added `hasAvailability=false&limit=100` to include all doctors
+  - [x] Added comprehensive logging for debugging
+
+**Deliverables:**
+
+- ✅ Admin can view all appointments in the system
+- ✅ Admin can search appointments by multiple criteria
+- ✅ Admin can filter appointments by status, doctor, date range
+- ✅ Admin can paginate through large appointment lists
+- ✅ Admin can view doctor details via clickable names
+- ✅ Admin can manage appointment status (confirm, complete, cancel)
+- ✅ Scalable UI designed to handle thousands of appointments
+- ✅ Modern, clean design matching admin dashboard style
+
+**Estimated Time:** 1 day
+
+---
+
 #### 4.1 Doctor Management (Backend & Public API)
 
 - [x] Create Doctor model in Prisma schema
@@ -773,6 +873,16 @@ This was necessary for a complete user experience, even though not explicitly in
   - ✅ SlotTemplate management (create/update templates, fetch templates)
   - ✅ Admin can schedule doctors with automatic slot generation
   - ✅ Recent bug fixes (date validation, error handling)
+- ✅ Admin appointment management UI (Task 4.0.2) - Complete with scalable design
+  - ✅ Appointments tab added to admin dashboard
+  - ✅ Search functionality (ID, patient, doctor, email)
+  - ✅ Advanced filters (status, doctor, date range, upcoming only)
+  - ✅ Pagination (10/25/50 per page)
+  - ✅ Enhanced table with row status colors and icon action buttons
+  - ✅ Doctor info modal (clickable doctor names)
+  - ✅ Visit Type and Payment columns (mock data)
+  - ✅ Empty state handling and loading states
+  - ✅ Fixed API route to fetch doctors correctly
 - ✅ Slot Management System - Complete
   - ✅ Slot model and database schema created
   - ✅ SlotTemplate model for doctor-specific slot configuration
