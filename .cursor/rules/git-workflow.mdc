@@ -15,6 +15,7 @@ Never push directly to `main` or `master` branch. All changes must go through a 
 ### Workflow Steps
 
 1. **Create a feature branch** from main:
+
    ```bash
    git checkout main
    git pull origin main
@@ -22,12 +23,14 @@ Never push directly to `main` or `master` branch. All changes must go through a 
    ```
 
 2. **Make your changes** and commit:
+
    ```bash
    git add .
    git commit -m "feat: your descriptive commit message"
    ```
 
 3. **Push to remote**:
+
    ```bash
    git push origin HEAD
    ```
@@ -49,6 +52,7 @@ Never push directly to `main` or `master` branch. All changes must go through a 
 ### Commit Message Format
 
 Use conventional commit format:
+
 - `feat:` - New feature
 - `fix:` - Bug fix
 - `docs:` - Documentation changes
@@ -58,6 +62,7 @@ Use conventional commit format:
 - `chore:` - Maintenance tasks
 
 **Example:**
+
 ```
 fix: add Tailwind color definitions to make buttons visible
 
@@ -66,12 +71,24 @@ fix: add Tailwind color definitions to make buttons visible
 - Remove unnecessary inline styles from Button component
 ```
 
+### Stash Management
+
+**Never leave changes in stash when pushing code.**
+
+- Always ensure the working tree is clean before pushing/creating PRs
+- If stashing is needed, **ask the user first** before using `git stash`
+- After completing a task, verify no stashes remain: `git stash list`
+- If stashes exist, either apply and commit them, or ask the user how to handle them
+- Do not leave uncommitted changes or stashes when finishing a task
+
 ### When Assisting with Git Operations
 
 When the user asks to commit and push changes:
+
 1. Create a feature branch (never commit directly to main)
 2. Stage only the relevant files
 3. Create a descriptive commit message using conventional commits
 4. Push to the feature branch
 5. **Create a PR** using GitHub CLI or remind user to create one
 6. Do NOT merge directly to main/master
+7. **Verify no stashes remain** before completing the task
