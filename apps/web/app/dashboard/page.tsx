@@ -50,6 +50,9 @@ export default function DashboardPage() {
     ) {
       // Redirect patients to patient dashboard
       router.push("/dashboard/patient");
+    } else if (status === "authenticated" && session?.user?.role === "DOCTOR") {
+      // Redirect doctors to doctor dashboard
+      router.push("/dashboard/doctor");
     }
   }, [status, session, router]);
 
@@ -134,10 +137,12 @@ export default function DashboardPage() {
     return null; // Will redirect via useEffect
   }
 
-  // Show loading or redirect message for admins and patients (they're redirected)
+  // Show loading or redirect message for admins, patients, and doctors (they're redirected)
   if (
     status === "authenticated" &&
-    (session?.user?.role === "ADMIN" || session?.user?.role === "PATIENT")
+    (session?.user?.role === "ADMIN" ||
+      session?.user?.role === "PATIENT" ||
+      session?.user?.role === "DOCTOR")
   ) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -146,7 +151,9 @@ export default function DashboardPage() {
           <p className="mt-4 text-gray-600">
             {session?.user?.role === "ADMIN"
               ? "Redirecting to admin dashboard..."
-              : "Redirecting to patient dashboard..."}
+              : session?.user?.role === "PATIENT"
+                ? "Redirecting to patient dashboard..."
+                : "Redirecting to doctor dashboard..."}
           </p>
         </div>
       </div>
