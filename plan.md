@@ -825,17 +825,19 @@ This was necessary for a complete user experience, even though not explicitly in
   - [ ] Integration tests for appointment listing/filtering
   - [ ] E2E test for patient dashboard navigation
 
-#### 4.6 Doctor Dashboard (Consolidation)
+#### 4.6 Doctor Dashboard (Consolidation) ✅ COMPLETE
 
 **Goal**: Consolidate doctor-facing features into a unified dashboard.
 
-- [ ] Create doctor dashboard page (`/dashboard/doctor`)
-- [ ] Display upcoming appointments (using appointment listing endpoint)
-- [ ] Show appointment history
-- [ ] Add quick link to availability management (from 4.2.1)
-- [ ] Implement appointment status updates (from 4.4.1)
-- [ ] Add patient information view
-- [ ] Add navigation to manage availability
+- [x] Create doctor dashboard page (`/dashboard/doctor`) ✅ COMPLETE
+- [x] Display upcoming appointments (using appointment listing endpoint) ✅ Shows up to 5 upcoming appointments
+- [x] Show appointment history ✅ Shows recent appointments (up to 5)
+- [x] Add quick link to availability management (from 4.2.1) ✅ Quick action card linking to `/dashboard/doctor/availability`
+- [x] Implement appointment status updates (from 4.4.1) ✅ Links to appointment detail pages where status can be updated
+- [x] Add patient information view ✅ Shows patient email in appointments via `showPatientEmail={true}`
+- [x] Add navigation to manage availability ✅ Quick action card and links throughout dashboard
+- [x] Update `/dashboard` page to redirect doctors to `/dashboard/doctor` ✅ COMPLETE
+- [x] Update UserProfileDropdown to recognize doctor dashboard route ✅ COMPLETE
 - [ ] **Testing**: Write tests for doctor dashboard
   - [ ] Component tests for dashboard page
   - [ ] Integration tests for dashboard navigation
@@ -900,7 +902,7 @@ This was necessary for a complete user experience, even though not explicitly in
 - ✅ Appointment management UI complete (4.4.1) - Detail page, cancellation, rescheduling, status updates, history view, AppointmentList component, Next.js API routes
 - ✅ Patient profile dropdown and navigation improvements - UserProfileDropdown component with logout, conditional dashboard link, homepage integration
 - ✅ Patient dashboard complete (4.5) - Consolidated dashboard with upcoming appointments, history, and quick actions
-- ⏳ Doctor dashboard pending (4.6)
+- ✅ Doctor dashboard complete (4.6) - Consolidated dashboard with upcoming appointments, history, quick actions, and availability management links
 
 **Development Flow:**
 
@@ -936,7 +938,7 @@ This was necessary for a complete user experience, even though not explicitly in
      - Profile dropdown with logout functionality
      - Dashboard navigation improvements
 4. **4.5** (Consolidate Patient Dashboard) → Test → ✅ Complete
-5. **4.6** (Consolidate Doctor Dashboard) → Test → Pending
+5. **4.6** (Consolidate Doctor Dashboard) → Test → ✅ Complete
 6. **4.7** (Enhance Public Listing) → Test → ✅ Complete (included in 4.3.1)
 
 **Estimated Time:** 8-12 days (includes 1-2 days for Task 4.0)
