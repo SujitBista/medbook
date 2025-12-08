@@ -95,6 +95,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+
       - name: Setup test database
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -120,6 +125,8 @@ jobs:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           NODE_ENV: test
+          # Prevent dotenv from overriding with .env file values
+          DOTENV_CONFIG_OVERRIDE: true
         run: pnpm test
 
       - name: Test coverage
