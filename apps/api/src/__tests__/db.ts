@@ -182,6 +182,19 @@ export async function createTestUser(overrides?: {
       });
     });
 
+    // Verify user exists (guard against wrong DB/connection)
+    const check = await query(async (prisma) =>
+      prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true },
+      })
+    );
+    if (!check) {
+      throw new Error(
+        `Failed to verify created user ${user.id} in test database (email=${email})`
+      );
+    }
+
     return {
       ...user,
       password, // Return plain password for testing
@@ -286,17 +299,34 @@ export async function createTestDoctor(overrides?: {
       return { user: newUser, doctor: newDoctor };
     });
 
+    // Verify doctor exists
+    const verified = await query(async (prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: result.doctor.id },
+        include: {
+          user: {
+            select: { id: true, email: true, role: true },
+          },
+        },
+      })
+    );
+    if (!verified) {
+      throw new Error(
+        `Failed to verify created doctor ${result.doctor.id} in test database`
+      );
+    }
+
     return {
-      id: result.doctor.id,
-      userId: result.doctor.userId,
-      specialization: result.doctor.specialization ?? undefined,
-      bio: result.doctor.bio ?? undefined,
-      createdAt: result.doctor.createdAt,
-      updatedAt: result.doctor.updatedAt,
+      id: verified.id,
+      userId: verified.userId,
+      specialization: verified.specialization ?? undefined,
+      bio: verified.bio ?? undefined,
+      createdAt: verified.createdAt,
+      updatedAt: verified.updatedAt,
       user: {
-        id: result.doctor.user.id,
-        email: result.doctor.user.email,
-        role: result.doctor.user.role,
+        id: verified.user.id,
+        email: verified.user.email,
+        role: verified.user.role,
       },
     };
   }
@@ -418,9 +448,22 @@ export async function createTestAvailability(overrides?: {
     })
   );
 
+  // Verify availability exists
+  const verified = await query(async (prisma) =>
+    prisma.availability.findUnique({
+      where: { id: availability.id },
+      select: { id: true, doctorId: true },
+    })
+  );
+  if (!verified) {
+    throw new Error(
+      `Failed to verify created availability ${availability.id} in test database`
+    );
+  }
+
   return {
-    id: availability.id,
-    doctorId: availability.doctorId,
+    id: verified.id,
+    doctorId: verified.doctorId,
     startTime: availability.startTime,
     endTime: availability.endTime,
     dayOfWeek: availability.dayOfWeek ?? undefined,
@@ -505,6 +548,19 @@ export async function createTestAppointment(overrides?: {
       },
     })
   );
+
+  // Verify appointment exists
+  const verified = await query(async (prisma) =>
+    prisma.appointment.findUnique({
+      where: { id: appointment.id },
+      select: { id: true, patientId: true, doctorId: true },
+    })
+  );
+  if (!verified) {
+    throw new Error(
+      `Failed to verify created appointment ${appointment.id} in test database`
+    );
+  }
 
   return {
     id: appointment.id,
