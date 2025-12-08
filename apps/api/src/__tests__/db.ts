@@ -206,55 +206,60 @@ export async function createTestDoctor(overrides?: {
     };
   }
 
-  // If using existing user, verify it exists before creating doctor
-  const doctor = await query(async (prisma) => {
-    // Verify user exists in database
-    const existingUser = await prisma.user.findUnique({
-      where: { id: user.id },
-      select: { id: true, role: true },
-    });
+  // If using existing user, verify it exists and create doctor
+  if (overrides?.userId) {
+    const doctor = await query(async (prisma) => {
+      // Verify user exists in database
+      const existingUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { id: true, role: true },
+      });
 
-    if (!existingUser) {
-      throw new Error(
-        `User with ID ${user.id} does not exist in database when creating doctor`
-      );
-    }
+      if (!existingUser) {
+        throw new Error(
+          `User with ID ${user.id} does not exist in database when creating doctor`
+        );
+      }
 
-    if (existingUser.role !== "DOCTOR") {
-      throw new Error(`User must have DOCTOR role, got ${existingUser.role}`);
-    }
+      if (existingUser.role !== "DOCTOR") {
+        throw new Error(`User must have DOCTOR role, got ${existingUser.role}`);
+      }
 
-    return prisma.doctor.create({
-      data: {
-        userId: user.id,
-        specialization: overrides?.specialization || null,
-        bio: overrides?.bio || null,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
+      return prisma.doctor.create({
+        data: {
+          userId: user.id,
+          specialization: overrides?.specialization || null,
+          bio: overrides?.bio || null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+            },
           },
         },
-      },
+      });
     });
-  });
 
-  return {
-    id: doctor.id,
-    userId: doctor.userId,
-    specialization: doctor.specialization ?? undefined,
-    bio: doctor.bio ?? undefined,
-    createdAt: doctor.createdAt,
-    updatedAt: doctor.updatedAt,
-    user: {
-      id: doctor.user.id,
-      email: doctor.user.email,
-      role: doctor.user.role,
-    },
-  };
+    return {
+      id: doctor.id,
+      userId: doctor.userId,
+      specialization: doctor.specialization ?? undefined,
+      bio: doctor.bio ?? undefined,
+      createdAt: doctor.createdAt,
+      updatedAt: doctor.updatedAt,
+      user: {
+        id: doctor.user.id,
+        email: doctor.user.email,
+        role: doctor.user.role,
+      },
+    };
+  }
+
+  // This should never be reached - transaction already returns above
+  throw new Error("Unexpected code path in createTestDoctor");
 }
 
 /**
