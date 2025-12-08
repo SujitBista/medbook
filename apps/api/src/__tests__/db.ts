@@ -3,7 +3,7 @@
  * Helper functions for managing test database state
  */
 
-import { query } from "@app/db";
+import { query, withTransaction } from "@app/db";
 
 /**
  * Cleans up test data from the database
@@ -144,12 +144,87 @@ export async function createTestDoctor(overrides?: {
       throw new Error(`User must have DOCTOR role, got ${user.role}`);
     }
   } else {
-    // Create a new doctor user
-    user = await createTestUser({ role: "DOCTOR" });
+    // Create a new doctor user and doctor profile in a single transaction
+    // This ensures atomicity and prevents foreign key constraint violations
+    const result = await withTransaction(async (tx) => {
+      const { hashPassword } = await import("../utils/auth");
+
+      const emailRaw = `test-doctor-${Date.now()}-${Math.random()
+        .toString(36)
+        .substring(7)}@example.com`;
+      const email = emailRaw.toLowerCase().trim();
+      const password = "Test123!@#";
+      const hashedPassword = await hashPassword(password);
+
+      // Create user
+      const newUser = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role: "DOCTOR",
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+        },
+      });
+
+      // Create doctor profile in the same transaction
+      const newDoctor = await tx.doctor.create({
+        data: {
+          userId: newUser.id,
+          specialization: overrides?.specialization || null,
+          bio: overrides?.bio || null,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+            },
+          },
+        },
+      });
+
+      return { user: newUser, doctor: newDoctor };
+    });
+
+    return {
+      id: result.doctor.id,
+      userId: result.doctor.userId,
+      specialization: result.doctor.specialization ?? undefined,
+      bio: result.doctor.bio ?? undefined,
+      createdAt: result.doctor.createdAt,
+      updatedAt: result.doctor.updatedAt,
+      user: {
+        id: result.doctor.user.id,
+        email: result.doctor.user.email,
+        role: result.doctor.user.role,
+      },
+    };
   }
 
-  const doctor = await query(async (prisma) =>
-    prisma.doctor.create({
+  // If using existing user, verify it exists before creating doctor
+  const doctor = await query(async (prisma) => {
+    // Verify user exists in database
+    const existingUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { id: true, role: true },
+    });
+
+    if (!existingUser) {
+      throw new Error(
+        `User with ID ${user.id} does not exist in database when creating doctor`
+      );
+    }
+
+    if (existingUser.role !== "DOCTOR") {
+      throw new Error(`User must have DOCTOR role, got ${existingUser.role}`);
+    }
+
+    return prisma.doctor.create({
       data: {
         userId: user.id,
         specialization: overrides?.specialization || null,
@@ -164,8 +239,8 @@ export async function createTestDoctor(overrides?: {
           },
         },
       },
-    })
-  );
+    });
+  });
 
   return {
     id: doctor.id,
