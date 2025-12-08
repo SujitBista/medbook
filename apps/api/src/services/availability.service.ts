@@ -3,7 +3,7 @@
  * Handles doctor availability/schedule management business logic
  */
 
-import { query } from "@app/db";
+import { query, Prisma } from "@app/db";
 import {
   Availability,
   CreateAvailabilityInput,
@@ -26,7 +26,18 @@ import { generateSlotsFromAvailability } from "./slot.service";
 export async function getAvailabilityById(
   availabilityId: string
 ): Promise<Availability> {
-  const availability = await query((prisma) =>
+  const availability = await query<{
+    id: string;
+    doctorId: string;
+    startTime: Date;
+    endTime: Date;
+    dayOfWeek: number | null;
+    isRecurring: boolean;
+    validFrom: Date | null;
+    validTo: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.availability.findUnique({
       where: { id: availabilityId },
     })
@@ -68,7 +79,7 @@ export async function getAvailabilitiesByDoctorId(
   const endDate = options?.endDate;
 
   // Build where clause - need to handle one-time vs recurring differently
-  const where: any = {
+  const where: Prisma.AvailabilityWhereInput = {
     doctorId,
     OR: [
       // One-time slots: endTime must be >= startDate (slot hasn't ended before search window)
@@ -97,7 +108,20 @@ export async function getAvailabilitiesByDoctorId(
     ],
   };
 
-  const availabilities = await query((prisma) =>
+  const availabilities = await query<
+    {
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
     prisma.availability.findMany({
       where,
       orderBy: {
@@ -134,14 +158,7 @@ async function hasOverlap(
   endTime: Date,
   excludeId?: string
 ): Promise<boolean> {
-  const where: {
-    doctorId: string;
-    id?: { not: string };
-    AND: Array<{
-      startTime: { lte: Date };
-      endTime: { gte: Date };
-    }>;
-  } = {
+  const where: Prisma.AvailabilityWhereInput = {
     doctorId,
     AND: [
       // Overlap condition: New slot starts before existing ends AND ends after existing starts
@@ -154,7 +171,18 @@ async function hasOverlap(
     where.id = { not: excludeId };
   }
 
-  const overlapping = await query((prisma) =>
+  const overlapping = await query<{
+    id: string;
+    doctorId: string;
+    startTime: Date;
+    endTime: Date;
+    dayOfWeek: number | null;
+    isRecurring: boolean;
+    validFrom: Date | null;
+    validTo: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.availability.findFirst({
       where,
     })
@@ -230,7 +258,14 @@ export async function createAvailability(
   }
 
   // Verify doctor exists
-  const doctor = await query((prisma) =>
+  const doctor = await query<{
+    id: string;
+    userId: string;
+    specialization: string | null;
+    bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { id: doctorId },
     })
@@ -252,7 +287,18 @@ export async function createAvailability(
 
   // Create availability
   try {
-    const availability = await query((prisma) =>
+    const availability = await query<{
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.availability.create({
         data: {
           doctorId,
@@ -330,7 +376,18 @@ export async function updateAvailability(
     input;
 
   // Check if availability exists
-  const existingAvailability = await query((prisma) =>
+  const existingAvailability = await query<{
+    id: string;
+    doctorId: string;
+    startTime: Date;
+    endTime: Date;
+    dayOfWeek: number | null;
+    isRecurring: boolean;
+    validFrom: Date | null;
+    validTo: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.availability.findUnique({
       where: { id: availabilityId },
     })
@@ -393,7 +450,18 @@ export async function updateAvailability(
 
   // Update availability
   try {
-    const availability = await query((prisma) =>
+    const availability = await query<{
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.availability.update({
         where: { id: availabilityId },
         data: {
@@ -448,7 +516,18 @@ export async function deleteAvailability(
   availabilityId: string
 ): Promise<void> {
   // Check if availability exists
-  const existingAvailability = await query((prisma) =>
+  const existingAvailability = await query<{
+    id: string;
+    doctorId: string;
+    startTime: Date;
+    endTime: Date;
+    dayOfWeek: number | null;
+    isRecurring: boolean;
+    validFrom: Date | null;
+    validTo: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.availability.findUnique({
       where: { id: availabilityId },
     })
@@ -459,7 +538,18 @@ export async function deleteAvailability(
   }
 
   try {
-    await query((prisma) =>
+    await query<{
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.availability.delete({
         where: { id: availabilityId },
       })

@@ -3,7 +3,7 @@
  * Handles doctor management business logic
  */
 
-import { query } from "@app/db";
+import { query, Prisma, UserRole as PrismaUserRole } from "@app/db";
 import { Doctor, CreateDoctorInput, UpdateDoctorInput } from "@medbook/types";
 import {
   createNotFoundError,
@@ -19,7 +19,17 @@ import { logger } from "../utils/logger";
  * @throws AppError if doctor not found
  */
 export async function getDoctorById(doctorId: string): Promise<Doctor> {
-  const doctor = await query((prisma) =>
+  const doctor = await query<Prisma.DoctorGetPayload<{
+    include: {
+      user: {
+        select: {
+          id: true;
+          email: true;
+          role: true;
+        };
+      };
+    };
+  }> | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { id: doctorId },
       include: {
@@ -55,7 +65,17 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
  * @throws AppError if doctor not found
  */
 export async function getDoctorByUserId(userId: string): Promise<Doctor> {
-  const doctor = await query((prisma) =>
+  const doctor = await query<Prisma.DoctorGetPayload<{
+    include: {
+      user: {
+        select: {
+          id: true;
+          email: true;
+          role: true;
+        };
+      };
+    };
+  }> | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { userId },
       include: {
@@ -107,7 +127,7 @@ export async function getAllDoctors(options?: {
 
   // Build where clause for search
   // Using 'any' for complex Prisma nested types
-  const where: any = {};
+  const where: Prisma.DoctorWhereInput = {};
 
   if (specialization) {
     where.specialization = {
@@ -158,7 +178,19 @@ export async function getAllDoctors(options?: {
   }
 
   const [doctors, total] = await Promise.all([
-    query((prisma) =>
+    query<
+      Prisma.DoctorGetPayload<{
+        include: {
+          user: {
+            select: {
+              id: true;
+              email: true;
+              role: true;
+            };
+          };
+        };
+      }>[]
+    >((prisma) =>
       prisma.doctor.findMany({
         where,
         skip,
@@ -177,7 +209,7 @@ export async function getAllDoctors(options?: {
         },
       })
     ),
-    query((prisma) => prisma.doctor.count({ where })),
+    query<number>((prisma) => prisma.doctor.count({ where })),
   ]);
 
   return {
@@ -210,7 +242,10 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
   const { userId, specialization, bio } = input;
 
   // Verify user exists and has DOCTOR role
-  const user = await query((prisma) =>
+  const user = await query<{
+    id: string;
+    role: PrismaUserRole;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
       select: {
@@ -231,7 +266,14 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
   }
 
   // Check if doctor profile already exists
-  const existingDoctor = await query((prisma) =>
+  const existingDoctor = await query<{
+    id: string;
+    userId: string;
+    specialization: string | null;
+    bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { userId },
     })
@@ -243,7 +285,19 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
 
   // Create doctor profile
   try {
-    const doctor = await query((prisma) =>
+    const doctor = await query<
+      Prisma.DoctorGetPayload<{
+        include: {
+          user: {
+            select: {
+              id: true;
+              email: true;
+              role: true;
+            };
+          };
+        };
+      }>
+    >((prisma) =>
       prisma.doctor.create({
         data: {
           userId,
@@ -300,7 +354,14 @@ export async function updateDoctor(
   const { specialization, bio } = input;
 
   // Check if doctor exists
-  const existingDoctor = await query((prisma) =>
+  const existingDoctor = await query<{
+    id: string;
+    userId: string;
+    specialization: string | null;
+    bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { id: doctorId },
     })
@@ -312,7 +373,19 @@ export async function updateDoctor(
 
   // Update doctor
   try {
-    const doctor = await query((prisma) =>
+    const doctor = await query<
+      Prisma.DoctorGetPayload<{
+        include: {
+          user: {
+            select: {
+              id: true;
+              email: true;
+              role: true;
+            };
+          };
+        };
+      }>
+    >((prisma) =>
       prisma.doctor.update({
         where: { id: doctorId },
         data: {
@@ -364,7 +437,10 @@ export async function updateDoctor(
  */
 export async function deleteDoctor(doctorId: string): Promise<void> {
   // Check if doctor exists
-  const existingDoctor = await query((prisma) =>
+  const existingDoctor = await query<{
+    id: string;
+    userId: string;
+  } | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { id: doctorId },
       select: {
@@ -381,7 +457,15 @@ export async function deleteDoctor(doctorId: string): Promise<void> {
   try {
     // Delete doctor profile (cascade will handle user deletion if configured)
     // Or delete user which will cascade delete doctor profile
-    await query((prisma) =>
+    await query<{
+      id: string;
+      email: string;
+      password: string;
+      role: string;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.user.delete({
         where: { id: existingDoctor.userId },
       })
@@ -415,7 +499,11 @@ export interface DoctorStats {
 }
 
 export async function getDoctorStats(): Promise<DoctorStats> {
-  const doctors = await query((prisma) =>
+  const doctors = await query<
+    {
+      specialization: string | null;
+    }[]
+  >((prisma) =>
     prisma.doctor.findMany({
       select: {
         specialization: true,

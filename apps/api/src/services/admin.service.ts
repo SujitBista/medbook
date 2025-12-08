@@ -26,12 +26,22 @@ function convertUserRole(role: PrismaUserRole): UserRole {
  * @returns Array of users without passwords
  */
 export async function getAllUsers(): Promise<UserWithoutPassword[]> {
-  const users = await query((prisma) =>
+  const users = await query<
+    {
+      id: string;
+      email: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
     prisma.user.findMany({
       select: {
         id: true,
         email: true,
         role: true,
+        mustResetPassword: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -56,13 +66,21 @@ export async function getAllUsers(): Promise<UserWithoutPassword[]> {
 export async function getUserById(
   userId: string
 ): Promise<UserWithoutPassword> {
-  const user = await query((prisma) =>
+  const user = await query<{
+    id: string;
+    email: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         email: true,
         role: true,
+        mustResetPassword: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -109,7 +127,14 @@ export async function updateUserRole(
   // (This check should be done in controller, but adding here for safety)
 
   try {
-    const user = await query((prisma) =>
+    const user = await query<{
+      id: string;
+      email: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.user.update({
         where: { id: userId },
         data: {
@@ -119,6 +144,7 @@ export async function updateUserRole(
           id: true,
           email: true,
           role: true,
+          mustResetPassword: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -150,7 +176,15 @@ export async function updateUserRole(
  */
 export async function deleteUser(userId: string): Promise<void> {
   try {
-    await query((prisma) =>
+    await query<{
+      id: string;
+      email: string;
+      password: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.user.delete({
         where: { id: userId },
       })
@@ -222,7 +256,15 @@ export async function createDoctorUser(
   }
 
   // Check if user already exists (optimistic check)
-  const existingUser = await query((prisma) =>
+  const existingUser = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     })
@@ -249,6 +291,7 @@ export async function createDoctorUser(
           id: true,
           email: true,
           role: true,
+          mustResetPassword: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -332,7 +375,11 @@ export interface SystemStats {
  * @returns System statistics
  */
 export async function getSystemStats(): Promise<SystemStats> {
-  const users = await query((prisma) =>
+  const users = await query<
+    {
+      role: PrismaUserRole;
+    }[]
+  >((prisma) =>
     prisma.user.findMany({
       select: {
         role: true,
