@@ -81,22 +81,40 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup PostgreSQL
+        uses: ankane/setup-postgres@v1
+        with:
+          postgresql-version: '14'
+          postgresql-db: medbook_test
+          postgresql-user: postgres
+          postgresql-password: postgres
+
       - name: Setup test database
         env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/medbook_test' }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
         run: |
-          # Add database setup script if needed
-          echo "Setting up test database..."
+          echo "🔧 Setting up test database..."
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 1
+          done
+          # Run migrations
+          cd packages/db
+          pnpm db:migrate:deploy
+          echo "✅ Test database ready"
 
       - name: Run tests
         env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/medbook_test' }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           NODE_ENV: test
         run: pnpm test
 
       - name: Test coverage
         env:
-          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL || 'postgresql://postgres:postgres@localhost:5432/medbook_test' }}
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
+          TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           NODE_ENV: test
         run: pnpm test:coverage || true
 
