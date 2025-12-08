@@ -2267,7 +2267,8 @@ function AdminDashboardContent() {
                     doctorSearchQuery &&
                     filteredDoctorsForSelection.length === 0 && (
                       <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
-                        No doctors found matching "{doctorSearchQuery}"
+                        No doctors found matching &quot;{doctorSearchQuery}
+                        &quot;
                       </div>
                     )}
                 </div>
@@ -3038,8 +3039,8 @@ function AdminDashboardContent() {
                       </div>
                     ) : availabilities.length === 0 ? (
                       <div className="py-12 text-center text-gray-500">
-                        No schedules found. Click "Add New Schedule" to create
-                        one.
+                        No schedules found. Click &quot;Add New Schedule&quot;
+                        to create one.
                       </div>
                     ) : (
                       <div className="overflow-x-auto">

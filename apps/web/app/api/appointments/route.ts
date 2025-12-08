@@ -93,7 +93,7 @@ export async function GET(req: NextRequest) {
         );
 
         const appointmentResults = await Promise.all(appointmentPromises);
-        const allAppointments: any[] = [];
+        const allAppointments: Appointment[] = [];
 
         appointmentResults.forEach((result, index) => {
           if (result.success && result.data) {

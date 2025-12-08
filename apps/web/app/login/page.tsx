@@ -21,7 +21,10 @@ function LoginForm() {
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
-      setSuccessMessage("Registration successful! Please sign in.");
+      // Use setTimeout to avoid setState in effect
+      setTimeout(() => {
+        setSuccessMessage("Registration successful! Please sign in.");
+      }, 0);
       // Remove the query parameter from URL to prevent showing message on refresh
       router.replace("/login", { scroll: false });
     }
@@ -192,7 +195,7 @@ function LoginForm() {
           {!searchParams.get("callbackUrl")?.includes("/admin") && (
             <div className="mt-6 text-center text-sm">
               <p className="text-gray-600">
-                Don't have an account?{" "}
+                Don&apos;t have an account?{" "}
                 <Link
                   href="/register"
                   className="font-medium text-blue-600 hover:text-blue-500"
