@@ -400,7 +400,7 @@ export async function createTestAvailability(overrides?: {
       doctor = {
         id: testDoctor.id,
         userId: testDoctor.userId,
-      } as typeof doctor;
+      } as unknown as typeof doctor;
     }
   } else {
     // Create a new doctor - the transaction ensures it exists
@@ -409,7 +409,7 @@ export async function createTestAvailability(overrides?: {
     doctor = {
       id: testDoctor.id,
       userId: testDoctor.userId,
-    } as typeof doctor;
+    } as unknown as typeof doctor;
   }
 
   if (!doctor || !doctor.id) {
@@ -509,7 +509,7 @@ export async function createTestAppointment(overrides?: {
       doctor = {
         id: fallbackDoctor.id,
         userId: fallbackDoctor.userId,
-      } as typeof doctor;
+      } as unknown as typeof doctor;
     }
   } else {
     const testDoctor = await createTestDoctor();
