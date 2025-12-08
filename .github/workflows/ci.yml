@@ -86,8 +86,6 @@ jobs:
         with:
           postgresql-version: '14'
           postgresql-db: medbook_test
-          postgresql-user: postgres
-          postgresql-password: postgres
 
       - name: Setup test database
         env:
@@ -95,14 +93,15 @@ jobs:
         run: |
           echo "🔧 Setting up test database..."
           # Wait for PostgreSQL to be ready
-          until pg_isready -h localhost -p 5432 -U postgres; do
+          until pg_isready -h localhost -p 5432 -U postgres > /dev/null 2>&1; do
             echo "Waiting for PostgreSQL..."
             sleep 1
           done
+          echo "✅ PostgreSQL is ready"
           # Run migrations
           cd packages/db
-          pnpm db:migrate:deploy
-          echo "✅ Test database ready"
+          DATABASE_URL=postgresql://postgres:postgres@localhost:5432/medbook_test pnpm db:migrate:deploy
+          echo "✅ Test database migrations completed"
 
       - name: Run tests
         env:
