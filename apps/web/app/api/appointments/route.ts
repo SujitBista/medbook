@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { env } from "@/lib/env";
 import jwt from "jsonwebtoken";
+import { Appointment } from "@medbook/types";
 
 function generateBackendToken(userId: string, role: string): string {
   return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
