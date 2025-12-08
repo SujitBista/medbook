@@ -396,23 +396,23 @@ export async function createTestAvailability(overrides?: {
     if (!doctor) {
       // Fall back to creating a new doctor if the provided ID is missing
       const testDoctor = await createTestDoctor();
-      doctor = await query(async (prisma) =>
-        prisma.doctor.findUnique({
-          where: { id: testDoctor.id },
-        })
-      );
+      // Use the returned doctor data directly since transaction guarantees it exists
+      doctor = {
+        id: testDoctor.id,
+        userId: testDoctor.userId,
+      } as typeof doctor;
     }
   } else {
-    // Create a new doctor
+    // Create a new doctor - the transaction ensures it exists
     const testDoctor = await createTestDoctor();
-    doctor = await query(async (prisma) =>
-      prisma.doctor.findUnique({
-        where: { id: testDoctor.id },
-      })
-    );
+    // Use the returned doctor data directly since transaction guarantees it exists
+    doctor = {
+      id: testDoctor.id,
+      userId: testDoctor.userId,
+    } as typeof doctor;
   }
 
-  if (!doctor) {
+  if (!doctor || !doctor.id) {
     throw new Error("Failed to get or create doctor");
   }
 
@@ -505,11 +505,11 @@ export async function createTestAppointment(overrides?: {
     if (!doctor) {
       // Fall back to creating a new doctor if the provided ID is missing
       const fallbackDoctor = await createTestDoctor();
-      doctor = await query(async (prisma) =>
-        prisma.doctor.findUnique({
-          where: { id: fallbackDoctor.id },
-        })
-      );
+      // Use the returned doctor data directly since transaction guarantees it exists
+      doctor = {
+        id: fallbackDoctor.id,
+        userId: fallbackDoctor.userId,
+      } as typeof doctor;
     }
   } else {
     const testDoctor = await createTestDoctor();

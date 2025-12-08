@@ -12,6 +12,7 @@ process.env.PORT = "4000";
 process.env.API_URL = "http://localhost:4000";
 process.env.CORS_ORIGIN = "http://localhost:3000";
 process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Allow requests without origin in tests
+process.env.CORS_ALLOW_ALL_ORIGINS_IN_TEST = "true"; // Allow all origins in integration tests (CORS tests override this)
 
 // Force a consistent test database connection for all packages
 // Priority: TEST_DATABASE_URL > DATABASE_URL > default

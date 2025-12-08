@@ -65,8 +65,12 @@ function createCorsErrorResponse(
  */
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
-    // In test environment, allow all origins/no-origin to avoid CORS noise in automated tests
-    if ((process.env.NODE_ENV || "development") === "test") {
+    // In test environment, only bypass CORS if CORS_ALLOW_ALL_ORIGINS_IN_TEST is set
+    // This allows CORS tests to run properly while bypassing CORS for integration tests
+    const isTest = (process.env.NODE_ENV || "development") === "test";
+    const allowAllInTest =
+      process.env.CORS_ALLOW_ALL_ORIGINS_IN_TEST === "true";
+    if (isTest && allowAllInTest) {
       return callback(null, true);
     }
 
