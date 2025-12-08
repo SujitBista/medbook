@@ -68,6 +68,7 @@ jobs:
       TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
       PGUSER: postgres
       PGPASSWORD: postgres
+      PGDATABASE: medbook_test
     services:
       postgres:
         image: postgres:14
