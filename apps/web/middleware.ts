@@ -28,7 +28,10 @@ export default auth(async (req) => {
 
   // Check if user has admin role
   const isAdmin = session?.user?.role === "ADMIN";
-  const mustResetPassword = (session?.user as any)?.mustResetPassword ?? false;
+  // Type assertion needed because NextAuth session user type doesn't include mustResetPassword
+  const mustResetPassword =
+    (session?.user as { mustResetPassword?: boolean })?.mustResetPassword ??
+    false;
 
   // Define auth routes (login, register) - redirect to home if already authenticated
   const authRoutes = ["/login", "/register"];

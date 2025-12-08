@@ -187,7 +187,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (user) {
         token.id = user.id;
         token.role = user.role;
-        token.mustResetPassword = (user as any).mustResetPassword ?? false;
+        // Type assertion needed because NextAuth user type doesn't include mustResetPassword
+        token.mustResetPassword =
+          (user as { mustResetPassword?: boolean }).mustResetPassword ?? false;
       }
 
       // When session is updated (e.g., after password change), fetch fresh user data
