@@ -372,7 +372,8 @@ export async function createTestDoctor(overrides?: {
 
 /**
  * Creates a test availability in the database
- * Note: The doctor must exist
+ * Uses a transaction to ensure atomicity and prevent race conditions
+ * Note: Will create doctor if not provided or if it doesn't exist
  */
 export async function createTestAvailability(overrides?: {
   doctorId?: string;
@@ -383,38 +384,7 @@ export async function createTestAvailability(overrides?: {
   validFrom?: Date;
   validTo?: Date;
 }) {
-  let doctor;
-
-  if (overrides?.doctorId) {
-    // Use existing doctor
-    doctor = await query(async (prisma) =>
-      prisma.doctor.findUnique({
-        where: { id: overrides.doctorId },
-      })
-    );
-
-    if (!doctor) {
-      // Fall back to creating a new doctor if the provided ID is missing
-      const testDoctor = await createTestDoctor();
-      // Use the returned doctor data directly since transaction guarantees it exists
-      doctor = {
-        id: testDoctor.id,
-        userId: testDoctor.userId,
-      } as unknown as typeof doctor;
-    }
-  } else {
-    // Create a new doctor - the transaction ensures it exists
-    const testDoctor = await createTestDoctor();
-    // Use the returned doctor data directly since transaction guarantees it exists
-    doctor = {
-      id: testDoctor.id,
-      userId: testDoctor.userId,
-    } as unknown as typeof doctor;
-  }
-
-  if (!doctor || !doctor.id) {
-    throw new Error("Failed to get or create doctor");
-  }
+  const { hashPassword } = await import("../utils/auth");
 
   // Default to a time slot 1 hour from now, 1 hour long
   const now = new Date();
@@ -423,8 +393,41 @@ export async function createTestAvailability(overrides?: {
   const defaultEndTime =
     overrides?.endTime || new Date(defaultStartTime.getTime() + 60 * 60 * 1000);
 
-  const availability = await query(async (prisma) =>
-    prisma.availability.create({
+  // Use a transaction to ensure all data is created atomically
+  const result = await withTransaction(async (tx) => {
+    // Get or create doctor
+    let doctor;
+    if (overrides?.doctorId) {
+      doctor = await tx.doctor.findUnique({
+        where: { id: overrides.doctorId },
+        select: { id: true, userId: true },
+      });
+    }
+
+    if (!doctor) {
+      // Create a new doctor within the transaction
+      const doctorEmail = `test-doctor-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+      const hashedPassword = await hashPassword("Test123!@#");
+      const doctorUser = await tx.user.create({
+        data: {
+          email: doctorEmail,
+          password: hashedPassword,
+          role: "DOCTOR",
+        },
+        select: { id: true },
+      });
+      doctor = await tx.doctor.create({
+        data: {
+          userId: doctorUser.id,
+          specialization: "General Practice",
+          bio: "Test doctor created for availability",
+        },
+        select: { id: true, userId: true },
+      });
+    }
+
+    // Create the availability
+    const availability = await tx.availability.create({
       data: {
         doctorId: doctor.id,
         startTime: defaultStartTime,
@@ -434,39 +437,34 @@ export async function createTestAvailability(overrides?: {
         validFrom: overrides?.validFrom ?? null,
         validTo: overrides?.validTo ?? null,
       },
-    })
-  );
+    });
 
-  // Verify availability exists
-  const verified = await query(async (prisma) =>
-    prisma.availability.findUnique({
-      where: { id: availability.id },
-      select: { id: true, doctorId: true },
-    })
-  );
-  if (!verified) {
-    throw new Error(
-      `Failed to verify created availability ${availability.id} in test database`
-    );
-  }
+    return {
+      availability,
+      doctorId: doctor.id,
+      doctorUserId: doctor.userId,
+    };
+  });
 
   return {
-    id: verified.id,
-    doctorId: verified.doctorId,
-    startTime: availability.startTime,
-    endTime: availability.endTime,
-    dayOfWeek: availability.dayOfWeek ?? undefined,
-    isRecurring: availability.isRecurring,
-    validFrom: availability.validFrom ?? undefined,
-    validTo: availability.validTo ?? undefined,
-    createdAt: availability.createdAt,
-    updatedAt: availability.updatedAt,
+    id: result.availability.id,
+    doctorId: result.doctorId,
+    userId: result.doctorUserId,
+    startTime: result.availability.startTime,
+    endTime: result.availability.endTime,
+    dayOfWeek: result.availability.dayOfWeek ?? undefined,
+    isRecurring: result.availability.isRecurring,
+    validFrom: result.availability.validFrom ?? undefined,
+    validTo: result.availability.validTo ?? undefined,
+    createdAt: result.availability.createdAt,
+    updatedAt: result.availability.updatedAt,
   };
 }
 
 /**
  * Creates a test appointment in the database
- * Note: The patient and doctor must exist
+ * Uses a transaction to ensure atomicity and prevent race conditions
+ * Note: Will create patient and doctor if not provided or if they don't exist
  */
 export async function createTestAppointment(overrides?: {
   patientId?: string;
@@ -477,52 +475,7 @@ export async function createTestAppointment(overrides?: {
   status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
   notes?: string;
 }) {
-  let patient;
-  let doctor;
-
-  if (overrides?.patientId) {
-    patient = await query(async (prisma) =>
-      prisma.user.findUnique({
-        where: { id: overrides.patientId },
-      })
-    );
-
-    if (!patient) {
-      // Fall back to creating a new patient if the provided ID is missing
-      patient = await createTestUser({ role: "PATIENT" });
-    }
-  } else {
-    patient = await createTestUser({ role: "PATIENT" });
-  }
-
-  if (overrides?.doctorId) {
-    doctor = await query(async (prisma) =>
-      prisma.doctor.findUnique({
-        where: { id: overrides.doctorId },
-      })
-    );
-
-    if (!doctor) {
-      // Fall back to creating a new doctor if the provided ID is missing
-      const fallbackDoctor = await createTestDoctor();
-      // Use the returned doctor data directly since transaction guarantees it exists
-      doctor = {
-        id: fallbackDoctor.id,
-        userId: fallbackDoctor.userId,
-      } as unknown as typeof doctor;
-    }
-  } else {
-    const testDoctor = await createTestDoctor();
-    doctor = await query(async (prisma) =>
-      prisma.doctor.findUnique({
-        where: { id: testDoctor.id },
-      })
-    );
-  }
-
-  if (!doctor) {
-    throw new Error("Failed to get or create doctor");
-  }
+  const { hashPassword } = await import("../utils/auth");
 
   // Default to a time slot 1 hour from now, 1 hour long
   const now = new Date();
@@ -531,8 +484,64 @@ export async function createTestAppointment(overrides?: {
   const defaultEndTime =
     overrides?.endTime || new Date(defaultStartTime.getTime() + 60 * 60 * 1000);
 
-  const appointment = await query(async (prisma) =>
-    prisma.appointment.create({
+  // Use a transaction to ensure all data is created atomically
+  const result = await withTransaction(async (tx) => {
+    // Get or create patient
+    let patient;
+    if (overrides?.patientId) {
+      patient = await tx.user.findUnique({
+        where: { id: overrides.patientId },
+        select: { id: true, email: true, role: true },
+      });
+    }
+
+    if (!patient) {
+      // Create a new patient within the transaction
+      const patientEmail = `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+      const hashedPassword = await hashPassword("Test123!@#");
+      patient = await tx.user.create({
+        data: {
+          email: patientEmail,
+          password: hashedPassword,
+          role: "PATIENT",
+        },
+        select: { id: true, email: true, role: true },
+      });
+    }
+
+    // Get or create doctor
+    let doctor;
+    if (overrides?.doctorId) {
+      doctor = await tx.doctor.findUnique({
+        where: { id: overrides.doctorId },
+        select: { id: true, userId: true },
+      });
+    }
+
+    if (!doctor) {
+      // Create a new doctor within the transaction
+      const doctorEmail = `test-doctor-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+      const hashedPassword = await hashPassword("Test123!@#");
+      const doctorUser = await tx.user.create({
+        data: {
+          email: doctorEmail,
+          password: hashedPassword,
+          role: "DOCTOR",
+        },
+        select: { id: true },
+      });
+      doctor = await tx.doctor.create({
+        data: {
+          userId: doctorUser.id,
+          specialization: "General Practice",
+          bio: "Test doctor created for appointment",
+        },
+        select: { id: true, userId: true },
+      });
+    }
+
+    // Create the appointment
+    const appointment = await tx.appointment.create({
       data: {
         patientId: patient.id,
         doctorId: doctor.id,
@@ -542,32 +551,25 @@ export async function createTestAppointment(overrides?: {
         status: overrides?.status || "PENDING",
         notes: overrides?.notes ?? null,
       },
-    })
-  );
+    });
 
-  // Verify appointment exists
-  const verified = await query(async (prisma) =>
-    prisma.appointment.findUnique({
-      where: { id: appointment.id },
-      select: { id: true, patientId: true, doctorId: true },
-    })
-  );
-  if (!verified) {
-    throw new Error(
-      `Failed to verify created appointment ${appointment.id} in test database`
-    );
-  }
+    return {
+      appointment,
+      patientId: patient.id,
+      doctorId: doctor.id,
+    };
+  });
 
   return {
-    id: appointment.id,
-    patientId: appointment.patientId,
-    doctorId: appointment.doctorId,
-    availabilityId: appointment.availabilityId ?? undefined,
-    startTime: appointment.startTime,
-    endTime: appointment.endTime,
-    status: appointment.status,
-    notes: appointment.notes ?? undefined,
-    createdAt: appointment.createdAt,
-    updatedAt: appointment.updatedAt,
+    id: result.appointment.id,
+    patientId: result.patientId,
+    doctorId: result.doctorId,
+    availabilityId: result.appointment.availabilityId ?? undefined,
+    startTime: result.appointment.startTime,
+    endTime: result.appointment.endTime,
+    status: result.appointment.status,
+    notes: result.appointment.notes ?? undefined,
+    createdAt: result.appointment.createdAt,
+    updatedAt: result.appointment.updatedAt,
   };
 }
