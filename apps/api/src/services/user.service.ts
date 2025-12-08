@@ -58,7 +58,7 @@ export async function getUserProfile(
   );
 
   if (!user) {
-    throw createNotFoundError("User not found");
+    throw createNotFoundError("User");
   }
 
   // Exclude password and return user data
@@ -162,7 +162,7 @@ export async function updateUserProfile(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("User not found");
+      throw createNotFoundError("User");
     }
     throw error;
   }
@@ -196,7 +196,7 @@ export async function changeUserPassword(
   );
 
   if (!user) {
-    throw createNotFoundError("User not found");
+    throw createNotFoundError("User");
   }
 
   // Verify current password
@@ -241,7 +241,7 @@ export async function changeUserPassword(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("User not found");
+      throw createNotFoundError("User");
     }
     throw error;
   }
