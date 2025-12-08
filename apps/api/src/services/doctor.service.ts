@@ -45,7 +45,7 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
   );
 
   if (!doctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   return {
@@ -91,7 +91,7 @@ export async function getDoctorByUserId(userId: string): Promise<Doctor> {
   );
 
   if (!doctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   return {
@@ -256,7 +256,7 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
   );
 
   if (!user) {
-    throw createNotFoundError("User not found");
+    throw createNotFoundError("User");
   }
 
   if (user.role !== "DOCTOR") {
@@ -368,7 +368,7 @@ export async function updateDoctor(
   );
 
   if (!existingDoctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   // Update doctor
@@ -424,7 +424,7 @@ export async function updateDoctor(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("Doctor not found");
+      throw createNotFoundError("Doctor");
     }
     throw error;
   }
@@ -451,7 +451,7 @@ export async function deleteDoctor(doctorId: string): Promise<void> {
   );
 
   if (!existingDoctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   try {
@@ -483,7 +483,7 @@ export async function deleteDoctor(doctorId: string): Promise<void> {
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("Doctor not found");
+      throw createNotFoundError("Doctor");
     }
     throw error;
   }

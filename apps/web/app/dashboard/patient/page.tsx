@@ -292,7 +292,7 @@ export default function PatientDashboardPage() {
             <Card>
               <div className="py-8 text-center">
                 <p className="text-gray-600 mb-4">
-                  You don't have any upcoming appointments.
+                  You don&apos;t have any upcoming appointments.
                 </p>
                 <Link href="/doctors">
                   <Button variant="primary">Book Your First Appointment</Button>

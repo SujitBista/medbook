@@ -4,7 +4,16 @@ import { resolve } from "path";
 
 // Load environment variables from packages/db/.env
 // Prisma needs DATABASE_URL to be available when PrismaClient is instantiated
-config({ path: resolve(__dirname, "../.env") });
+// In test mode, don't override existing DATABASE_URL from environment
+if (process.env.NODE_ENV !== "test") {
+  config({ path: resolve(__dirname, "../.env") });
+} else {
+  // In test mode, only load .env if DATABASE_URL is not already set
+  // This allows test setup to override DATABASE_URL before this module loads
+  if (!process.env.DATABASE_URL) {
+    config({ path: resolve(__dirname, "../.env") });
+  }
+}
 
 // Create a singleton Prisma client instance
 const prisma = new PrismaClient({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { SectionHeader, TestimonialCard } from "../index";
 
 const testimonials = [
@@ -43,9 +43,6 @@ const testimonials = [
 
 export function Testimonials() {
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [displayedTestimonials, setDisplayedTestimonials] = useState(
-    testimonials.slice(0, 3)
-  );
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -55,14 +52,14 @@ export function Testimonials() {
     return () => clearInterval(interval);
   }, []);
 
-  useEffect(() => {
-    // Display 3 testimonials starting from currentIndex
+  // Use useMemo to compute displayed testimonials instead of useEffect
+  const displayedTestimonials = useMemo(() => {
     const newTestimonials = [];
     for (let i = 0; i < 3; i++) {
       const index = (currentIndex + i) % testimonials.length;
       newTestimonials.push(testimonials[index]);
     }
-    setDisplayedTestimonials(newTestimonials);
+    return newTestimonials;
   }, [currentIndex]);
 
   return (

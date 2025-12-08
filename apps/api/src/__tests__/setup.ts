@@ -12,12 +12,21 @@ process.env.PORT = "4000";
 process.env.API_URL = "http://localhost:4000";
 process.env.CORS_ORIGIN = "http://localhost:3000";
 process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Allow requests without origin in tests
+process.env.CORS_ALLOW_ALL_ORIGINS_IN_TEST = "true"; // Allow all origins in integration tests (CORS tests override this)
 
-// Always override DATABASE_URL in test mode to prevent tests from running against real databases
-// This ensures test isolation even if developers have DATABASE_URL set in their .env
-// Default uses current user (no password) - override with TEST_DATABASE_URL if needed
-const defaultTestDbUrl = `postgresql://${process.env.USER || "postgres"}@localhost:5432/medbook_test`;
-process.env.DATABASE_URL = process.env.TEST_DATABASE_URL || defaultTestDbUrl;
+// Force a consistent test database connection for all packages
+// Priority: TEST_DATABASE_URL > DATABASE_URL > default
+const defaultTestDbUrl =
+  process.env.TEST_DATABASE_URL ||
+  process.env.DATABASE_URL ||
+  "postgresql://postgres:postgres@localhost:5432/medbook_test";
+process.env.TEST_DATABASE_URL = defaultTestDbUrl;
+process.env.DATABASE_URL = defaultTestDbUrl;
+process.env.PGUSER = process.env.PGUSER || "postgres";
+process.env.PGPASSWORD = process.env.PGPASSWORD || "postgres";
+process.env.PGHOST = process.env.PGHOST || "localhost";
+process.env.PGPORT = process.env.PGPORT || "5432";
+process.env.PGDATABASE = process.env.PGDATABASE || "medbook_test";
 
 beforeAll(async () => {
   // Setup before all tests

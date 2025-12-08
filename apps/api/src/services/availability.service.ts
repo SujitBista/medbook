@@ -44,7 +44,7 @@ export async function getAvailabilityById(
   );
 
   if (!availability) {
-    throw createNotFoundError("Availability not found");
+    throw createNotFoundError("Availability");
   }
 
   return {
@@ -272,7 +272,7 @@ export async function createAvailability(
   );
 
   if (!doctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   // Check for overlaps (only for non-recurring or if checking specific date range)
@@ -394,7 +394,7 @@ export async function updateAvailability(
   );
 
   if (!existingAvailability) {
-    throw createNotFoundError("Availability not found");
+    throw createNotFoundError("Availability");
   }
 
   // Use provided values or existing values
@@ -501,7 +501,7 @@ export async function updateAvailability(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("Availability not found");
+      throw createNotFoundError("Availability");
     }
     throw error;
   }
@@ -534,7 +534,7 @@ export async function deleteAvailability(
   );
 
   if (!existingAvailability) {
-    throw createNotFoundError("Availability not found");
+    throw createNotFoundError("Availability");
   }
 
   try {
@@ -564,7 +564,7 @@ export async function deleteAvailability(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("Availability not found");
+      throw createNotFoundError("Availability");
     }
     throw error;
   }

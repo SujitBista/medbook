@@ -15,6 +15,8 @@ describe("corsMiddleware", () => {
     process.env.CORS_ORIGIN = "http://localhost:3000";
     process.env.CORS_ALLOW_NO_ORIGIN = "true"; // Default: allow no origin in tests
     process.env.CORS_ALLOW_NULL_ORIGIN = "false";
+    // Disable CORS bypass for CORS tests so they can verify CORS behavior
+    process.env.CORS_ALLOW_ALL_ORIGINS_IN_TEST = "false";
 
     // Create fresh app instance after setting env vars
     app = createTestApp();

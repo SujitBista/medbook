@@ -557,7 +557,7 @@ export async function getSlotById(slotId: string): Promise<Slot> {
   );
 
   if (!slot) {
-    throw createNotFoundError("Slot not found");
+    throw createNotFoundError("Slot");
   }
 
   return {

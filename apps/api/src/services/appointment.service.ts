@@ -53,7 +53,7 @@ export async function getAppointmentById(
   );
 
   if (!appointment) {
-    throw createNotFoundError("Appointment not found");
+    throw createNotFoundError("Appointment");
   }
 
   return {
@@ -488,7 +488,7 @@ export async function createAppointmentFromSlot(
     });
 
     if (!slot) {
-      throw createNotFoundError("Slot not found");
+      throw createNotFoundError("Slot");
     }
 
     if (slot.status !== SlotStatus.AVAILABLE) {
@@ -501,7 +501,7 @@ export async function createAppointmentFromSlot(
     });
 
     if (!patient) {
-      throw createNotFoundError("Patient not found");
+      throw createNotFoundError("Patient");
     }
 
     // Create appointment
@@ -613,7 +613,7 @@ export async function createAppointment(
   );
 
   if (!doctor) {
-    throw createNotFoundError("Doctor not found");
+    throw createNotFoundError("Doctor");
   }
 
   // Check if appointment time is within doctor's availability
@@ -651,7 +651,7 @@ export async function createAppointment(
     );
 
     if (!patient) {
-      throw createNotFoundError("Patient not found");
+      throw createNotFoundError("Patient");
     }
 
     const appointment = await query<{
@@ -747,7 +747,7 @@ export async function updateAppointment(
   );
 
   if (!existingAppointment) {
-    throw createNotFoundError("Appointment not found");
+    throw createNotFoundError("Appointment");
   }
 
   // Use provided values or existing values
@@ -856,7 +856,7 @@ export async function updateAppointment(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("Appointment not found");
+      throw createNotFoundError("Appointment");
     }
     throw error;
   }
@@ -971,7 +971,7 @@ export async function cancelAppointment(
   );
 
   if (!existingAppointment) {
-    throw createNotFoundError("Appointment not found");
+    throw createNotFoundError("Appointment");
   }
 
   // Validate cancellation rules

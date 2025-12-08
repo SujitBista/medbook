@@ -88,7 +88,7 @@ export async function getUserById(
   );
 
   if (!user) {
-    throw createNotFoundError("User not found");
+    throw createNotFoundError("User");
   }
 
   return {
@@ -163,7 +163,7 @@ export async function updateUserRole(
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("User not found");
+      throw createNotFoundError("User");
     }
     throw error;
   }
@@ -197,7 +197,7 @@ export async function deleteUser(userId: string): Promise<void> {
       "code" in error &&
       error.code === "P2025"
     ) {
-      throw createNotFoundError("User not found");
+      throw createNotFoundError("User");
     }
     throw error;
   }
