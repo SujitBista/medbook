@@ -10,17 +10,38 @@ jobs:
     name: Block Direct Push to Main
     runs-on: ubuntu-latest
     steps:
-      - name: Check if push is from PR
+      - name: Check if push is from PR merge
         run: |
-          # This workflow will always run, but we'll make it fail
-          # Branch protection rules should prevent this, but this is a backup
+          # Check if this is a PR merge by looking at the commit message
+          # PR merges typically have "Merge pull request" in the commit message
+          COMMIT_MSG="${{ github.event.head_commit.message }}"
+          
+          # Check if it's a merge commit from a PR
+          if echo "$COMMIT_MSG" | grep -q "Merge pull request"; then
+            echo "✅ This is a PR merge - allowing push"
+            echo "Commit message: $COMMIT_MSG"
+            exit 0
+          fi
+          
+          # Check if it's a merge commit (starts with "Merge")
+          if echo "$COMMIT_MSG" | grep -q "^Merge "; then
+            echo "✅ This appears to be a merge commit - allowing push"
+            echo "Commit message: $COMMIT_MSG"
+            exit 0
+          fi
+          
+          # If we get here, it's likely a direct push
           echo "❌ ERROR: Direct pushes to main branch are not allowed!"
           echo ""
+          echo "This push does not appear to be from a PR merge."
           echo "Branch protection rules should have prevented this push."
+          echo ""
           echo "If you see this, please:"
           echo "  1. Create a feature branch: git checkout -b feature/your-feature-name"
           echo "  2. Push to that branch: git push origin feature/your-feature-name"
           echo "  3. Create a Pull Request: gh pr create"
           echo ""
           echo "For emergency hotfixes, use: git checkout -b hotfix/description"
+          echo ""
+          echo "Commit message: $COMMIT_MSG"
           exit 1
