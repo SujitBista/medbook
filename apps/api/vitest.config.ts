@@ -15,6 +15,12 @@ export default defineConfig({
         singleFork: true,
       },
     },
+    // Ensure tests run one at a time, not concurrently
+    sequence: {
+      concurrent: false,
+    },
+    // Disable file-level parallelism
+    fileParallelism: false,
     // Ensure test isolation
     isolate: true,
     coverage: {
