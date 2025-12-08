@@ -63,6 +63,20 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
     if: github.event_name == 'pull_request'
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -81,11 +95,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Setup PostgreSQL
-        uses: ankane/setup-postgres@v1
-        with:
-          postgresql-version: '14'
-
       - name: Setup test database
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
@@ -97,14 +106,12 @@ jobs:
             sleep 1
           done
           echo "✅ PostgreSQL is ready"
-          # Try creating database with password, fallback to no password if trust auth is used
-          psql -h localhost -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'medbook_test'" | grep -q 1 || \
-            psql -h localhost -U postgres -d postgres -c "CREATE DATABASE medbook_test;" 2>&1 || \
-            PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE medbook_test;" 2>&1 || true
-          echo "✅ Test database ready"
-          # Run migrations on test database - try both connection strings
+          # Create test database
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'medbook_test'" | grep -q 1 || \
+            PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE medbook_test;"
+          echo "✅ Test database created"
+          # Run migrations on test database
           cd packages/db
-          DATABASE_URL=postgresql://postgres@localhost:5432/medbook_test pnpm db:migrate:deploy 2>&1 || \
           DATABASE_URL=postgresql://postgres:postgres@localhost:5432/medbook_test pnpm db:migrate:deploy
           echo "✅ Test database migrations completed"
 
