@@ -69,7 +69,15 @@ export async function registerUser(
   // Note: This check helps avoid unnecessary password hashing, but the actual
   // uniqueness is enforced by the database unique constraint. We catch the
   // Prisma unique constraint error (P2002) to handle race conditions.
-  const existingUser = await query((prisma) =>
+  const existingUser = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     })
@@ -87,7 +95,14 @@ export async function registerUser(
   // the same email simultaneously, the second will hit the unique constraint
   // and we need to return 409 Conflict instead of 500 Internal Server Error
   try {
-    const user = await query((prisma) =>
+    const user = await query<{
+      id: string;
+      email: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.user.create({
         data: {
           email: email.toLowerCase().trim(),
@@ -98,6 +113,7 @@ export async function registerUser(
           id: true,
           email: true,
           role: true,
+          mustResetPassword: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -151,7 +167,15 @@ export async function loginUser(
   password: string
 ): Promise<LoginResult> {
   // Find user by email
-  const user = await query((prisma) =>
+  const user = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { email: email.toLowerCase().trim() },
     })

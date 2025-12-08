@@ -3,7 +3,7 @@
  * Handles appointment booking and management business logic
  */
 
-import { query, withTransaction } from "@app/db";
+import { query, withTransaction, Prisma } from "@app/db";
 import {
   Appointment,
   CreateAppointmentInput,
@@ -31,7 +31,15 @@ import { getSlotById, updateSlotStatus } from "./slot.service";
 export async function getAppointmentById(
   appointmentId: string
 ): Promise<Appointment> {
-  const appointment = await query((prisma) =>
+  const appointment = await query<Prisma.AppointmentGetPayload<{
+    include: {
+      patient: {
+        select: {
+          email: true;
+        };
+      };
+    };
+  }> | null>((prisma) =>
     prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
@@ -78,14 +86,7 @@ export async function getAppointmentsByPatientId(
     endDate?: Date;
   }
 ): Promise<Appointment[]> {
-  const where: {
-    patientId: string;
-    status?: AppointmentStatus;
-    startTime?: {
-      gte?: Date;
-      lte?: Date;
-    };
-  } = {
+  const where: Prisma.AppointmentWhereInput = {
     patientId,
   };
 
@@ -103,7 +104,17 @@ export async function getAppointmentsByPatientId(
     }
   }
 
-  const appointments = await query((prisma) =>
+  const appointments = await query<
+    Prisma.AppointmentGetPayload<{
+      include: {
+        patient: {
+          select: {
+            email: true;
+          };
+        };
+      };
+    }>[]
+  >((prisma) =>
     prisma.appointment.findMany({
       where,
       include: {
@@ -149,14 +160,7 @@ export async function getAppointmentsByDoctorId(
     endDate?: Date;
   }
 ): Promise<Appointment[]> {
-  const where: {
-    doctorId: string;
-    status?: AppointmentStatus;
-    startTime?: {
-      gte?: Date;
-      lte?: Date;
-    };
-  } = {
+  const where: Prisma.AppointmentWhereInput = {
     doctorId,
   };
 
@@ -174,7 +178,17 @@ export async function getAppointmentsByDoctorId(
     }
   }
 
-  const appointments = await query((prisma) =>
+  const appointments = await query<
+    Prisma.AppointmentGetPayload<{
+      include: {
+        patient: {
+          select: {
+            email: true;
+          };
+        };
+      };
+    }>[]
+  >((prisma) =>
     prisma.appointment.findMany({
       where,
       include: {
@@ -251,15 +265,7 @@ async function hasTimeConflict(
   endTime: Date,
   excludeId?: string
 ): Promise<boolean> {
-  const where: {
-    doctorId: string;
-    id?: { not: string };
-    status?: { not: AppointmentStatus };
-    AND: Array<{
-      startTime: { lte: Date };
-      endTime: { gte: Date };
-    }>;
-  } = {
+  const where: Prisma.AppointmentWhereInput = {
     doctorId,
     // Only check conflicts with non-cancelled appointments
     status: { not: AppointmentStatus.CANCELLED },
@@ -274,7 +280,19 @@ async function hasTimeConflict(
     where.id = { not: excludeId };
   }
 
-  const conflicting = await query((prisma) =>
+  const conflicting = await query<{
+    id: string;
+    patientId: string;
+    doctorId: string;
+    availabilityId: string | null;
+    slotId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    notes: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.appointment.findFirst({
       where,
     })
@@ -376,7 +394,20 @@ async function isWithinAvailability(
   }
 
   // If no availabilityId provided, check against all doctor's availabilities
-  const availabilities = await query((prisma) =>
+  const availabilities = await query<
+    {
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
     prisma.availability.findMany({
       where: { doctorId },
     })
@@ -538,11 +569,26 @@ export async function createAppointment(
   const { patientId, doctorId, availabilityId, startTime, endTime, notes } =
     input;
 
+  // When slotId is not provided, startTime and endTime are required
+  if (!startTime || !endTime) {
+    throw createValidationError(
+      "startTime and endTime are required when slotId is not provided"
+    );
+  }
+
   // Validate time slot
   validateTimeSlot(startTime, endTime);
 
   // Verify patient exists
-  const patient = await query((prisma) =>
+  const patient = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: string;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: patientId },
     })
@@ -553,7 +599,14 @@ export async function createAppointment(
   }
 
   // Verify doctor exists
-  const doctor = await query((prisma) =>
+  const doctor = await query<{
+    id: string;
+    userId: string;
+    specialization: string | null;
+    bio: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { id: doctorId },
     })
@@ -588,7 +641,9 @@ export async function createAppointment(
   // Create appointment
   try {
     // Fetch patient email for response
-    const patient = await query((prisma) =>
+    const patient = await query<{
+      email: string;
+    } | null>((prisma) =>
       prisma.user.findUnique({
         where: { id: patientId },
         select: { email: true },
@@ -599,7 +654,19 @@ export async function createAppointment(
       throw createNotFoundError("Patient not found");
     }
 
-    const appointment = await query((prisma) =>
+    const appointment = await query<{
+      id: string;
+      patientId: string;
+      doctorId: string;
+      availabilityId: string | null;
+      slotId: string | null;
+      startTime: Date;
+      endTime: Date;
+      status: string;
+      notes: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.appointment.create({
         data: {
           patientId,
@@ -661,7 +728,19 @@ export async function updateAppointment(
   const { startTime, endTime, status, notes } = input;
 
   // Check if appointment exists
-  const existingAppointment = await query((prisma) =>
+  const existingAppointment = await query<{
+    id: string;
+    patientId: string;
+    doctorId: string;
+    availabilityId: string | null;
+    slotId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    notes: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.appointment.findUnique({
       where: { id: appointmentId },
     })
@@ -724,7 +803,17 @@ export async function updateAppointment(
       });
     }
 
-    const appointment = await query((prisma) =>
+    const appointment = await query<
+      Prisma.AppointmentGetPayload<{
+        include: {
+          patient: {
+            select: {
+              email: true;
+            };
+          };
+        };
+      }>
+    >((prisma) =>
       prisma.appointment.update({
         where: { id: appointmentId },
         include: {
@@ -860,7 +949,15 @@ export async function cancelAppointment(
   const { appointmentId, userId, userRole, reason } = input;
 
   // Check if appointment exists
-  const existingAppointment = await query((prisma) =>
+  const existingAppointment = await query<Prisma.AppointmentGetPayload<{
+    include: {
+      patient: {
+        select: {
+          email: true;
+        };
+      };
+    };
+  }> | null>((prisma) =>
     prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
@@ -893,7 +990,17 @@ export async function cancelAppointment(
   }
 
   // Update appointment status to CANCELLED
-  const appointment = await query((prisma) =>
+  const appointment = await query<
+    Prisma.AppointmentGetPayload<{
+      include: {
+        patient: {
+          select: {
+            email: true;
+          };
+        };
+      };
+    }>
+  >((prisma) =>
     prisma.appointment.update({
       where: { id: appointmentId },
       include: {

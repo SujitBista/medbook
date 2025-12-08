@@ -3,7 +3,7 @@
  * Handles slot generation and management business logic
  */
 
-import { query, withTransaction } from "@app/db";
+import { query, withTransaction, Prisma } from "@app/db";
 import {
   Slot,
   SlotTemplate,
@@ -28,7 +28,15 @@ import { getAvailabilityById } from "./availability.service";
 export async function getOrCreateSlotTemplate(
   doctorId: string
 ): Promise<SlotTemplate> {
-  let template = await query((prisma) =>
+  let template = await query<{
+    id: string;
+    doctorId: string;
+    durationMinutes: number;
+    bufferMinutes: number;
+    advanceBookingDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.slotTemplate.findUnique({
       where: { doctorId },
     })
@@ -36,7 +44,15 @@ export async function getOrCreateSlotTemplate(
 
   if (!template) {
     // Create default template
-    template = await query((prisma) =>
+    template = await query<{
+      id: string;
+      doctorId: string;
+      durationMinutes: number;
+      bufferMinutes: number;
+      advanceBookingDays: number;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.slotTemplate.create({
         data: {
           doctorId,
@@ -68,7 +84,15 @@ export async function getOrCreateSlotTemplate(
 export async function getSlotTemplate(
   doctorId: string
 ): Promise<SlotTemplate | null> {
-  const template = await query((prisma) =>
+  const template = await query<{
+    id: string;
+    doctorId: string;
+    durationMinutes: number;
+    bufferMinutes: number;
+    advanceBookingDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.slotTemplate.findUnique({
       where: { doctorId },
     })
@@ -113,7 +137,15 @@ export async function upsertSlotTemplate(
     throw createValidationError("Advance booking days must be at least 1 day");
   }
 
-  const template = await query((prisma) =>
+  const template = await query<{
+    id: string;
+    doctorId: string;
+    durationMinutes: number;
+    bufferMinutes: number;
+    advanceBookingDays: number;
+    createdAt: Date;
+    updatedAt: Date;
+  }>((prisma) =>
     prisma.slotTemplate.upsert({
       where: { doctorId: input.doctorId },
       create: {
@@ -176,7 +208,12 @@ export async function generateSlotsFromAvailability(
 
   // Filter out slots that already exist or are in the past
   const now = new Date();
-  const existingSlots = await query((prisma) =>
+  const existingSlots = await query<
+    {
+      startTime: Date;
+      endTime: Date;
+    }[]
+  >((prisma) =>
     prisma.slot.findMany({
       where: {
         doctorId,
@@ -211,7 +248,18 @@ export async function generateSlotsFromAvailability(
   }
 
   // Bulk insert slots
-  const createdSlots = await query((prisma) =>
+  const createdSlots = await query<
+    {
+      id: string;
+      doctorId: string;
+      availabilityId: string | null;
+      startTime: Date;
+      endTime: Date;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
     prisma.slot.createManyAndReturn({
       data: newSlots,
     })
@@ -374,7 +422,7 @@ export async function getSlotsByDoctorId(
   const startDate = options?.startDate ?? now;
   const endDate = options?.endDate;
 
-  const where: any = {
+  const where: Prisma.SlotWhereInput = {
     doctorId,
     startTime: { gte: startDate },
   };
@@ -387,7 +435,18 @@ export async function getSlotsByDoctorId(
     where.status = options.status;
   }
 
-  let slots = await query((prisma) =>
+  let slots = await query<
+    {
+      id: string;
+      doctorId: string;
+      availabilityId: string | null;
+      startTime: Date;
+      endTime: Date;
+      status: string;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
     prisma.slot.findMany({
       where,
       orderBy: {
@@ -442,7 +501,18 @@ export async function getSlotsByDoctorId(
     }
 
     // Fetch slots again after generation
-    slots = await query((prisma) =>
+    slots = await query<
+      {
+        id: string;
+        doctorId: string;
+        availabilityId: string | null;
+        startTime: Date;
+        endTime: Date;
+        status: string;
+        createdAt: Date;
+        updatedAt: Date;
+      }[]
+    >((prisma) =>
       prisma.slot.findMany({
         where,
         orderBy: {
@@ -471,7 +541,16 @@ export async function getSlotsByDoctorId(
  * @throws AppError if slot not found
  */
 export async function getSlotById(slotId: string): Promise<Slot> {
-  const slot = await query((prisma) =>
+  const slot = await query<{
+    id: string;
+    doctorId: string;
+    availabilityId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.slot.findUnique({
       where: { id: slotId },
     })
@@ -513,7 +592,16 @@ export async function blockSlot(
     throw createConflictError("Cannot block a booked slot");
   }
 
-  const updated = await query((prisma) =>
+  const updated = await query<{
+    id: string;
+    doctorId: string;
+    availabilityId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>((prisma) =>
     prisma.slot.update({
       where: { id: slotId },
       data: { status: SlotStatus.BLOCKED },
@@ -554,7 +642,16 @@ export async function unblockSlot(
     throw createValidationError("Slot is not blocked");
   }
 
-  const updated = await query((prisma) =>
+  const updated = await query<{
+    id: string;
+    doctorId: string;
+    availabilityId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>((prisma) =>
     prisma.slot.update({
       where: { id: slotId },
       data: { status: SlotStatus.AVAILABLE },
@@ -585,7 +682,16 @@ export async function updateSlotStatus(
   slotId: string,
   status: SlotStatus
 ): Promise<Slot> {
-  const updated = await query((prisma) =>
+  const updated = await query<{
+    id: string;
+    doctorId: string;
+    availabilityId: string | null;
+    startTime: Date;
+    endTime: Date;
+    status: string;
+    createdAt: Date;
+    updatedAt: Date;
+  }>((prisma) =>
     prisma.slot.update({
       where: { id: slotId },
       data: { status },
@@ -612,7 +718,7 @@ export async function updateSlotStatus(
 export async function cleanupOldSlots(beforeDate?: Date): Promise<number> {
   const date = beforeDate ?? new Date();
 
-  const result = await query((prisma) =>
+  const result = await query<{ count: number }>((prisma) =>
     prisma.slot.deleteMany({
       where: {
         endTime: { lt: date },

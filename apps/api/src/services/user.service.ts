@@ -43,7 +43,15 @@ export interface ChangePasswordInput {
 export async function getUserProfile(
   userId: string
 ): Promise<UserWithoutPassword> {
-  const user = await query((prisma) =>
+  const user = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
     })
@@ -84,7 +92,15 @@ export async function updateUserProfile(
 
   // Check if email is already taken by another user
   if (input.email) {
-    const existingUser = await query((prisma) =>
+    const existingUser = await query<{
+      id: string;
+      email: string;
+      password: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null>((prisma) =>
       prisma.user.findUnique({
         where: { email: input.email!.toLowerCase().trim() },
       })
@@ -97,7 +113,15 @@ export async function updateUserProfile(
 
   // Update user
   try {
-    const user = await query((prisma) =>
+    const user = await query<{
+      id: string;
+      email: string;
+      password: string;
+      role: PrismaUserRole;
+      mustResetPassword: boolean;
+      createdAt: Date;
+      updatedAt: Date;
+    }>((prisma) =>
       prisma.user.update({
         where: { id: userId },
         data: {
@@ -157,7 +181,15 @@ export async function changeUserPassword(
   const { currentPassword, newPassword } = input;
 
   // Get user with password
-  const user = await query((prisma) =>
+  const user = await query<{
+    id: string;
+    email: string;
+    password: string;
+    role: PrismaUserRole;
+    mustResetPassword: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
     })

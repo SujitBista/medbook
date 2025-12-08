@@ -17,6 +17,7 @@ import {
   UpdateAppointmentInput,
   AppointmentStatus,
   CancelAppointmentInput,
+  UserRole,
 } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
@@ -219,12 +220,13 @@ export async function createAppointmentSlot(
         return;
       }
 
-      const input: CreateAppointmentInput = {
+      // When slotId is provided, startTime/endTime are not required
+      const input = {
         patientId,
         doctorId,
         slotId,
         notes,
-      };
+      } as CreateAppointmentInput;
 
       const appointment = await createAppointment(input);
 
@@ -387,18 +389,25 @@ export async function cancelAppointmentSlot(
       return;
     }
 
-    // Validate user role
-    const userRole = req.user.role as "PATIENT" | "DOCTOR" | "ADMIN";
-    if (!["PATIENT", "DOCTOR", "ADMIN"].includes(userRole)) {
+    // Validate user role - ensure it's one of the valid roles
+    const userRole = req.user.role;
+    const validRoles: UserRole[] = [
+      UserRole.PATIENT,
+      UserRole.DOCTOR,
+      UserRole.ADMIN,
+    ];
+    if (!validRoles.includes(userRole)) {
       const error = createValidationError("Invalid user role");
       next(error);
       return;
     }
 
+    // Type assertion is safe here because we've validated the role above
+    // CancelAppointmentInput expects string literals, but UserRole enum values match
     const input: CancelAppointmentInput = {
       appointmentId: id,
       userId: req.user.id,
-      userRole,
+      userRole: userRole as "PATIENT" | "DOCTOR" | "ADMIN",
       reason,
     };
 
