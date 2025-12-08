@@ -5,6 +5,9 @@ export default defineConfig({
   test: {
     globals: true,
     environment: "node",
+    // Only run tests from src directory, exclude dist
+    include: ["src/**/*.test.ts"],
+    exclude: ["node_modules", "dist", "**/*.config.*"],
     // Run tests sequentially to avoid database conflicts
     pool: "forks",
     poolOptions: {

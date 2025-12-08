@@ -1,6 +1,6 @@
 import cors, { CorsOptions } from "cors";
 import { Request, Response, NextFunction } from "express";
-import { env, isDevelopment, normalizeOrigin } from "../config/env";
+import { env, normalizeOrigin } from "../config/env";
 import { logger } from "../utils/logger";
 
 /**
@@ -10,6 +10,9 @@ function createCorsErrorResponse(
   message: string,
   receivedOrigin?: string | null
 ) {
+  // Check NODE_ENV dynamically for each request to allow test overrides
+  const isDev = (process.env.NODE_ENV || "development") === "development";
+
   const response: {
     success: false;
     error: {
@@ -26,7 +29,7 @@ function createCorsErrorResponse(
   };
 
   // In development, provide helpful debugging information
-  if (isDevelopment) {
+  if (isDev) {
     const details: string[] = [message];
 
     if (receivedOrigin) {
@@ -38,7 +41,7 @@ function createCorsErrorResponse(
     details.push(`Allowed origins: ${env.corsOrigins.join(", ")}`);
 
     if (!receivedOrigin) {
-      if (isDevelopment) {
+      if (isDev) {
         details.push(
           "Note: No-origin requests are automatically allowed in development mode"
         );
@@ -62,12 +65,16 @@ function createCorsErrorResponse(
  */
 const corsOptions: CorsOptions = {
   origin: (origin, callback) => {
+    // Check NODE_ENV and CORS_ALLOW_NO_ORIGIN dynamically for each request to allow test overrides
+    const isDev = (process.env.NODE_ENV || "development") === "development";
+    const corsAllowNoOrigin = process.env.CORS_ALLOW_NO_ORIGIN === "true";
+
     // Handle requests with no origin
     if (!origin) {
       // In development, automatically allow no-origin requests (for server-to-server calls)
       // In production, require explicit CORS_ALLOW_NO_ORIGIN=true for security
-      if (isDevelopment || env.corsAllowNoOrigin) {
-        if (isDevelopment) {
+      if (isDev || corsAllowNoOrigin) {
+        if (isDev) {
           logger.debug("CORS: Allowing no-origin request (development mode)");
         }
         return callback(null, true);
@@ -79,7 +86,9 @@ const corsOptions: CorsOptions = {
 
     // Handle explicit "null" origin (e.g., from file:// protocol)
     if (origin === "null") {
-      if (env.corsAllowNullOrigin) {
+      // Check CORS_ALLOW_NULL_ORIGIN dynamically for each request to allow test overrides
+      const corsAllowNullOrigin = process.env.CORS_ALLOW_NULL_ORIGIN === "true";
+      if (corsAllowNullOrigin) {
         return callback(null, true);
       }
       logger.warn("CORS: Request denied - Null origin not allowed");
@@ -96,7 +105,10 @@ const corsOptions: CorsOptions = {
     }
 
     // Log denied origin (without exposing full origin in production)
-    if (isDevelopment) {
+    // Check NODE_ENV dynamically for each request to allow test overrides
+    const isDevForLogging =
+      (process.env.NODE_ENV || "development") === "development";
+    if (isDevForLogging) {
       logger.warn(`CORS: Request denied - Origin "${origin}" not in whitelist`);
       logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(", ")}`);
     } else {
@@ -128,6 +140,9 @@ export function corsMiddleware(
 
   cors(corsOptions)(req, res, (err) => {
     if (err) {
+      // Check NODE_ENV dynamically for each request to allow test overrides
+      const isDev = (process.env.NODE_ENV || "development") === "development";
+
       // Log the CORS error
       const isPreflight = req.method === "OPTIONS";
       if (isPreflight) {
@@ -142,7 +157,7 @@ export function corsMiddleware(
         }
       }
 
-      if (isDevelopment) {
+      if (isDev) {
         logger.debug(`CORS: Allowed origins: ${env.corsOrigins.join(", ")}`);
       }
 
