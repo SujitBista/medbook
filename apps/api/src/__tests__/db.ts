@@ -8,23 +8,54 @@ import { query, withTransaction } from "@app/db";
 /**
  * Cleans up test data from the database
  * Should be called after each test or test suite
+ * Handles errors gracefully to prevent cleanup failures from breaking tests
+ *
+ * Deletion order (reverse of dependencies):
+ * 1. Appointments (references slots, availabilities, doctors, users)
+ * 2. Slots (references doctors, availabilities)
+ * 3. SlotTemplates (references doctors)
+ * 4. Availabilities (references doctors)
+ * 5. Doctors (references users)
+ * 6. Users
  */
 export async function cleanupTestData(): Promise<void> {
-  // Delete in reverse order of dependencies
-  // Add more tables as they are created
-  await query(async (prisma) => {
-    // Delete appointments first (has foreign keys to users, doctors, availabilities)
-    await prisma.appointment.deleteMany({
-      where: {
-        OR: [
-          {
-            patient: {
-              email: {
-                startsWith: "test-",
+  try {
+    // Delete in reverse order of dependencies
+    await query(async (prisma) => {
+      try {
+        // Delete appointments first (has foreign keys to slots, users, doctors, availabilities)
+        await prisma.appointment.deleteMany({
+          where: {
+            OR: [
+              {
+                patient: {
+                  email: {
+                    startsWith: "test-",
+                  },
+                },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
+                },
+              },
+            ],
           },
-          {
+        });
+      } catch (error) {
+        // Ignore errors during cleanup - table might not exist or permissions might be insufficient
+        // This prevents cleanup failures from breaking tests
+        console.warn("[cleanupTestData] Failed to delete appointments:", error);
+      }
+
+      try {
+        // Delete slots (has foreign keys to doctors, availabilities)
+        await prisma.slot.deleteMany({
+          where: {
             doctor: {
               user: {
                 email: {
@@ -33,40 +64,84 @@ export async function cleanupTestData(): Promise<void> {
               },
             },
           },
-        ],
-      },
-    });
-    // Delete availabilities (has foreign key to doctors)
-    await prisma.availability.deleteMany({
-      where: {
-        doctor: {
-          user: {
+        });
+      } catch (error) {
+        console.warn("[cleanupTestData] Failed to delete slots:", error);
+      }
+
+      try {
+        // Delete slot templates (has foreign key to doctors)
+        await prisma.slotTemplate.deleteMany({
+          where: {
+            doctor: {
+              user: {
+                email: {
+                  startsWith: "test-",
+                },
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.warn(
+          "[cleanupTestData] Failed to delete slot templates:",
+          error
+        );
+      }
+
+      try {
+        // Delete availabilities (has foreign key to doctors)
+        await prisma.availability.deleteMany({
+          where: {
+            doctor: {
+              user: {
+                email: {
+                  startsWith: "test-",
+                },
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.warn(
+          "[cleanupTestData] Failed to delete availabilities:",
+          error
+        );
+      }
+
+      try {
+        // Delete doctors (has foreign key to users)
+        await prisma.doctor.deleteMany({
+          where: {
+            user: {
+              email: {
+                startsWith: "test-",
+              },
+            },
+          },
+        });
+      } catch (error) {
+        console.warn("[cleanupTestData] Failed to delete doctors:", error);
+      }
+
+      try {
+        // Finally delete users
+        await prisma.user.deleteMany({
+          where: {
             email: {
               startsWith: "test-",
             },
           },
-        },
-      },
+        });
+      } catch (error) {
+        console.warn("[cleanupTestData] Failed to delete users:", error);
+      }
     });
-    // Delete doctors (has foreign key to users)
-    await prisma.doctor.deleteMany({
-      where: {
-        user: {
-          email: {
-            startsWith: "test-",
-          },
-        },
-      },
-    });
-    // Then delete users
-    await prisma.user.deleteMany({
-      where: {
-        email: {
-          startsWith: "test-",
-        },
-      },
-    });
-  });
+  } catch (error) {
+    // If database connection fails entirely, log but don't throw
+    // This allows tests to continue even if cleanup fails
+    console.warn("[cleanupTestData] Database cleanup failed:", error);
+  }
 }
 
 /**
@@ -89,27 +164,47 @@ export async function createTestUser(overrides?: {
 
   const hashedPassword = await hashPassword(password);
 
-  const user = await query(async (prisma) => {
-    return prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        role,
-      },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        createdAt: true,
-        updatedAt: true,
-      },
+  try {
+    const user = await query(async (prisma) => {
+      return prisma.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          role,
+        },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      });
     });
-  });
 
-  return {
-    ...user,
-    password, // Return plain password for testing
-  };
+    return {
+      ...user,
+      password, // Return plain password for testing
+    };
+  } catch (error) {
+    // Provide better error messages for common database issues
+    if (error && typeof error === "object" && "code" in error) {
+      const dbError = error as { code?: string; message?: string };
+      if (dbError.code === "P2002") {
+        // Unique constraint violation - email already exists
+        throw new Error(
+          `User with email ${email} already exists. This might indicate test isolation issues.`
+        );
+      }
+      if (dbError.code === "P1001") {
+        // Cannot reach database server
+        throw new Error(
+          `Cannot connect to database. Please ensure PostgreSQL is running and DATABASE_URL is configured correctly. Original error: ${dbError.message}`
+        );
+      }
+    }
+    throw error;
+  }
 }
 
 /**
