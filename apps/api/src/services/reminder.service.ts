@@ -269,39 +269,60 @@ export async function getDueReminders(beforeTime?: Date): Promise<
 export async function markReminderAsSent(
   reminderId: string
 ): Promise<{ id: string; sentAt: Date | null }> {
-  const reminder = await query((prisma) =>
-    prisma.reminder.findUnique({
-      where: { id: reminderId },
-    })
-  );
+  try {
+    const reminder = await query((prisma) =>
+      prisma.reminder.findUnique({
+        where: { id: reminderId },
+      })
+    );
 
-  if (!reminder) {
-    throw createNotFoundError("Reminder not found");
+    if (!reminder) {
+      throw createNotFoundError("Reminder not found");
+    }
+
+    if (reminder.sentAt) {
+      logger.warn("Reminder already marked as sent", { reminderId });
+      return {
+        id: reminder.id,
+        sentAt: reminder.sentAt,
+      };
+    }
+
+    const updated = await query((prisma) =>
+      prisma.reminder.update({
+        where: { id: reminderId },
+        data: { sentAt: new Date() },
+        select: {
+          id: true,
+          sentAt: true,
+        },
+      })
+    );
+
+    logger.info("Reminder marked as sent", {
+      reminderId: updated.id,
+      sentAt: updated.sentAt,
+    });
+
+    return updated;
+  } catch (error: unknown) {
+    // Handle Prisma not found error (P2025)
+    if (
+      error &&
+      typeof error === "object" &&
+      "code" in error &&
+      error.code === "P2025"
+    ) {
+      throw createNotFoundError("Reminder not found");
+    }
+    // If it's already our custom error, re-throw it
+    if (error && typeof error === "object" && "message" in error) {
+      const err = error as { message?: string };
+      if (err.message?.includes("Reminder not found")) {
+        throw error;
+      }
+    }
+    // For other errors (like database connection issues), re-throw as-is
+    throw error;
   }
-
-  if (reminder.sentAt) {
-    logger.warn("Reminder already marked as sent", { reminderId });
-    return {
-      id: reminder.id,
-      sentAt: reminder.sentAt,
-    };
-  }
-
-  const updated = await query((prisma) =>
-    prisma.reminder.update({
-      where: { id: reminderId },
-      data: { sentAt: new Date() },
-      select: {
-        id: true,
-        sentAt: true,
-      },
-    })
-  );
-
-  logger.info("Reminder marked as sent", {
-    reminderId: updated.id,
-    sentAt: updated.sentAt,
-  });
-
-  return updated;
 }
