@@ -190,6 +190,10 @@ function AdminDashboardContent() {
     Record<string, string>
   >({});
   const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
+  const [deletingScheduleId, setDeletingScheduleId] = useState<string | null>(
+    null
+  );
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [scheduleFilterStartDate, setScheduleFilterStartDate] = useState("");
   const [scheduleFilterEndDate, setScheduleFilterEndDate] = useState("");
   // SlotTemplate state
@@ -274,8 +278,12 @@ function AdminDashboardContent() {
         params.append("startDate", scheduleFilterStartDate);
       if (scheduleFilterEndDate)
         params.append("endDate", scheduleFilterEndDate);
+      // Add timestamp to prevent browser caching
+      params.append("_t", Date.now().toString());
 
-      const response = await fetch(`/api/availability?${params.toString()}`);
+      const response = await fetch(`/api/availability?${params.toString()}`, {
+        cache: "no-store", // Always fetch fresh data
+      });
       if (!response.ok) {
         throw new Error("Failed to fetch availabilities");
       }
@@ -623,6 +631,14 @@ function AdminDashboardContent() {
       await fetchDoctors();
       await fetchDoctorStats();
 
+      // Dispatch event to notify doctors page to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("doctors-updated"));
+        console.log(
+          "[AdminDashboard] Dispatched doctors-updated event after doctor creation"
+        );
+      }
+
       // Clear success message after 5 seconds
       setTimeout(() => {
         setSuccessMessage(null);
@@ -645,6 +661,8 @@ function AdminDashboardContent() {
       if (specializationFilter)
         queryParams.append("specialization", specializationFilter);
       queryParams.append("limit", "100"); // Get more doctors for admin view
+      // Add timestamp to prevent browser caching
+      queryParams.append("_t", Date.now().toString());
 
       const response = await fetch(
         `/api/admin/doctors?${queryParams.toString()}`,
@@ -652,6 +670,7 @@ function AdminDashboardContent() {
           headers: {
             "Content-Type": "application/json",
           },
+          cache: "no-store", // Always fetch fresh data
         }
       );
 
@@ -732,6 +751,14 @@ function AdminDashboardContent() {
       await fetchDoctors();
       await fetchDoctorStats();
 
+      // Dispatch event to notify doctors page to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("doctors-updated"));
+        console.log(
+          "[AdminDashboard] Dispatched doctors-updated event after doctor update"
+        );
+      }
+
       setTimeout(() => {
         setSuccessMessage(null);
       }, 5000);
@@ -773,6 +800,14 @@ function AdminDashboardContent() {
       // Clear selected doctor for schedule if it was deleted
       if (selectedDoctorForSchedule?.id === doctorId) {
         setSelectedDoctorForSchedule(null);
+      }
+
+      // Dispatch event to notify doctors page to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("doctors-updated"));
+        console.log(
+          "[AdminDashboard] Dispatched doctors-updated event after doctor deletion"
+        );
       }
 
       setTimeout(() => {
@@ -1129,7 +1164,16 @@ function AdminDashboardContent() {
       setTimeRangeStart("09:00");
       setTimeRangeEnd("17:00");
       setSelectedIndividualSlots(new Set());
+
+      // Small delay to ensure database commit completes before refreshing
+      await new Promise((resolve) => setTimeout(resolve, 100));
       await fetchAvailabilities();
+
+      // Dispatch event to notify doctors page to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("doctors-updated"));
+        console.log("[AdminDashboard] Dispatched doctors-updated event");
+      }
 
       setTimeout(() => {
         setSuccessMessage(null);
@@ -1205,18 +1249,44 @@ function AdminDashboardContent() {
     }
 
     try {
+      // Clear any previous delete errors
+      setDeleteError(null);
       setError(null);
+      setDeletingScheduleId(id);
+
       const response = await fetch(`/api/availability/${id}`, {
         method: "DELETE",
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        const data = await response.json();
+        // Handle 409 Conflict - appointments exist
+        if (response.status === 409) {
+          const errorMessage =
+            data.error?.message ||
+            "Cannot delete schedule: appointments exist in this period.";
+          setDeleteError(errorMessage);
+          // Auto-clear after 10 seconds for conflict errors
+          setTimeout(() => setDeleteError(null), 10000);
+          return;
+        }
         throw new Error(data.error?.message || "Failed to delete schedule");
       }
 
       setSuccessMessage("Schedule deleted successfully!");
       await fetchAvailabilities();
+
+      // Small delay to ensure database commit completes before notifying other pages
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Dispatch event to notify doctors page to refresh
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("doctors-updated"));
+        console.log(
+          "[AdminDashboard] Dispatched doctors-updated event after schedule deletion"
+        );
+      }
 
       setTimeout(() => {
         setSuccessMessage(null);
@@ -1226,6 +1296,8 @@ function AdminDashboardContent() {
       setError(
         err instanceof Error ? err.message : "Failed to delete schedule"
       );
+    } finally {
+      setDeletingScheduleId(null);
     }
   };
 
@@ -2282,7 +2354,7 @@ function AdminDashboardContent() {
               {selectedDoctorForSchedule && (
                 <>
                   {/* Slot Template Display */}
-                  {slotTemplate && (
+                  {slotTemplate ? (
                     <Card title="Slot Template Settings" className="mb-6">
                       <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                         <div>
@@ -2317,6 +2389,35 @@ function AdminDashboardContent() {
                           onClick={() => setShowSlotTemplateForm(true)}
                         >
                           Update Template
+                        </Button>
+                      </div>
+                    </Card>
+                  ) : (
+                    <Card title="Slot Template Settings" className="mb-6">
+                      <div className="rounded-md bg-blue-50 p-4">
+                        <p className="text-sm font-medium text-blue-900 mb-2">
+                          No custom template set. Using default values:
+                        </p>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                          <li>• Slot Duration: 30 minutes</li>
+                          <li>• Buffer Between Slots: 0 minutes</li>
+                          <li>• Advance Booking Days: 30 days</li>
+                        </ul>
+                      </div>
+                      <div className="mt-4">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSlotTemplateFormData({
+                              durationMinutes: 30,
+                              bufferMinutes: 0,
+                              advanceBookingDays: 30,
+                            });
+                            setShowSlotTemplateForm(true);
+                          }}
+                        >
+                          Create Custom Template
                         </Button>
                       </div>
                     </Card>
@@ -3033,6 +3134,53 @@ function AdminDashboardContent() {
                   <Card
                     title={`Schedules for ${selectedDoctorForSchedule.userEmail}`}
                   >
+                    {/* Delete Error Banner - shown when trying to delete schedule with appointments */}
+                    {deleteError && (
+                      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                        <div className="flex items-start gap-3">
+                          <div className="flex-shrink-0">
+                            <svg
+                              className="h-5 w-5 text-red-600"
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-medium text-red-800">
+                              Cannot Delete Schedule
+                            </h4>
+                            <p className="mt-1 text-sm text-red-700">
+                              {deleteError}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => setDeleteError(null)}
+                            className="flex-shrink-0 rounded-md p-1 hover:bg-red-100"
+                          >
+                            <svg
+                              className="h-4 w-4 text-red-600"
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {availabilitiesLoading ? (
                       <div className="flex items-center justify-center py-12">
                         <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
@@ -3124,6 +3272,9 @@ function AdminDashboardContent() {
                                       onClick={() =>
                                         handleEditSchedule(availability)
                                       }
+                                      disabled={
+                                        deletingScheduleId === availability.id
+                                      }
                                     >
                                       Edit
                                     </Button>
@@ -3133,8 +3284,43 @@ function AdminDashboardContent() {
                                       onClick={() =>
                                         handleDeleteSchedule(availability.id)
                                       }
+                                      disabled={
+                                        deletingScheduleId === availability.id
+                                      }
+                                      className={
+                                        deletingScheduleId === availability.id
+                                          ? "opacity-50 cursor-not-allowed"
+                                          : ""
+                                      }
                                     >
-                                      Delete
+                                      {deletingScheduleId ===
+                                      availability.id ? (
+                                        <span className="flex items-center gap-1">
+                                          <svg
+                                            className="h-4 w-4 animate-spin"
+                                            xmlns="http://www.w3.org/2000/svg"
+                                            fill="none"
+                                            viewBox="0 0 24 24"
+                                          >
+                                            <circle
+                                              className="opacity-25"
+                                              cx="12"
+                                              cy="12"
+                                              r="10"
+                                              stroke="currentColor"
+                                              strokeWidth="4"
+                                            ></circle>
+                                            <path
+                                              className="opacity-75"
+                                              fill="currentColor"
+                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                            ></path>
+                                          </svg>
+                                          Deleting…
+                                        </span>
+                                      ) : (
+                                        "Delete"
+                                      )}
                                     </Button>
                                   </div>
                                 </td>
@@ -3288,6 +3474,14 @@ function AdminDashboardContent() {
             <p className="mb-4 text-sm text-gray-600">
               Doctor: {selectedDoctorForSchedule.userEmail || "N/A"}
             </p>
+            <div className="mb-4 rounded-md bg-blue-50 p-3 text-sm text-blue-800">
+              <p className="font-medium">Default Values:</p>
+              <ul className="mt-1 list-disc list-inside space-y-1">
+                <li>Slot Duration: 30 minutes</li>
+                <li>Buffer Between Slots: 0 minutes</li>
+                <li>Advance Booking Days: 30 days</li>
+              </ul>
+            </div>
             <div className="space-y-4">
               <div>
                 <label
@@ -3312,7 +3506,8 @@ function AdminDashboardContent() {
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Minimum 5 minutes, maximum 480 minutes (8 hours)
+                  Minimum 5 minutes, maximum 480 minutes (8 hours). Default: 30
+                  minutes.
                 </p>
               </div>
               <div>
@@ -3335,6 +3530,9 @@ function AdminDashboardContent() {
                   }
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">
+                  Default: 0 minutes (no buffer between slots).
+                </p>
               </div>
               <div>
                 <label
@@ -3356,6 +3554,7 @@ function AdminDashboardContent() {
                   }
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
                 />
+                <p className="mt-1 text-xs text-gray-500">Default: 30 days.</p>
               </div>
             </div>
             <div className="mt-6 flex gap-2">
