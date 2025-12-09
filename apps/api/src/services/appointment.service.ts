@@ -21,6 +21,49 @@ import {
 import { logger } from "../utils/logger";
 import { getAvailabilityById } from "./availability.service";
 import { getSlotById, updateSlotStatus } from "./slot.service";
+import {
+  sendAppointmentConfirmationEmail,
+  sendAppointmentCancellationEmail,
+} from "./email.service";
+
+/**
+ * Helper to get doctor details for email notifications
+ */
+async function getDoctorDetailsForEmail(
+  doctorId: string
+): Promise<{ name: string; specialization?: string } | null> {
+  const doctor = await query<{
+    id: string;
+    specialization: string | null;
+    user: {
+      email: string;
+    };
+  } | null>((prisma) =>
+    prisma.doctor.findUnique({
+      where: { id: doctorId },
+      select: {
+        id: true,
+        specialization: true,
+        user: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    })
+  );
+
+  if (!doctor) {
+    return null;
+  }
+
+  // Use email username as doctor name (can be enhanced later with actual name field)
+  const name = doctor.user.email.split("@")[0];
+  return {
+    name,
+    specialization: doctor.specialization ?? undefined,
+  };
+}
 
 /**
  * Gets appointment by ID
@@ -481,7 +524,7 @@ export async function createAppointmentFromSlot(
   notes?: string
 ): Promise<Appointment> {
   // Use transaction to ensure atomicity
-  return await withTransaction(async (tx) => {
+  const result = await withTransaction(async (tx) => {
     // Lock the slot row (SELECT FOR UPDATE equivalent via findUnique)
     const slot = await tx.slot.findUnique({
       where: { id: slotId },
@@ -532,20 +575,57 @@ export async function createAppointmentFromSlot(
     });
 
     return {
-      id: appointment.id,
-      patientId: appointment.patientId,
-      patientEmail: patient.email,
-      doctorId: appointment.doctorId,
-      availabilityId: appointment.availabilityId ?? undefined,
-      slotId: appointment.slotId ?? undefined,
-      startTime: appointment.startTime,
-      endTime: appointment.endTime,
-      status: appointment.status as AppointmentStatus,
-      notes: appointment.notes ?? undefined,
-      createdAt: appointment.createdAt,
-      updatedAt: appointment.updatedAt,
+      appointment: {
+        id: appointment.id,
+        patientId: appointment.patientId,
+        patientEmail: patient.email,
+        doctorId: appointment.doctorId,
+        availabilityId: appointment.availabilityId ?? undefined,
+        slotId: appointment.slotId ?? undefined,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
+        status: appointment.status as AppointmentStatus,
+        notes: appointment.notes ?? undefined,
+        createdAt: appointment.createdAt,
+        updatedAt: appointment.updatedAt,
+      },
+      doctorId: slot.doctorId,
     };
   });
+
+  // Send confirmation email (non-blocking, after transaction commits)
+  getDoctorDetailsForEmail(result.doctorId)
+    .then((doctor) => {
+      if (doctor) {
+        logger.info("Sending confirmation email", {
+          patientEmail: result.appointment.patientEmail,
+          doctorName: doctor.name,
+        });
+
+        return sendAppointmentConfirmationEmail({
+          patientEmail: result.appointment.patientEmail,
+          doctorName: doctor.name,
+          doctorSpecialization: doctor.specialization,
+          appointmentDate: result.appointment.startTime,
+          appointmentEndTime: result.appointment.endTime,
+          appointmentId: result.appointment.id,
+          notes: result.appointment.notes,
+        });
+      } else {
+        logger.warn("Cannot send confirmation email - doctor not found", {
+          appointmentId: result.appointment.id,
+          doctorId: result.doctorId,
+        });
+      }
+    })
+    .catch((error) => {
+      logger.error("Failed to send appointment confirmation email", {
+        appointmentId: result.appointment.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
+
+  return result.appointment;
 }
 
 /**
@@ -687,7 +767,7 @@ export async function createAppointment(
       doctorId,
     });
 
-    return {
+    const result = {
       id: appointment.id,
       patientId: appointment.patientId,
       patientEmail: patient.email,
@@ -700,6 +780,40 @@ export async function createAppointment(
       createdAt: appointment.createdAt,
       updatedAt: appointment.updatedAt,
     };
+
+    // Send confirmation email (non-blocking)
+    getDoctorDetailsForEmail(doctorId)
+      .then((doctor) => {
+        if (doctor) {
+          logger.info("Sending confirmation email", {
+            patientEmail: patient.email,
+            doctorName: doctor.name,
+          });
+
+          return sendAppointmentConfirmationEmail({
+            patientEmail: patient.email,
+            doctorName: doctor.name,
+            doctorSpecialization: doctor.specialization,
+            appointmentDate: appointment.startTime,
+            appointmentEndTime: appointment.endTime,
+            appointmentId: appointment.id,
+            notes: appointment.notes ?? undefined,
+          });
+        } else {
+          logger.warn("Cannot send confirmation email - doctor not found", {
+            appointmentId: appointment.id,
+            doctorId,
+          });
+        }
+      })
+      .catch((error) => {
+        logger.error("Failed to send appointment confirmation email", {
+          appointmentId: appointment.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      });
+
+    return result;
   } catch (error: unknown) {
     // Handle Prisma errors
     if (
@@ -1028,7 +1142,7 @@ export async function cancelAppointment(
     reason,
   });
 
-  return {
+  const result = {
     id: appointment.id,
     patientId: appointment.patientId,
     patientEmail: appointment.patient.email,
@@ -1042,4 +1156,45 @@ export async function cancelAppointment(
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   };
+
+  // Send cancellation email (non-blocking)
+  getDoctorDetailsForEmail(appointment.doctorId)
+    .then((doctor) => {
+      if (doctor) {
+        const cancelledBy =
+          userRole === "PATIENT"
+            ? "patient"
+            : userRole === "DOCTOR"
+              ? "doctor"
+              : "admin";
+
+        logger.info("Sending cancellation email", {
+          patientEmail: appointment.patient.email,
+          doctorName: doctor.name,
+          cancelledBy,
+        });
+
+        return sendAppointmentCancellationEmail({
+          patientEmail: appointment.patient.email,
+          doctorName: doctor.name,
+          appointmentDate: appointment.startTime,
+          appointmentEndTime: appointment.endTime,
+          reason,
+          cancelledBy,
+        });
+      } else {
+        logger.warn("Cannot send cancellation email - doctor not found", {
+          appointmentId,
+          doctorId: appointment.doctorId,
+        });
+      }
+    })
+    .catch((error) => {
+      logger.error("Failed to send appointment cancellation email", {
+        appointmentId,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
+
+  return result;
 }
