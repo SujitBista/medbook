@@ -54,6 +54,18 @@ export interface CancelAppointmentInput {
 }
 
 /**
+ * Input for rescheduling an appointment
+ * Includes the new slot ID and optional reason
+ */
+export interface RescheduleAppointmentInput {
+  appointmentId: string;
+  newSlotId: string;
+  userId: string;
+  userRole: "PATIENT" | "DOCTOR" | "ADMIN";
+  reason?: string;
+}
+
+/**
  * Cancellation rules configuration
  */
 export const CANCELLATION_RULES = {

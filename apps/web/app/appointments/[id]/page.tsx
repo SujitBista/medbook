@@ -4,7 +4,13 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
-import { Appointment, AppointmentStatus, Doctor } from "@medbook/types";
+import {
+  Appointment,
+  AppointmentStatus,
+  Doctor,
+  Slot,
+  SlotStatus,
+} from "@medbook/types";
 import { formatDateTime } from "@/components/features/appointment/utils";
 import Link from "next/link";
 
@@ -22,6 +28,11 @@ interface DoctorResponse {
   doctor: Doctor;
 }
 
+interface SlotsResponse {
+  success: boolean;
+  slots: Slot[];
+}
+
 export default function AppointmentDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -37,6 +48,10 @@ export default function AppointmentDetailPage() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [showReschedule, setShowReschedule] = useState(false);
+  const [availableSlots, setAvailableSlots] = useState<Slot[]>([]);
+  const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [rescheduleReason, setRescheduleReason] = useState("");
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -126,6 +141,91 @@ export default function AppointmentDetailPage() {
       );
       // Don't set error here, doctor info is optional
     }
+  };
+
+  const fetchAvailableSlots = async () => {
+    if (!appointment?.doctorId) return;
+
+    try {
+      setLoadingSlots(true);
+      const response = await fetch(
+        `/api/slots/doctor/${appointment.doctorId}?status=${SlotStatus.AVAILABLE}`
+      );
+      const data: SlotsResponse = await response.json();
+
+      if (response.ok && data.success) {
+        // Filter out past slots and the current appointment's slot
+        const futureSlots = data.slots.filter(
+          (slot) =>
+            new Date(slot.startTime) > new Date() &&
+            slot.id !== appointment.slotId
+        );
+        setAvailableSlots(futureSlots);
+      }
+    } catch (err) {
+      console.error("[AppointmentDetail] Error fetching slots:", err);
+    } finally {
+      setLoadingSlots(false);
+    }
+  };
+
+  const handleReschedule = async () => {
+    if (!appointment || !selectedSlotId) return;
+
+    try {
+      setUpdating(true);
+      setError(null);
+
+      const response = await fetch(
+        `/api/appointments/${appointmentId}/reschedule`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            newSlotId: selectedSlotId,
+            reason: rescheduleReason || undefined,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error?.message || "Failed to reschedule appointment"
+        );
+      }
+
+      setAppointment(data.data);
+      setShowReschedule(false);
+      setSelectedSlotId(null);
+      setRescheduleReason("");
+      setSuccessMessage("Appointment rescheduled successfully");
+      setTimeout(() => setSuccessMessage(null), 5000);
+    } catch (err) {
+      console.error("[AppointmentDetail] Error rescheduling appointment:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to reschedule appointment. Please try again."
+      );
+    } finally {
+      setUpdating(false);
+    }
+  };
+
+  const openRescheduleModal = () => {
+    setShowReschedule(true);
+    fetchAvailableSlots();
+  };
+
+  const closeRescheduleModal = () => {
+    setShowReschedule(false);
+    setSelectedSlotId(null);
+    setRescheduleReason("");
+    setAvailableSlots([]);
   };
 
   const handleCancel = async () => {
@@ -446,11 +546,14 @@ export default function AppointmentDetailPage() {
                   )}
 
                   {canReschedule && (
-                    <Link href={`/doctors/${appointment.doctorId}`}>
-                      <Button variant="primary" className="w-full">
-                        Reschedule Appointment
-                      </Button>
-                    </Link>
+                    <Button
+                      variant="primary"
+                      className="w-full"
+                      onClick={openRescheduleModal}
+                      disabled={updating}
+                    >
+                      Reschedule Appointment
+                    </Button>
                   )}
                 </>
               )}
@@ -574,6 +677,114 @@ export default function AppointmentDetailPage() {
           </Card>
         </div>
       </div>
+
+      {/* Reschedule Modal */}
+      {showReschedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 max-h-[90vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex-shrink-0">
+              <h3 className="text-lg font-semibold text-gray-900">
+                Reschedule Appointment
+              </h3>
+              <p className="text-sm text-gray-600 mt-1">
+                Select a new time slot for your appointment
+              </p>
+            </div>
+
+            {/* Reason field - always visible at the top */}
+            <div className="px-6 pt-4 flex-shrink-0">
+              <label
+                htmlFor="rescheduleReason"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
+                Reason for rescheduling (optional)
+              </label>
+              <textarea
+                id="rescheduleReason"
+                value={rescheduleReason}
+                onChange={(e) => setRescheduleReason(e.target.value)}
+                placeholder="Enter reason for rescheduling..."
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                rows={2}
+              />
+            </div>
+
+            {/* Scrollable slots list */}
+            <div className="px-6 py-4 overflow-y-auto flex-1 min-h-0">
+              {loadingSlots ? (
+                <div className="text-center py-8">
+                  <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                  <p className="mt-4 text-gray-600">
+                    Loading available slots...
+                  </p>
+                </div>
+              ) : availableSlots.length === 0 ? (
+                <div className="text-center py-8">
+                  <p className="text-gray-600">
+                    No available slots found. Please try again later.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-sm font-medium text-gray-700 mb-2">
+                    Select a new time slot:
+                  </p>
+                  {availableSlots.map((slot) => (
+                    <label
+                      key={slot.id}
+                      className={`flex items-center p-3 border rounded-lg cursor-pointer transition-colors ${
+                        selectedSlotId === slot.id
+                          ? "border-blue-500 bg-blue-50"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="slot"
+                        value={slot.id}
+                        checked={selectedSlotId === slot.id}
+                        onChange={() => setSelectedSlotId(slot.id)}
+                        className="h-4 w-4 text-blue-600"
+                      />
+                      <div className="ml-3">
+                        <p className="font-medium text-gray-900">
+                          {formatDateTime(slot.startTime)}
+                        </p>
+                        <p className="text-sm text-gray-500">
+                          Duration:{" "}
+                          {Math.round(
+                            (new Date(slot.endTime).getTime() -
+                              new Date(slot.startTime).getTime()) /
+                              60000
+                          )}{" "}
+                          minutes
+                        </p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex gap-3 justify-end flex-shrink-0">
+              <Button
+                variant="outline"
+                onClick={closeRescheduleModal}
+                disabled={updating}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleReschedule}
+                disabled={updating || !selectedSlotId}
+              >
+                {updating ? "Rescheduling..." : "Confirm Reschedule"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
