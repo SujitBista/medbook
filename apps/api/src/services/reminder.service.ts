@@ -3,7 +3,11 @@
  * Handles appointment reminder scheduling and management
  */
 
-import { query, withTransaction } from "@app/db";
+import {
+  query,
+  withTransaction,
+  ReminderType as PrismaReminderType,
+} from "@app/db";
 import { ReminderType } from "@medbook/types";
 import { createNotFoundError, createValidationError } from "../utils/errors";
 import { logger } from "../utils/logger";
@@ -49,7 +53,7 @@ export async function createReminder(
       data: {
         appointmentId,
         scheduledFor,
-        reminderType: reminderType as any, // Prisma enum is compatible
+        reminderType: reminderType as PrismaReminderType,
       },
       select: {
         id: true,
@@ -196,7 +200,7 @@ export async function updateReminderForReschedule(
       where: { id: reminder.id },
       data: {
         scheduledFor,
-        reminderType: reminderType as any, // Prisma enum is compatible
+        reminderType: reminderType as PrismaReminderType,
         cancelledAt: null, // Reset cancellation if it was cancelled
       },
       select: {
