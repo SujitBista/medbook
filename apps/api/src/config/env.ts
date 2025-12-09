@@ -3,14 +3,6 @@
  * Validates and exports environment variables
  */
 
-function getEnvVar(key: string, defaultValue?: string): string {
-  const value = process.env[key] || defaultValue;
-  if (!value) {
-    throw new Error(`Missing required environment variable: ${key}`);
-  }
-  return value;
-}
-
 /**
  * Normalizes an origin URL (lowercase, no trailing slash)
  */
@@ -57,6 +49,28 @@ function getJwtSecret(): string {
   return "development-jwt-secret-change-in-production";
 }
 
+/**
+ * Gets Resend API key with production runtime validation
+ * Returns undefined in development if not set (emails will be logged instead)
+ */
+function getResendApiKey(): string | undefined {
+  const apiKey = process.env.RESEND_API_KEY;
+
+  if (apiKey) {
+    return apiKey;
+  }
+
+  // Require API key in production runtime
+  if (process.env.NODE_ENV === "production") {
+    console.warn(
+      "⚠️  RESEND_API_KEY not set. Emails will not be sent in production!"
+    );
+  }
+
+  // Development: emails will be logged instead of sent
+  return undefined;
+}
+
 export const env = {
   nodeEnv: process.env.NODE_ENV || "development",
   port,
@@ -68,7 +82,17 @@ export const env = {
   corsAllowNoOrigin: process.env.CORS_ALLOW_NO_ORIGIN === "true",
   corsAllowNullOrigin: process.env.CORS_ALLOW_NULL_ORIGIN === "true",
   jwtSecret: getJwtSecret(),
-} as const;
+  // Email configuration - use getters for lazy evaluation after dotenv loads
+  get resendApiKey(): string | undefined {
+    return getResendApiKey();
+  },
+  get emailFrom(): string {
+    return process.env.EMAIL_FROM || "MedBook <noreply@medbook.com>";
+  },
+  get appUrl(): string {
+    return process.env.APP_URL || "http://localhost:3000";
+  },
+};
 
 export const isDevelopment = env.nodeEnv === "development";
 export const isProduction = env.nodeEnv === "production";

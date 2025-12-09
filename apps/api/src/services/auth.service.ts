@@ -16,6 +16,8 @@ import {
   createAuthenticationError,
   createValidationError,
 } from "../utils/errors";
+import { sendWelcomeEmail } from "./email.service";
+import { logger } from "../utils/logger";
 
 /**
  * Converts Prisma UserRole to @medbook/types UserRole
@@ -122,6 +124,19 @@ export async function registerUser(
 
     // Generate JWT token
     const token = generateToken(user.id, convertUserRole(user.role));
+
+    // Send welcome email (non-blocking)
+    sendWelcomeEmail({
+      email: user.email,
+      role: convertUserRole(user.role),
+    }).catch((error) => {
+      // Log but don't fail registration if email fails
+      logger.error("Failed to send welcome email", {
+        userId: user.id,
+        email: user.email,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
 
     return {
       user: {
