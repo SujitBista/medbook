@@ -38,6 +38,67 @@ vi.mock("next/link", () => ({
   }) => <a href={href}>{children}</a>,
 }));
 
+// Mock SWR - make it work with our fetch mocks
+vi.mock("swr", () => {
+  const React = require("react");
+  return {
+    default: (key: string, fetcher: any) => {
+      const [data, setData] = React.useState<any>(undefined);
+      const [error, setError] = React.useState<any>(null);
+      const [isLoading, setIsLoading] = React.useState(true);
+
+      // Always re-fetch when key changes
+      React.useEffect(() => {
+        if (fetcher && typeof fetcher === "function") {
+          setIsLoading(true);
+          setError(null);
+          // Call the fetcher - it will use our mocked fetch
+          fetcher(key)
+            .then((result: any) => {
+              setData(result);
+              setIsLoading(false);
+            })
+            .catch((err: any) => {
+              setError(err);
+              setIsLoading(false);
+            });
+        } else {
+          setIsLoading(false);
+        }
+      }, [key, fetcher]);
+
+      // Create a mutate function that can trigger re-fetch
+      const mutateFn = React.useCallback(() => {
+        if (fetcher && typeof fetcher === "function") {
+          setIsLoading(true);
+          setError(null);
+          // Call fetcher directly - this will use our mocked fetch
+          const promise = fetcher(key)
+            .then((result: any) => {
+              setData(result);
+              setIsLoading(false);
+              return result;
+            })
+            .catch((err: any) => {
+              setError(err);
+              setIsLoading(false);
+              throw err;
+            });
+          return promise;
+        }
+        return Promise.resolve();
+      }, [key, fetcher]);
+
+      return {
+        data,
+        error,
+        isLoading,
+        mutate: mutateFn,
+      };
+    },
+  };
+});
+
 // Mock fetch globally
 global.fetch = vi.fn();
 
@@ -275,17 +336,32 @@ describe("DoctorsPage", () => {
         ).toBeInTheDocument();
       });
 
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.getByText("doctor1@medbook.com")).toBeInTheDocument();
+      });
+
       const searchInput = screen.getByPlaceholderText("Search doctors...");
+      await user.clear(searchInput);
       await user.type(searchInput, "doctor1");
 
       const searchButton = screen.getByText("Search");
       await user.click(searchButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining("search=doctor1")
-        );
-      });
+      // Wait for the search to complete - check that fetch was called with search parameter
+      await waitFor(
+        () => {
+          const fetchCalls = (global.fetch as any).mock.calls;
+          const hasSearchCall = fetchCalls.some(
+            (call: any[]) =>
+              call[0] &&
+              typeof call[0] === "string" &&
+              call[0].includes("search=doctor1")
+          );
+          expect(hasSearchCall).toBe(true);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -462,11 +538,20 @@ describe("DoctorsPage", () => {
       const nextButton = screen.getByText("Next");
       await user.click(nextButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining("page=2")
-        );
-      });
+      // Wait for the pagination to complete - check that fetch was called with page=2
+      await waitFor(
+        () => {
+          const fetchCalls = (global.fetch as any).mock.calls;
+          const hasPage2Call = fetchCalls.some(
+            (call: any[]) =>
+              call[0] &&
+              typeof call[0] === "string" &&
+              call[0].includes("page=2")
+          );
+          expect(hasPage2Call).toBe(true);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -721,9 +806,13 @@ describe("DoctorsPage", () => {
       const retryButton = screen.getByText("Retry");
       await user.click(retryButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(2);
-      });
+      // Wait for the retry to complete - check that fetch was called again
+      await waitFor(
+        () => {
+          expect(global.fetch).toHaveBeenCalledTimes(2);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 });

@@ -110,6 +110,15 @@ describe("AvailabilityManagementPage", () => {
         status: "authenticated",
       });
 
+      // Mock fetch in case it's called before redirect
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: false,
+        json: async () => ({
+          success: false,
+          error: { message: "Not a doctor" },
+        }),
+      });
+
       render(<AvailabilityManagementPage />);
 
       expect(mockPush).toHaveBeenCalledWith("/dashboard");
