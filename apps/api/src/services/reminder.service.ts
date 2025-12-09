@@ -60,17 +60,17 @@ export async function createReminder(
     })
   );
 
-  return {
-    ...reminder,
-    reminderType: reminder.reminderType as ReminderType,
-  };
-
   logger.info("Reminder created", {
     reminderId: reminder.id,
     appointmentId,
     scheduledFor,
     reminderType,
   });
+
+  return {
+    ...reminder,
+    reminderType: reminder.reminderType as ReminderType,
+  };
 }
 
 /**

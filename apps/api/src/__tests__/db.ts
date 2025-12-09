@@ -21,44 +21,9 @@ import { query, withTransaction } from "@app/db";
 export async function cleanupTestData(): Promise<void> {
   try {
     // Delete in reverse order of dependencies
+    // Note: Reminders are cascade-deleted when appointments are deleted (onDelete: Cascade),
+    // so we don't need to delete them explicitly
     await query(async (prisma) => {
-      try {
-        // Delete reminders for test appointments
-        // Note: Reminders will also be cascade-deleted when appointments are deleted,
-        // but we delete them explicitly here to ensure clean state
-        await prisma.reminder.deleteMany({
-          where: {
-            appointment: {
-              OR: [
-                {
-                  patient: {
-                    email: {
-                      startsWith: "test-",
-                    },
-                  },
-                },
-                {
-                  doctor: {
-                    user: {
-                      email: {
-                        startsWith: "test-",
-                      },
-                    },
-                  },
-                },
-              ],
-            },
-          },
-        });
-      } catch (error) {
-        // If deletion fails (e.g., due to permissions or schema issues),
-        // it's not critical since reminders will be cascade-deleted with appointments
-        console.warn(
-          "[cleanupTestData] Failed to delete reminders (will be cascade-deleted with appointments):",
-          error
-        );
-      }
-
       try {
         // Delete appointments first (has foreign keys to slots, users, doctors, availabilities)
         await prisma.appointment.deleteMany({
