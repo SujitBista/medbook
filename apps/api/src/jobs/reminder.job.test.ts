@@ -228,17 +228,36 @@ describe("reminder.job", () => {
     it("should handle missing appointments gracefully", async () => {
       const now = new Date();
       const pastTime = new Date(now.getTime() - 60 * 60 * 1000);
+      const appointmentTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
 
-      // Create reminder for non-existent appointment
+      // Create a valid appointment and reminder first
+      const patient = await createTestUser({ role: "PATIENT" });
+      const doctor = await createTestDoctor();
+      const appointment = await createTestAppointment({
+        patientId: patient.id,
+        doctorId: doctor.id,
+        startTime: appointmentTime,
+        endTime: new Date(appointmentTime.getTime() + 30 * 60 * 1000),
+      });
+
       const reminder = await query((prisma) =>
         prisma.reminder.create({
           data: {
-            appointmentId: "non-existent-appointment-id",
+            appointmentId: appointment.id,
             scheduledFor: pastTime,
             reminderType: "TWENTY_FOUR_HOUR",
           },
         })
       );
+
+      // Delete the appointment using raw SQL to bypass cascade delete
+      // This simulates a data inconsistency scenario
+      await query(async (prisma) => {
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM appointments WHERE id = $1`,
+          appointment.id
+        );
+      });
 
       const processedCount = await processReminders();
 
