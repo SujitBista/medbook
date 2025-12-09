@@ -409,6 +409,125 @@ export async function sendAppointmentCancellationEmail(
 }
 
 /**
+ * Appointment rescheduled email data
+ */
+export interface AppointmentRescheduledEmailData {
+  patientEmail: string;
+  patientName?: string;
+  doctorName: string;
+  doctorSpecialization?: string;
+  previousDate: Date;
+  previousEndTime: Date;
+  newDate: Date;
+  newEndTime: Date;
+  appointmentId: string;
+  reason?: string;
+}
+
+/**
+ * Sends appointment rescheduled confirmation email to the patient
+ */
+export async function sendAppointmentRescheduledEmail(
+  data: AppointmentRescheduledEmailData
+): Promise<EmailResult> {
+  const {
+    patientEmail,
+    patientName,
+    doctorName,
+    doctorSpecialization,
+    previousDate,
+    previousEndTime,
+    newDate,
+    newEndTime,
+    appointmentId,
+    reason,
+  } = data;
+
+  const html = `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>Appointment Rescheduled</title>
+    </head>
+    <body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+      <div style="text-align: center; margin-bottom: 30px;">
+        <h1 style="color: #2563eb; margin: 0;">MedBook</h1>
+        <p style="color: #6b7280; margin-top: 5px;">Healthcare Made Simple</p>
+      </div>
+      
+      <div style="background-color: #dbeafe; border-radius: 8px; padding: 20px; margin-bottom: 20px; text-align: center;">
+        <h2 style="color: #1e40af; margin: 0;">📅 Appointment Rescheduled</h2>
+      </div>
+      
+      <p>Dear ${patientName || "Patient"},</p>
+      <p>Your appointment has been successfully rescheduled. Here are the updated details:</p>
+      
+      <div style="background-color: #fee2e2; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #991b1b; font-size: 14px;">Previous Appointment (Cancelled):</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 4px 0; color: #6b7280; text-decoration: line-through;">${formatDate(previousDate)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 4px 0; color: #6b7280; text-decoration: line-through;">${formatTime(previousDate)} - ${formatTime(previousEndTime)}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background-color: #dcfce7; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <h3 style="margin-top: 0; color: #166534;">✓ New Appointment:</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280;">Doctor:</td>
+            <td style="padding: 8px 0; font-weight: 500;">Dr. ${doctorName}${doctorSpecialization ? ` (${doctorSpecialization})` : ""}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280;">Date:</td>
+            <td style="padding: 8px 0; font-weight: 500;">${formatDate(newDate)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280;">Time:</td>
+            <td style="padding: 8px 0; font-weight: 500;">${formatTime(newDate)} - ${formatTime(newEndTime)}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; color: #6b7280;">Confirmation #:</td>
+            <td style="padding: 8px 0; font-weight: 500;">${appointmentId.substring(0, 8).toUpperCase()}</td>
+          </tr>
+          ${reason ? `<tr><td style="padding: 8px 0; color: #6b7280;">Reason:</td><td style="padding: 8px 0;">${reason}</td></tr>` : ""}
+        </table>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="${env.appUrl}/dashboard/appointments" 
+           style="background-color: #2563eb; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: 500; display: inline-block;">
+          View Appointment
+        </a>
+      </div>
+      
+      <div style="background-color: #fef3c7; border-radius: 8px; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0; color: #92400e; font-size: 14px;">
+          <strong>Important:</strong> Please arrive 10 minutes before your scheduled time. 
+          If you need to cancel or reschedule again, please do so at least 24 hours in advance.
+        </p>
+      </div>
+      
+      <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 14px;">
+        <p>© ${new Date().getFullYear()} MedBook. All rights reserved.</p>
+      </div>
+    </body>
+    </html>
+  `;
+
+  return sendEmail({
+    to: patientEmail,
+    subject: `Appointment Rescheduled with Dr. ${doctorName}`,
+    html,
+  });
+}
+
+/**
  * Appointment reminder email data
  */
 export interface AppointmentReminderEmailData {

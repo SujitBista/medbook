@@ -11,12 +11,14 @@ import {
   createAppointment,
   updateAppointment,
   cancelAppointment,
+  rescheduleAppointment,
 } from "../services/appointment.service";
 import {
   CreateAppointmentInput,
   UpdateAppointmentInput,
   AppointmentStatus,
   CancelAppointmentInput,
+  RescheduleAppointmentInput,
   UserRole,
 } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
@@ -417,6 +419,74 @@ export async function cancelAppointmentSlot(
       success: true,
       data: appointment,
       message: "Appointment cancelled successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Reschedule appointment
+ * POST /api/v1/appointments/:id/reschedule
+ * Reschedules an appointment to a new slot
+ * - Frees the old slot
+ * - Books the new slot
+ * - Sends reschedule confirmation email
+ */
+export async function rescheduleAppointmentSlot(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    const { id } = req.params;
+    const { newSlotId, reason } = req.body;
+
+    if (!id) {
+      const error = createValidationError("Appointment ID is required");
+      next(error);
+      return;
+    }
+
+    if (!newSlotId) {
+      const error = createValidationError("New slot ID is required");
+      next(error);
+      return;
+    }
+
+    // Validate user role - ensure it's one of the valid roles
+    const userRole = req.user.role;
+    const validRoles: UserRole[] = [
+      UserRole.PATIENT,
+      UserRole.DOCTOR,
+      UserRole.ADMIN,
+    ];
+    if (!validRoles.includes(userRole)) {
+      const error = createValidationError("Invalid user role");
+      next(error);
+      return;
+    }
+
+    const input: RescheduleAppointmentInput = {
+      appointmentId: id,
+      newSlotId,
+      userId: req.user.id,
+      userRole: userRole as "PATIENT" | "DOCTOR" | "ADMIN",
+      reason,
+    };
+
+    const appointment = await rescheduleAppointment(input);
+
+    res.status(200).json({
+      success: true,
+      data: appointment,
+      message: "Appointment rescheduled successfully",
     });
   } catch (error) {
     next(error);

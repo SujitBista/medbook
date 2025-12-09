@@ -9,6 +9,7 @@ import {
   CreateAppointmentInput,
   UpdateAppointmentInput,
   CancelAppointmentInput,
+  RescheduleAppointmentInput,
   AppointmentStatus,
   SlotStatus,
   CANCELLATION_RULES,
@@ -24,6 +25,7 @@ import { getSlotById, updateSlotStatus } from "./slot.service";
 import {
   sendAppointmentConfirmationEmail,
   sendAppointmentCancellationEmail,
+  sendAppointmentRescheduledEmail,
 } from "./email.service";
 
 /**
@@ -1197,4 +1199,247 @@ export async function cancelAppointment(
     });
 
   return result;
+}
+
+/**
+ * Validates if a user can reschedule an appointment based on role and time rules
+ * @param appointment The appointment to reschedule
+ * @param userRole The role of the user attempting to reschedule
+ * @param userId The ID of the user attempting to reschedule
+ * @throws AppError if rescheduling is not allowed
+ */
+function validateRescheduleRules(
+  appointment: {
+    id: string;
+    patientId: string;
+    doctorId: string;
+    startTime: Date;
+    status: string;
+  },
+  userRole: "PATIENT" | "DOCTOR" | "ADMIN",
+  userId: string
+): void {
+  // Check if appointment is already cancelled or completed
+  if (appointment.status === AppointmentStatus.CANCELLED) {
+    throw createValidationError("Cannot reschedule a cancelled appointment");
+  }
+
+  if (appointment.status === AppointmentStatus.COMPLETED) {
+    throw createValidationError("Cannot reschedule a completed appointment");
+  }
+
+  const now = new Date();
+  const appointmentStartTime = new Date(appointment.startTime);
+  const hoursUntilAppointment =
+    (appointmentStartTime.getTime() - now.getTime()) / (1000 * 60 * 60);
+
+  // Role-based reschedule rules (similar to cancellation rules)
+  switch (userRole) {
+    case "ADMIN":
+      // Admins can reschedule any appointment at any time
+      break;
+
+    case "DOCTOR":
+      // Doctors can reschedule appointments assigned to them
+      // Note: Authorization (checking if this is the doctor's appointment) should be done in the controller
+      break;
+
+    case "PATIENT":
+      // Patients can only reschedule their own appointments
+      if (appointment.patientId !== userId) {
+        throw createValidationError(
+          "You can only reschedule your own appointments"
+        );
+      }
+
+      // Check if appointment is in the past
+      if (appointmentStartTime <= now) {
+        throw createValidationError("Cannot reschedule past appointments");
+      }
+
+      // Check if reschedule is within allowed time window (same as cancellation rules)
+      if (hoursUntilAppointment < CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE) {
+        throw createValidationError(
+          `Appointments must be rescheduled at least ${CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE} hours in advance`
+        );
+      }
+      break;
+
+    default:
+      throw createValidationError("Invalid user role for rescheduling");
+  }
+}
+
+/**
+ * Reschedules an appointment to a new slot
+ * Frees the old slot and books the new slot atomically
+ * @param input Reschedule input including appointment ID and new slot ID
+ * @returns Rescheduled appointment data
+ * @throws AppError if rescheduling is not allowed, appointment not found, or slot unavailable
+ */
+export async function rescheduleAppointment(
+  input: RescheduleAppointmentInput
+): Promise<Appointment> {
+  const { appointmentId, newSlotId, userId, userRole, reason } = input;
+
+  // Get existing appointment with patient info
+  const existingAppointment = await query<Prisma.AppointmentGetPayload<{
+    include: {
+      patient: {
+        select: {
+          email: true;
+        };
+      };
+    };
+  }> | null>((prisma) =>
+    prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
+    })
+  );
+
+  if (!existingAppointment) {
+    throw createNotFoundError("Appointment");
+  }
+
+  // Validate reschedule rules
+  validateRescheduleRules(existingAppointment, userRole, userId);
+
+  // Store previous appointment times for the email
+  const previousStartTime = existingAppointment.startTime;
+  const previousEndTime = existingAppointment.endTime;
+
+  // Use transaction to ensure atomicity
+  const result = await withTransaction(async (tx) => {
+    // Lock and verify the new slot
+    const newSlot = await tx.slot.findUnique({
+      where: { id: newSlotId },
+    });
+
+    if (!newSlot) {
+      throw createNotFoundError("Slot");
+    }
+
+    if (newSlot.status !== SlotStatus.AVAILABLE) {
+      throw createConflictError("The selected slot is not available");
+    }
+
+    // Verify the new slot belongs to the same doctor
+    if (newSlot.doctorId !== existingAppointment.doctorId) {
+      throw createValidationError(
+        "Cannot reschedule to a slot with a different doctor"
+      );
+    }
+
+    // Free the old slot if there was one
+    if (existingAppointment.slotId) {
+      await tx.slot.update({
+        where: { id: existingAppointment.slotId },
+        data: { status: SlotStatus.AVAILABLE },
+      });
+      logger.info("Old slot freed during reschedule", {
+        oldSlotId: existingAppointment.slotId,
+        appointmentId,
+      });
+    }
+
+    // Book the new slot
+    await tx.slot.update({
+      where: { id: newSlotId },
+      data: { status: SlotStatus.BOOKED },
+    });
+
+    // Update the appointment with new slot and times
+    const updatedAppointment = await tx.appointment.update({
+      where: { id: appointmentId },
+      include: {
+        patient: {
+          select: {
+            email: true,
+          },
+        },
+      },
+      data: {
+        slotId: newSlotId,
+        availabilityId: newSlot.availabilityId,
+        startTime: newSlot.startTime,
+        endTime: newSlot.endTime,
+        notes: reason
+          ? existingAppointment.notes
+            ? `${existingAppointment.notes}\n\nRescheduled: ${reason}`
+            : `Rescheduled: ${reason}`
+          : existingAppointment.notes,
+      },
+    });
+
+    logger.info("Appointment rescheduled", {
+      appointmentId,
+      oldSlotId: existingAppointment.slotId,
+      newSlotId,
+      rescheduledBy: userId,
+      userRole,
+    });
+
+    return {
+      appointment: {
+        id: updatedAppointment.id,
+        patientId: updatedAppointment.patientId,
+        patientEmail: updatedAppointment.patient.email,
+        doctorId: updatedAppointment.doctorId,
+        availabilityId: updatedAppointment.availabilityId ?? undefined,
+        slotId: updatedAppointment.slotId ?? undefined,
+        startTime: updatedAppointment.startTime,
+        endTime: updatedAppointment.endTime,
+        status: updatedAppointment.status as AppointmentStatus,
+        notes: updatedAppointment.notes ?? undefined,
+        createdAt: updatedAppointment.createdAt,
+        updatedAt: updatedAppointment.updatedAt,
+      },
+      doctorId: existingAppointment.doctorId,
+      previousStartTime,
+      previousEndTime,
+    };
+  });
+
+  // Send rescheduled confirmation email (non-blocking, after transaction commits)
+  getDoctorDetailsForEmail(result.doctorId)
+    .then((doctor) => {
+      if (doctor) {
+        logger.info("Sending reschedule confirmation email", {
+          patientEmail: result.appointment.patientEmail,
+          doctorName: doctor.name,
+        });
+
+        return sendAppointmentRescheduledEmail({
+          patientEmail: result.appointment.patientEmail,
+          doctorName: doctor.name,
+          doctorSpecialization: doctor.specialization,
+          previousDate: result.previousStartTime,
+          previousEndTime: result.previousEndTime,
+          newDate: result.appointment.startTime,
+          newEndTime: result.appointment.endTime,
+          appointmentId: result.appointment.id,
+          reason,
+        });
+      } else {
+        logger.warn("Cannot send reschedule email - doctor not found", {
+          appointmentId: result.appointment.id,
+          doctorId: result.doctorId,
+        });
+      }
+    })
+    .catch((error) => {
+      logger.error("Failed to send appointment reschedule email", {
+        appointmentId: result.appointment.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    });
+
+  return result.appointment;
 }

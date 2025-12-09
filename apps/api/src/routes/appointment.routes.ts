@@ -12,6 +12,7 @@ import {
   createAppointmentSlot,
   updateAppointmentSlot,
   cancelAppointmentSlot,
+  rescheduleAppointmentSlot,
 } from "../controllers/appointment.controller";
 
 const router: IRouter = Router();
@@ -56,5 +57,14 @@ router.put("/:id", authenticate, updateAppointmentSlot);
  * - Admins: Can cancel any appointment at any time
  */
 router.post("/:id/cancel", authenticate, cancelAppointmentSlot);
+
+/**
+ * POST /api/v1/appointments/:id/reschedule
+ * Reschedule appointment to a new slot (requires authentication)
+ * - Frees the old slot
+ * - Books the new slot
+ * - Sends reschedule confirmation email
+ */
+router.post("/:id/reschedule", authenticate, rescheduleAppointmentSlot);
 
 export default router;
