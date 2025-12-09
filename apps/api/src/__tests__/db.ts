@@ -23,6 +23,36 @@ export async function cleanupTestData(): Promise<void> {
     // Delete in reverse order of dependencies
     await query(async (prisma) => {
       try {
+        // Delete reminders first (has foreign key to appointments)
+        await prisma.reminder.deleteMany({
+          where: {
+            appointment: {
+              OR: [
+                {
+                  patient: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
+                },
+                {
+                  doctor: {
+                    user: {
+                      email: {
+                        startsWith: "test-",
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        });
+      } catch (error) {
+        console.warn("[cleanupTestData] Failed to delete reminders:", error);
+      }
+
+      try {
         // Delete appointments first (has foreign keys to slots, users, doctors, availabilities)
         await prisma.appointment.deleteMany({
           where: {

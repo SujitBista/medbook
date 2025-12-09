@@ -27,6 +27,11 @@ import {
   sendAppointmentCancellationEmail,
   sendAppointmentRescheduledEmail,
 } from "./email.service";
+import {
+  createReminder,
+  cancelReminder,
+  updateReminderForReschedule,
+} from "./reminder.service";
 
 /**
  * Helper to get doctor details for email notifications
@@ -627,6 +632,17 @@ export async function createAppointmentFromSlot(
       });
     });
 
+  // Schedule reminder email (non-blocking, after transaction commits)
+  createReminder(result.appointment.id, result.appointment.startTime).catch(
+    (error) => {
+      logger.error("Failed to create reminder", {
+        appointmentId: result.appointment.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      // Don't fail appointment creation if reminder scheduling fails
+    }
+  );
+
   return result.appointment;
 }
 
@@ -814,6 +830,15 @@ export async function createAppointment(
           error: error instanceof Error ? error.message : "Unknown error",
         });
       });
+
+    // Schedule reminder email (non-blocking)
+    createReminder(appointment.id, appointment.startTime).catch((error) => {
+      logger.error("Failed to create reminder", {
+        appointmentId: appointment.id,
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+      // Don't fail appointment creation if reminder scheduling fails
+    });
 
     return result;
   } catch (error: unknown) {
@@ -1198,6 +1223,15 @@ export async function cancelAppointment(
       });
     });
 
+  // Cancel reminder (non-blocking)
+  cancelReminder(appointmentId).catch((error) => {
+    logger.error("Failed to cancel reminder", {
+      appointmentId,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    // Don't fail cancellation if reminder cancellation fails
+  });
+
   return result;
 }
 
@@ -1440,6 +1474,18 @@ export async function rescheduleAppointment(
         error: error instanceof Error ? error.message : "Unknown error",
       });
     });
+
+  // Update reminder for rescheduled appointment (non-blocking, after transaction commits)
+  updateReminderForReschedule(
+    result.appointment.id,
+    result.appointment.startTime
+  ).catch((error) => {
+    logger.error("Failed to update reminder for reschedule", {
+      appointmentId: result.appointment.id,
+      error: error instanceof Error ? error.message : "Unknown error",
+    });
+    // Don't fail rescheduling if reminder update fails
+  });
 
   return result.appointment;
 }
