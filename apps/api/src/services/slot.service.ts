@@ -11,6 +11,7 @@ import {
   CreateSlotTemplateInput,
   UpdateSlotTemplateInput,
   Availability,
+  AppointmentStatus,
 } from "@medbook/types";
 import {
   createNotFoundError,
@@ -321,7 +322,7 @@ function generateRecurringSlots(
   const endMin = availEnd.getMinutes();
 
   // Iterate through each occurrence of the day
-  let currentDate = new Date(validFrom);
+  const currentDate = new Date(validFrom);
   currentDate.setHours(0, 0, 0, 0);
 
   while (currentDate <= validTo) {
@@ -382,7 +383,29 @@ function generateOneTimeSlots(
 
   const availStart = new Date(availability.startTime);
   const availEnd = new Date(availability.endTime);
+  const availabilityDurationMs = availEnd.getTime() - availStart.getTime();
 
+  // If availability is shorter than slot duration, create a single slot matching the availability
+  if (availabilityDurationMs < durationMs) {
+    logger.info(
+      "Availability shorter than slot duration, creating single slot",
+      {
+        availabilityId: availability.id,
+        availabilityDurationMs,
+        slotDurationMs: durationMs,
+      }
+    );
+    slots.push({
+      doctorId: availability.doctorId,
+      availabilityId: availability.id,
+      startTime: new Date(availStart),
+      endTime: new Date(availEnd),
+      status: SlotStatus.AVAILABLE,
+    });
+    return slots;
+  }
+
+  // Otherwise, generate multiple slots based on template
   let slotStart = new Date(availStart);
 
   while (slotStart.getTime() + durationMs <= availEnd.getTime()) {
@@ -408,7 +431,7 @@ function generateOneTimeSlots(
  * If no slots exist, automatically generates them from availabilities
  * @param doctorId Doctor ID
  * @param options Query options
- * @returns List of slots
+ * @returns List of slots (only slots with valid availabilities)
  */
 export async function getSlotsByDoctorId(
   doctorId: string,
@@ -425,6 +448,11 @@ export async function getSlotsByDoctorId(
   const where: Prisma.SlotWhereInput = {
     doctorId,
     startTime: { gte: startDate },
+    // Only include slots that have a valid availability (not orphaned)
+    // This ensures deleted availabilities don't show "ghost slots"
+    availability: {
+      isNot: null,
+    },
   };
 
   if (endDate) {
@@ -477,6 +505,17 @@ export async function getSlotsByDoctorId(
       endDate,
     });
 
+    logger.info("Found availabilities for slot generation", {
+      doctorId,
+      availabilityCount: availabilities.length,
+      availabilities: availabilities.map((a) => ({
+        id: a.id,
+        startTime: a.startTime,
+        endTime: a.endTime,
+        isRecurring: a.isRecurring,
+      })),
+    });
+
     // Generate slots for each availability
     for (const availability of availabilities) {
       try {
@@ -489,6 +528,18 @@ export async function getSlotsByDoctorId(
             availabilityId: availability.id,
             doctorId,
             slotCount: generatedSlots.length,
+            slots: generatedSlots.map((s) => ({
+              startTime: s.startTime,
+              endTime: s.endTime,
+            })),
+          });
+        } else {
+          logger.warn("No slots generated from availability", {
+            availabilityId: availability.id,
+            doctorId,
+            availabilityStart: availability.startTime,
+            availabilityEnd: availability.endTime,
+            isRecurring: availability.isRecurring,
           });
         }
       } catch (error) {
@@ -496,6 +547,7 @@ export async function getSlotsByDoctorId(
           availabilityId: availability.id,
           doctorId,
           error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
         });
       }
     }
@@ -708,6 +760,63 @@ export async function updateSlotStatus(
     createdAt: updated.createdAt,
     updatedAt: updated.updatedAt,
   };
+}
+
+/**
+ * Counts non-cancelled appointments for a specific slot
+ * @param slotId Slot ID
+ * @returns Count of non-cancelled appointments
+ */
+async function countNonCancelledAppointmentsForSlot(
+  slotId: string
+): Promise<number> {
+  const result = await query<{ _count: { id: number } }>((prisma) =>
+    prisma.appointment.aggregate({
+      _count: { id: true },
+      where: {
+        slotId: slotId,
+        status: {
+          not: AppointmentStatus.CANCELLED,
+        },
+      },
+    })
+  );
+
+  return result._count.id;
+}
+
+/**
+ * Deletes a slot
+ * @param slotId Slot ID
+ * @param doctorId Doctor ID (for authorization)
+ * @throws AppError if slot not found, unauthorized, or has non-cancelled appointments
+ */
+export async function deleteSlot(
+  slotId: string,
+  doctorId: string
+): Promise<void> {
+  const slot = await getSlotById(slotId);
+
+  if (slot.doctorId !== doctorId) {
+    throw createValidationError("You can only delete your own slots");
+  }
+
+  // Check for non-cancelled appointments linked to this slot
+  const appointmentCount = await countNonCancelledAppointmentsForSlot(slotId);
+
+  if (appointmentCount > 0) {
+    throw createConflictError(
+      `Cannot delete slot: ${appointmentCount} appointment${appointmentCount === 1 ? "" : "s"} exist${appointmentCount === 1 ? "s" : ""} for this slot. Cancel or reschedule ${appointmentCount === 1 ? "it" : "them"} first.`
+    );
+  }
+
+  await query((prisma) =>
+    prisma.slot.delete({
+      where: { id: slotId },
+    })
+  );
+
+  logger.info("Slot deleted", { slotId, doctorId });
 }
 
 /**

@@ -1,11 +1,12 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { Button, Card, Input } from "@medbook/ui";
 import { Doctor } from "@medbook/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import useSWR from "swr";
 
 interface DoctorsResponse {
   success: boolean;
@@ -18,76 +19,78 @@ interface DoctorsResponse {
   };
 }
 
+// Fetcher function for SWR
+const fetcher = async (url: string): Promise<DoctorsResponse> => {
+  console.log("[Doctors] Fetching doctors:", url);
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch doctors: ${response.statusText}`);
+  }
+
+  const data: DoctorsResponse = await response.json();
+
+  if (!data.success) {
+    throw new Error("Failed to fetch doctors");
+  }
+
+  return data;
+};
+
 export default function DoctorsPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [specializationFilter, setSpecializationFilter] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
-    total: 0,
-    totalPages: 0,
   });
 
-  // Fetch doctors on mount and when filters change
-  useEffect(() => {
-    fetchDoctors();
-  }, [pagination.page, searchTerm, specializationFilter]);
+  // Build API URL with query parameters
+  const apiUrl = useMemo(() => {
+    const params = new URLSearchParams({
+      page: pagination.page.toString(),
+      limit: pagination.limit.toString(),
+    });
 
-  const fetchDoctors = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      const params = new URLSearchParams({
-        page: pagination.page.toString(),
-        limit: pagination.limit.toString(),
-      });
-
-      if (searchTerm) {
-        params.append("search", searchTerm);
-      }
-
-      if (specializationFilter) {
-        params.append("specialization", specializationFilter);
-      }
-
-      console.log("[Doctors] Fetching doctors:", params.toString());
-
-      const response = await fetch(`/api/doctors?${params.toString()}`);
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch doctors: ${response.statusText}`);
-      }
-
-      const data: DoctorsResponse = await response.json();
-
-      if (data.success) {
-        setDoctors(data.data);
-        setPagination(data.pagination);
-      } else {
-        throw new Error("Failed to fetch doctors");
-      }
-    } catch (err) {
-      console.error("[Doctors] Error fetching doctors:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load doctors. Please try again."
-      );
-    } finally {
-      setLoading(false);
+    if (searchTerm) {
+      params.append("search", searchTerm);
     }
+
+    if (specializationFilter) {
+      params.append("specialization", specializationFilter);
+    }
+
+    return `/api/doctors?${params.toString()}`;
+  }, [pagination.page, pagination.limit, searchTerm, specializationFilter]);
+
+  // Use SWR for data fetching with revalidation options
+  const {
+    data: responseData,
+    error,
+    isLoading,
+    mutate,
+  } = useSWR<DoctorsResponse>(apiUrl, fetcher, {
+    revalidateOnFocus: true,
+    revalidateIfStale: true,
+    revalidateOnReconnect: true,
+  });
+
+  // Extract doctors and pagination from response
+  const doctors = responseData?.data ?? [];
+  const paginationData = responseData?.pagination ?? {
+    page: pagination.page,
+    limit: pagination.limit,
+    total: 0,
+    totalPages: 0,
   };
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPagination((prev) => ({ ...prev, page: 1 }));
-    fetchDoctors();
   };
 
   const handlePageChange = (newPage: number) => {
@@ -95,10 +98,17 @@ export default function DoctorsPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  // Get unique specializations for filter
+  // Get unique specializations for filter from current data
   const specializations = Array.from(
     new Set(doctors.map((d) => d.specialization).filter(Boolean))
   );
+
+  // Format error message
+  const errorMessage = error
+    ? error instanceof Error
+      ? error.message
+      : "Failed to load doctors. Please try again."
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
@@ -201,13 +211,13 @@ export default function DoctorsPage() {
         </Card>
 
         {/* Error State */}
-        {error && (
+        {errorMessage && (
           <div className="mb-6 rounded-lg bg-red-50 p-4 border border-red-200">
-            <p className="text-sm font-medium text-red-800">{error}</p>
+            <p className="text-sm font-medium text-red-800">{errorMessage}</p>
             <Button
               variant="outline"
               size="sm"
-              onClick={fetchDoctors}
+              onClick={() => mutate()}
               className="mt-2"
             >
               Retry
@@ -216,7 +226,7 @@ export default function DoctorsPage() {
         )}
 
         {/* Loading State */}
-        {loading && (
+        {isLoading && (
           <div className="flex items-center justify-center py-20">
             <div className="text-center">
               <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-primary-600"></div>
@@ -226,7 +236,7 @@ export default function DoctorsPage() {
         )}
 
         {/* Doctors Grid */}
-        {!loading && !error && (
+        {!isLoading && !errorMessage && (
           <>
             {doctors.length === 0 ? (
               <Card>
@@ -272,7 +282,7 @@ export default function DoctorsPage() {
               <>
                 <div className="mb-6 flex items-center justify-between">
                   <p className="text-sm text-gray-600">
-                    Showing {doctors.length} of {pagination.total} doctors
+                    Showing {doctors.length} of {paginationData.total} doctors
                   </p>
                   {!session && (
                     <Link href="/login">
@@ -344,27 +354,27 @@ export default function DoctorsPage() {
                 </div>
 
                 {/* Pagination */}
-                {pagination.totalPages > 1 && (
+                {paginationData.totalPages > 1 && (
                   <div className="mt-12 flex items-center justify-center gap-2">
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handlePageChange(pagination.page - 1)}
-                      disabled={pagination.page === 1}
+                      onClick={() => handlePageChange(paginationData.page - 1)}
+                      disabled={paginationData.page === 1}
                     >
                       Previous
                     </Button>
                     <div className="flex items-center gap-1">
                       {Array.from(
-                        { length: pagination.totalPages },
+                        { length: paginationData.totalPages },
                         (_, i) => i + 1
                       )
                         .filter(
                           (page) =>
                             page === 1 ||
-                            page === pagination.totalPages ||
-                            (page >= pagination.page - 1 &&
-                              page <= pagination.page + 1)
+                            page === paginationData.totalPages ||
+                            (page >= paginationData.page - 1 &&
+                              page <= paginationData.page + 1)
                         )
                         .map((page, index, array) => (
                           <React.Fragment key={page}>
@@ -373,7 +383,9 @@ export default function DoctorsPage() {
                             )}
                             <Button
                               variant={
-                                page === pagination.page ? "primary" : "outline"
+                                page === paginationData.page
+                                  ? "primary"
+                                  : "outline"
                               }
                               size="sm"
                               onClick={() => handlePageChange(page)}
@@ -386,8 +398,10 @@ export default function DoctorsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handlePageChange(pagination.page + 1)}
-                      disabled={pagination.page >= pagination.totalPages}
+                      onClick={() => handlePageChange(paginationData.page + 1)}
+                      disabled={
+                        paginationData.page >= paginationData.totalPages
+                      }
                     >
                       Next
                     </Button>

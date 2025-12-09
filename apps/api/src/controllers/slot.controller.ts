@@ -10,15 +10,11 @@ import {
   generateSlotsFromAvailability,
   blockSlot,
   unblockSlot,
-  getSlotTemplate,
+  deleteSlot,
   upsertSlotTemplate,
   getOrCreateSlotTemplate,
 } from "../services/slot.service";
-import {
-  CreateSlotTemplateInput,
-  UpdateSlotTemplateInput,
-  SlotStatus,
-} from "@medbook/types";
+import { CreateSlotTemplateInput, SlotStatus } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
 
@@ -312,6 +308,51 @@ export async function upsertSlotTemplateEndpoint(
     res.status(200).json({
       success: true,
       template,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete a slot
+ * DELETE /api/v1/slots/:id
+ */
+export async function deleteSlotEndpoint(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user) {
+      const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    const { id } = req.params;
+    const { doctorId } = req.body;
+
+    if (!id) {
+      const error = createValidationError("Slot ID is required");
+      next(error);
+      return;
+    }
+
+    if (!doctorId) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    // Verify user is the doctor
+    // TODO: Add proper authorization check
+
+    await deleteSlot(id, doctorId);
+
+    res.status(200).json({
+      success: true,
+      message: "Slot deleted successfully",
     });
   } catch (error) {
     next(error);

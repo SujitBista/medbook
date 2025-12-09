@@ -8,6 +8,7 @@ import {
   Availability,
   CreateAvailabilityInput,
   UpdateAvailabilityInput,
+  AppointmentStatus,
 } from "@medbook/types";
 import {
   createNotFoundError,
@@ -508,9 +509,34 @@ export async function updateAvailability(
 }
 
 /**
+ * Counts non-cancelled appointments for slots linked to an availability
+ * @param availabilityId Availability ID
+ * @returns Count of non-cancelled appointments
+ */
+async function countNonCancelledAppointmentsForAvailability(
+  availabilityId: string
+): Promise<number> {
+  const result = await query<{ _count: { id: number } }>((prisma) =>
+    prisma.appointment.aggregate({
+      _count: { id: true },
+      where: {
+        slot: {
+          availabilityId: availabilityId,
+        },
+        status: {
+          not: AppointmentStatus.CANCELLED,
+        },
+      },
+    })
+  );
+
+  return result._count.id;
+}
+
+/**
  * Deletes availability
  * @param availabilityId Availability ID
- * @throws AppError if availability not found
+ * @throws AppError if availability not found or has non-cancelled appointments
  */
 export async function deleteAvailability(
   availabilityId: string
@@ -537,7 +563,25 @@ export async function deleteAvailability(
     throw createNotFoundError("Availability");
   }
 
+  // Check for non-cancelled appointments linked to this availability's slots
+  const appointmentCount =
+    await countNonCancelledAppointmentsForAvailability(availabilityId);
+
+  if (appointmentCount > 0) {
+    throw createConflictError(
+      `Cannot delete schedule: ${appointmentCount} appointment${appointmentCount === 1 ? "" : "s"} exist${appointmentCount === 1 ? "s" : ""} in this period. Cancel or reschedule them first.`
+    );
+  }
+
   try {
+    // Delete associated slots first (they are linked to this availability)
+    await query((prisma) =>
+      prisma.slot.deleteMany({
+        where: { availabilityId: availabilityId },
+      })
+    );
+
+    // Then delete the availability
     await query<{
       id: string;
       doctorId: string;
@@ -555,7 +599,10 @@ export async function deleteAvailability(
       })
     );
 
-    logger.info("Availability deleted", { availabilityId });
+    logger.info("Availability deleted", {
+      availabilityId,
+      doctorId: existingAvailability.doctorId,
+    });
   } catch (error: unknown) {
     // Handle Prisma not found error (P2025)
     if (

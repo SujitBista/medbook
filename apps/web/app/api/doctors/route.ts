@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "application/json",
       },
+      cache: "no-store", // Prevent Next.js caching
     });
 
     const data = await response.json();
@@ -48,7 +49,15 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json(data);
+    // Add cache control headers to prevent browser caching
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control":
+          "no-store, no-cache, must-revalidate, proxy-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[Doctors] Error fetching doctors:", error);
     return NextResponse.json(

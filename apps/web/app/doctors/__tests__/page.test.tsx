@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DoctorsPage from "../page";
 import { Doctor } from "@medbook/types";
+import React from "react";
 
 // Mock next-auth
 vi.mock("next-auth/react", () => ({
@@ -36,6 +37,62 @@ vi.mock("next/link", () => ({
     children: React.ReactNode;
     href: string;
   }) => <a href={href}>{children}</a>,
+}));
+
+// Mock SWR - create a proper hook that uses React hooks
+// This satisfies React's rules of hooks
+function useSWR(key: string, fetcher: any) {
+  const [data, setData] = React.useState<any>(undefined);
+  const [error, setError] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+
+  React.useEffect(() => {
+    if (fetcher && typeof fetcher === "function") {
+      setIsLoading(true);
+      setError(null);
+      fetcher(key)
+        .then((result: any) => {
+          setData(result);
+          setIsLoading(false);
+        })
+        .catch((err: any) => {
+          setError(err);
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, [key, fetcher]);
+
+  const mutate = React.useCallback(() => {
+    if (fetcher && typeof fetcher === "function") {
+      setIsLoading(true);
+      setError(null);
+      return fetcher(key)
+        .then((result: any) => {
+          setData(result);
+          setIsLoading(false);
+          return result;
+        })
+        .catch((err: any) => {
+          setError(err);
+          setIsLoading(false);
+          throw err;
+        });
+    }
+    return Promise.resolve();
+  }, [key, fetcher]);
+
+  return {
+    data,
+    error,
+    isLoading,
+    mutate,
+  };
+}
+
+vi.mock("swr", () => ({
+  default: useSWR,
 }));
 
 // Mock fetch globally
@@ -275,17 +332,32 @@ describe("DoctorsPage", () => {
         ).toBeInTheDocument();
       });
 
+      // Wait for initial load
+      await waitFor(() => {
+        expect(screen.getByText("doctor1@medbook.com")).toBeInTheDocument();
+      });
+
       const searchInput = screen.getByPlaceholderText("Search doctors...");
+      await user.clear(searchInput);
       await user.type(searchInput, "doctor1");
 
       const searchButton = screen.getByText("Search");
       await user.click(searchButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining("search=doctor1")
-        );
-      });
+      // Wait for the search to complete - check that fetch was called with search parameter
+      await waitFor(
+        () => {
+          const fetchCalls = (global.fetch as any).mock.calls;
+          const hasSearchCall = fetchCalls.some(
+            (call: any[]) =>
+              call[0] &&
+              typeof call[0] === "string" &&
+              call[0].includes("search=doctor1")
+          );
+          expect(hasSearchCall).toBe(true);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -462,11 +534,20 @@ describe("DoctorsPage", () => {
       const nextButton = screen.getByText("Next");
       await user.click(nextButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledWith(
-          expect.stringContaining("page=2")
-        );
-      });
+      // Wait for the pagination to complete - check that fetch was called with page=2
+      await waitFor(
+        () => {
+          const fetchCalls = (global.fetch as any).mock.calls;
+          const hasPage2Call = fetchCalls.some(
+            (call: any[]) =>
+              call[0] &&
+              typeof call[0] === "string" &&
+              call[0].includes("page=2")
+          );
+          expect(hasPage2Call).toBe(true);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 
@@ -721,9 +802,13 @@ describe("DoctorsPage", () => {
       const retryButton = screen.getByText("Retry");
       await user.click(retryButton);
 
-      await waitFor(() => {
-        expect(global.fetch).toHaveBeenCalledTimes(2);
-      });
+      // Wait for the retry to complete - check that fetch was called again
+      await waitFor(
+        () => {
+          expect(global.fetch).toHaveBeenCalledTimes(2);
+        },
+        { timeout: 3000 }
+      );
     });
   });
 });

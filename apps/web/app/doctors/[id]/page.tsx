@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
@@ -18,6 +18,7 @@ import {
 } from "@/components/features/appointment";
 import { Slot, SlotStatus } from "@medbook/types";
 import Link from "next/link";
+import useSWR from "swr";
 
 interface DoctorResponse {
   success: boolean;
@@ -48,87 +49,145 @@ interface AppointmentCreateResponse {
   };
 }
 
+// Fetcher function for doctor data
+const fetchDoctor = async (url: string): Promise<Doctor> => {
+  console.log("[DoctorDetail] Fetching doctor:", url);
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch doctor details");
+  }
+
+  const data: DoctorResponse = await response.json();
+
+  if (!data.success || !data.doctor) {
+    throw new Error("Doctor not found");
+  }
+
+  return data.doctor;
+};
+
+// Fetcher function for slots
+const fetchSlots = async (url: string): Promise<TimeSlot[]> => {
+  console.log("[DoctorDetail] Fetching slots:", url);
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    console.warn(
+      "[DoctorDetail] Failed to fetch slots:",
+      response.status,
+      response.statusText
+    );
+    return [];
+  }
+
+  const data: SlotsResponse = await response.json();
+
+  if (!data.success) {
+    console.warn("[DoctorDetail] Slots response not successful:", data);
+    return [];
+  }
+
+  if (!data.slots || data.slots.length === 0) {
+    console.log("[DoctorDetail] No slots returned from API");
+    return [];
+  }
+
+  console.log("[DoctorDetail] Received slots from API:", data.slots.length);
+
+  // Convert backend Slot[] to TimeSlot[]
+  // Filter to only include future slots (use >= to include slots starting now)
+  const now = new Date();
+  const timeSlots = data.slots
+    .filter((slot) => {
+      const slotStart = new Date(slot.startTime);
+      const isFuture = slotStart >= now;
+      if (!isFuture) {
+        console.log(
+          "[DoctorDetail] Filtered out past slot:",
+          slotStart.toISOString()
+        );
+      }
+      return isFuture;
+    })
+    .map((slot) => ({
+      id: slot.id,
+      startTime: new Date(slot.startTime),
+      endTime: new Date(slot.endTime),
+      availabilityId: slot.availabilityId,
+      status: slot.status,
+    }));
+
+  console.log("[DoctorDetail] Filtered time slots:", timeSlots.length);
+  return timeSlots;
+};
+
 export default function DoctorDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
   const doctorId = params.id as string;
 
-  const [doctor, setDoctor] = useState<Doctor | null>(null);
-  const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [booking, setBooking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [bookedAppointment, setBookedAppointment] =
     useState<Appointment | null>(null);
 
-  // Fetch doctor details and slots
-  useEffect(() => {
-    if (doctorId) {
-      fetchDoctorData();
-    }
+  // Build slots API URL
+  const slotsUrl = useMemo(() => {
+    if (!doctorId) return null;
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() + 30);
+
+    const params = new URLSearchParams();
+    params.append("startDate", startDate.toISOString());
+    params.append("endDate", endDate.toISOString());
+    params.append("status", SlotStatus.AVAILABLE);
+
+    return `/api/slots/doctor/${doctorId}?${params.toString()}`;
   }, [doctorId]);
 
-  const fetchDoctorData = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch doctor details
-      const doctorResponse = await fetch(`/api/doctors/${doctorId}`);
-      if (!doctorResponse.ok) {
-        throw new Error("Failed to fetch doctor details");
-      }
-      const doctorData: DoctorResponse = await doctorResponse.json();
-      if (!doctorData.success || !doctorData.doctor) {
-        throw new Error("Doctor not found");
-      }
-      setDoctor(doctorData.doctor);
-
-      // Fetch available slots from backend Slot API
-      // Get slots for next 30 days, only AVAILABLE status
-      const startDate = new Date();
-      const endDate = new Date();
-      endDate.setDate(endDate.getDate() + 30);
-
-      const params = new URLSearchParams();
-      params.append("startDate", startDate.toISOString());
-      params.append("endDate", endDate.toISOString());
-      params.append("status", SlotStatus.AVAILABLE);
-
-      const slotsResponse = await fetch(
-        `/api/slots/doctor/${doctorId}?${params.toString()}`
-      );
-      if (slotsResponse.ok) {
-        const slotsData: SlotsResponse = await slotsResponse.json();
-        if (slotsData.success && slotsData.slots) {
-          // Convert backend Slot[] to TimeSlot[]
-          const timeSlots: TimeSlot[] = slotsData.slots.map((slot) => ({
-            id: slot.id,
-            startTime: new Date(slot.startTime),
-            endTime: new Date(slot.endTime),
-            availabilityId: slot.availabilityId,
-            status: slot.status,
-          }));
-          setAvailableSlots(timeSlots);
-        }
-      } else {
-        console.warn("[DoctorDetail] Failed to fetch slots, using empty array");
-        setAvailableSlots([]);
-      }
-    } catch (err) {
-      console.error("[DoctorDetail] Error fetching data:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to load doctor information. Please try again."
-      );
-    } finally {
-      setLoading(false);
+  // Use SWR for doctor data
+  const {
+    data: doctor,
+    error: doctorError,
+    isLoading: doctorLoading,
+  } = useSWR<Doctor>(
+    doctorId ? `/api/doctors/${doctorId}` : null,
+    fetchDoctor,
+    {
+      revalidateOnFocus: true,
+      revalidateIfStale: true,
+      revalidateOnReconnect: true,
     }
-  };
+  );
+
+  // Use SWR for slots
+  const {
+    data: availableSlots = [],
+    error: slotsError,
+    isLoading: slotsLoading,
+    mutate: mutateSlots,
+  } = useSWR<TimeSlot[]>(slotsUrl, fetchSlots, {
+    revalidateOnFocus: true,
+    revalidateIfStale: true,
+    revalidateOnReconnect: true,
+    // Refresh interval: check for new slots every 30 seconds
+    refreshInterval: 30000,
+  });
+
+  // Combined loading state
+  const loading = doctorLoading || slotsLoading;
+
+  // Combined error state
+  const fetchError = doctorError || slotsError;
 
   const handleSlotSelect = (slot: TimeSlot) => {
     setSelectedSlot(slot);
@@ -177,8 +236,8 @@ export default function DoctorDetailPage() {
       setShowBookingForm(false);
       setSelectedSlot(null);
 
-      // Refresh data to update available slots
-      await fetchDoctorData();
+      // Refresh slots to update available slots
+      await mutateSlots();
     } catch (err) {
       console.error("[DoctorDetail] Error booking appointment:", err);
       setError(
@@ -208,14 +267,29 @@ export default function DoctorDetailPage() {
     );
   }
 
-  if (error && !doctor) {
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+          <p className="mt-4 text-gray-600">Loading doctor information...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (fetchError && !doctor) {
     return (
       <div className="container mx-auto px-4 py-8">
         <Card>
           <div className="text-center py-8">
-            <p className="text-red-600 mb-4">{error}</p>
-            <Link href="/dashboard">
-              <Button variant="primary">Back to Dashboard</Button>
+            <p className="text-red-600 mb-4">
+              {fetchError instanceof Error
+                ? fetchError.message
+                : "Failed to load doctor information. Please try again."}
+            </p>
+            <Link href="/doctors">
+              <Button variant="primary">Back to Doctors</Button>
             </Link>
           </div>
         </Card>
@@ -229,8 +303,8 @@ export default function DoctorDetailPage() {
         <Card>
           <div className="text-center py-8">
             <p className="text-gray-600">Doctor not found</p>
-            <Link href="/dashboard" className="mt-4 inline-block">
-              <Button variant="primary">Back to Dashboard</Button>
+            <Link href="/doctors" className="mt-4 inline-block">
+              <Button variant="primary">Back to Doctors</Button>
             </Link>
           </div>
         </Card>
@@ -296,19 +370,45 @@ export default function DoctorDetailPage() {
             />
           ) : !showBookingForm ? (
             <Card title="Available Time Slots">
-              {!loading && availableSlots.length === 0 ? (
+              {availableSlots.length === 0 ? (
                 <div className="text-center py-12">
-                  <p className="text-gray-600 mb-2">
-                    No available time slots found for this doctor.
+                  <div className="mx-auto w-16 h-16 mb-4 text-gray-300">
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      strokeWidth={1.5}
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-gray-600 font-medium mb-2">
+                    No Available Time Slots
                   </p>
-                  <p className="text-sm text-gray-500 mb-6">
-                    Please check back later or contact the doctor directly.
+                  <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">
+                    This doctor currently has no available appointment slots.
+                    Please check back later or browse other doctors.
                   </p>
-                  <Link href="/doctors">
-                    <Button variant="ghost" size="sm">
-                      ← Back to Doctors
+                  <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => mutateSlots()}
+                      disabled={slotsLoading}
+                    >
+                      {slotsLoading ? "Refreshing..." : "Refresh Slots"}
                     </Button>
-                  </Link>
+                    <Link href="/doctors">
+                      <Button variant="ghost" size="sm">
+                        ← Browse Other Doctors
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               ) : (
                 <>
@@ -316,7 +416,7 @@ export default function DoctorDetailPage() {
                     slots={availableSlots}
                     selectedSlot={selectedSlot}
                     onSelectSlot={handleSlotSelect}
-                    loading={loading}
+                    loading={slotsLoading}
                   />
                   {selectedSlot && (
                     <div className="mt-6">

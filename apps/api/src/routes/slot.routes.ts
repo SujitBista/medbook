@@ -11,6 +11,7 @@ import {
   generateSlots,
   blockSlotEndpoint,
   unblockSlotEndpoint,
+  deleteSlotEndpoint,
   getSlotTemplateEndpoint,
   upsertSlotTemplateEndpoint,
 } from "../controllers/slot.controller";
@@ -62,5 +63,12 @@ router.post("/:id/block", blockSlotEndpoint);
  * Unblock a slot (requires authentication)
  */
 router.delete("/:id/block", unblockSlotEndpoint);
+
+/**
+ * DELETE /api/v1/slots/:id
+ * Delete a slot (requires authentication)
+ * Will fail if there are non-cancelled appointments for this slot
+ */
+router.delete("/:id", deleteSlotEndpoint);
 
 export default router;

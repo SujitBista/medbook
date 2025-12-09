@@ -129,9 +129,14 @@ export default function AvailabilityManagementPage() {
       const params = new URLSearchParams({ doctorId: doctorData.doctor.id });
       if (filterStartDate) params.append("startDate", filterStartDate);
       if (filterEndDate) params.append("endDate", filterEndDate);
+      // Add timestamp to prevent browser caching
+      params.append("_t", Date.now().toString());
 
       const availResponse = await fetch(
-        `/api/availability?${params.toString()}`
+        `/api/availability?${params.toString()}`,
+        {
+          cache: "no-store", // Always fetch fresh data
+        }
       );
       if (!availResponse.ok) {
         throw new Error("Failed to fetch availabilities");

@@ -1,8 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
-import { AppError, isAppError } from '../utils/errors';
-import { createErrorResponse } from '../utils';
-import { logger } from '../utils/logger';
-import { isDevelopment } from '../config/env';
+import { Request, Response, NextFunction } from "express";
+import { AppError, isAppError } from "../utils/errors";
+import { createErrorResponse } from "../utils";
+import { logger } from "../utils/logger";
+import { isDevelopment } from "../config/env";
 
 /**
  * Handles 404 Not Found for unmatched routes
@@ -14,7 +14,7 @@ export function notFoundHandler(
   next: NextFunction
 ): void {
   const error: AppError = {
-    code: 'NOT_FOUND',
+    code: "NOT_FOUND",
     message: `Route ${req.method} ${req.originalUrl} not found`,
     statusCode: 404,
   };
@@ -29,11 +29,11 @@ export function errorHandler(
   err: unknown,
   req: Request,
   res: Response,
-  next: NextFunction
+  _next: NextFunction
 ): void {
   // Log the error
   if (err instanceof Error) {
-    logger.error('Error occurred:', {
+    logger.error("Error occurred:", {
       message: err.message,
       stack: err.stack,
       url: req.originalUrl,
@@ -41,7 +41,7 @@ export function errorHandler(
       ip: req.ip,
     });
   } else {
-    logger.error('Error occurred:', {
+    logger.error("Error occurred:", {
       error: err,
       url: req.originalUrl,
       method: req.method,
@@ -63,10 +63,10 @@ export function errorHandler(
   }
 
   // Handle Express JSON parsing errors
-  if (err instanceof SyntaxError && 'body' in err) {
+  if (err instanceof SyntaxError && "body" in err) {
     const response = createErrorResponse(
-      'INVALID_JSON',
-      'Invalid JSON in request body',
+      "INVALID_JSON",
+      "Invalid JSON in request body",
       isDevelopment ? { originalError: err.message } : undefined
     );
     res.status(400).json(response);
@@ -76,8 +76,8 @@ export function errorHandler(
   // Handle standard Error instances
   if (err instanceof Error) {
     const response = createErrorResponse(
-      'INTERNAL_SERVER_ERROR',
-      'An unexpected error occurred',
+      "INTERNAL_SERVER_ERROR",
+      "An unexpected error occurred",
       isDevelopment
         ? {
             message: err.message,
@@ -92,11 +92,10 @@ export function errorHandler(
 
   // Handle unknown error types
   const response = createErrorResponse(
-    'INTERNAL_SERVER_ERROR',
-    'An unexpected error occurred',
+    "INTERNAL_SERVER_ERROR",
+    "An unexpected error occurred",
     isDevelopment ? { error: err } : undefined
   );
 
   res.status(500).json(response);
 }
-
