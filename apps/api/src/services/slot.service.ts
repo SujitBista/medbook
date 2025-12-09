@@ -322,7 +322,7 @@ function generateRecurringSlots(
   const endMin = availEnd.getMinutes();
 
   // Iterate through each occurrence of the day
-  let currentDate = new Date(validFrom);
+  const currentDate = new Date(validFrom);
   currentDate.setHours(0, 0, 0, 0);
 
   while (currentDate <= validTo) {

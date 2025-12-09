@@ -3,14 +3,14 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from "vitest";
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import {
   authenticate,
   requireRole,
   AuthenticatedRequest,
 } from "./auth.middleware";
 import { UserRole } from "@medbook/types";
-import { createTestToken, createAuthHeaders } from "../__tests__/helpers";
+import { createTestToken } from "../__tests__/helpers";
 
 describe("authenticate middleware", () => {
   let mockRequest: Partial<AuthenticatedRequest>;

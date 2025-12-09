@@ -11,6 +11,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import DoctorsPage from "../page";
 import { Doctor } from "@medbook/types";
+import React from "react";
 
 // Mock next-auth
 vi.mock("next-auth/react", () => ({
@@ -38,66 +39,61 @@ vi.mock("next/link", () => ({
   }) => <a href={href}>{children}</a>,
 }));
 
-// Mock SWR - make it work with our fetch mocks
-vi.mock("swr", () => {
-  const React = require("react");
-  return {
-    default: (key: string, fetcher: any) => {
-      const [data, setData] = React.useState<any>(undefined);
-      const [error, setError] = React.useState<any>(null);
-      const [isLoading, setIsLoading] = React.useState(true);
+// Mock SWR - create a proper hook that uses React hooks
+// This satisfies React's rules of hooks
+function useSWR(key: string, fetcher: any) {
+  const [data, setData] = React.useState<any>(undefined);
+  const [error, setError] = React.useState<any>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-      // Always re-fetch when key changes
-      React.useEffect(() => {
-        if (fetcher && typeof fetcher === "function") {
-          setIsLoading(true);
-          setError(null);
-          // Call the fetcher - it will use our mocked fetch
-          fetcher(key)
-            .then((result: any) => {
-              setData(result);
-              setIsLoading(false);
-            })
-            .catch((err: any) => {
-              setError(err);
-              setIsLoading(false);
-            });
-        } else {
+  React.useEffect(() => {
+    if (fetcher && typeof fetcher === "function") {
+      setIsLoading(true);
+      setError(null);
+      fetcher(key)
+        .then((result: any) => {
+          setData(result);
           setIsLoading(false);
-        }
-      }, [key, fetcher]);
+        })
+        .catch((err: any) => {
+          setError(err);
+          setIsLoading(false);
+        });
+    } else {
+      setIsLoading(false);
+    }
+  }, [key, fetcher]);
 
-      // Create a mutate function that can trigger re-fetch
-      const mutateFn = React.useCallback(() => {
-        if (fetcher && typeof fetcher === "function") {
-          setIsLoading(true);
-          setError(null);
-          // Call fetcher directly - this will use our mocked fetch
-          const promise = fetcher(key)
-            .then((result: any) => {
-              setData(result);
-              setIsLoading(false);
-              return result;
-            })
-            .catch((err: any) => {
-              setError(err);
-              setIsLoading(false);
-              throw err;
-            });
-          return promise;
-        }
-        return Promise.resolve();
-      }, [key, fetcher]);
+  const mutate = React.useCallback(() => {
+    if (fetcher && typeof fetcher === "function") {
+      setIsLoading(true);
+      setError(null);
+      return fetcher(key)
+        .then((result: any) => {
+          setData(result);
+          setIsLoading(false);
+          return result;
+        })
+        .catch((err: any) => {
+          setError(err);
+          setIsLoading(false);
+          throw err;
+        });
+    }
+    return Promise.resolve();
+  }, [key, fetcher]);
 
-      return {
-        data,
-        error,
-        isLoading,
-        mutate: mutateFn,
-      };
-    },
+  return {
+    data,
+    error,
+    isLoading,
+    mutate,
   };
-});
+}
+
+vi.mock("swr", () => ({
+  default: useSWR,
+}));
 
 // Mock fetch globally
 global.fetch = vi.fn();

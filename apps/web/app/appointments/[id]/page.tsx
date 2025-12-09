@@ -148,8 +148,16 @@ export default function AppointmentDetailPage() {
 
     try {
       setLoadingSlots(true);
+      // Add timestamp to prevent browser caching and use no-store
+      const params = new URLSearchParams();
+      params.append("status", SlotStatus.AVAILABLE);
+      params.append("_t", Date.now().toString());
+
       const response = await fetch(
-        `/api/slots/doctor/${appointment.doctorId}?status=${SlotStatus.AVAILABLE}`
+        `/api/slots/doctor/${appointment.doctorId}?${params.toString()}`,
+        {
+          cache: "no-store", // Always fetch fresh slot data
+        }
       );
       const data: SlotsResponse = await response.json();
 
@@ -161,9 +169,12 @@ export default function AppointmentDetailPage() {
             slot.id !== appointment.slotId
         );
         setAvailableSlots(futureSlots);
+      } else {
+        setAvailableSlots([]);
       }
     } catch (err) {
       console.error("[AppointmentDetail] Error fetching slots:", err);
+      setAvailableSlots([]);
     } finally {
       setLoadingSlots(false);
     }

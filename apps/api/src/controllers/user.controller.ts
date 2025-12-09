@@ -3,7 +3,7 @@
  * Handles HTTP requests for user profile endpoints
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import {
   getUserProfile,
   updateUserProfile,

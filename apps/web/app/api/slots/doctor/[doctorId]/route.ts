@@ -6,10 +6,17 @@
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 
+// Disable caching for this route - slots must always be fresh
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 /**
  * GET /api/slots/doctor/[doctorId]
  * Get slots by doctor ID (public endpoint - no authentication required)
  * Query params: startDate, endDate, status (optional)
+ *
+ * Always returns fresh data from the backend to ensure deleted
+ * availabilities/slots don't appear as "ghost slots"
  */
 export async function GET(
   req: NextRequest,
@@ -39,6 +46,7 @@ export async function GET(
     if (status) queryParams.append("status", status);
 
     // Call backend API (public endpoint, no auth required)
+    // Use cache: 'no-store' to ensure fresh data on every request
     const queryString = queryParams.toString();
     const url = `${env.apiUrl}/slots/doctor/${doctorId}${
       queryString ? `?${queryString}` : ""
@@ -50,6 +58,7 @@ export async function GET(
       headers: {
         "Content-Type": "application/json",
       },
+      cache: "no-store", // Always fetch fresh data
     });
 
     const data = await response.json();
@@ -58,7 +67,14 @@ export async function GET(
       return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json(data);
+    // Return with cache-control headers to prevent browser caching
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[Slots] Error fetching slots:", error);
     return NextResponse.json(

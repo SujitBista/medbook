@@ -259,7 +259,6 @@ describe("POST /api/v1/admin/doctors", () => {
 
     // Use a valid email format (email validation happens before normalization)
     const emailBase = `TEST-DOCTOR-${Date.now()}@EXAMPLE.COM`;
-    const email = `  ${emailBase}  `;
     const password = "ValidPass123!";
 
     const response = await agent
@@ -514,9 +513,6 @@ describe("GET /api/v1/admin/doctors", () => {
     expect(found.specialization).toBe("Cardiology");
 
     // Neurology doctor should not be in results (or might be if case-insensitive)
-    const notFound = response.body.data.find(
-      (d: { id: string }) => d.id === doctor2.id
-    );
     // If found, it means the filter is case-insensitive which is fine
   });
 

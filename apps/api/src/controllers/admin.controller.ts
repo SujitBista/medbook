@@ -3,7 +3,7 @@
  * Handles HTTP requests for admin-only endpoints
  */
 
-import { Request, Response, NextFunction } from "express";
+import { Response, NextFunction } from "express";
 import {
   getAllUsers,
   getUserById,
@@ -24,7 +24,6 @@ import {
 import { UpdateDoctorInput } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
-import { UserRole } from "@medbook/types";
 
 /**
  * Get all users (admin only)

@@ -52,6 +52,7 @@ export async function GET(req: NextRequest) {
       headers: {
         "Content-Type": "application/json",
       },
+      cache: "no-store", // Always fetch fresh data
     });
 
     const data = await response.json();
@@ -60,7 +61,14 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json(data);
+    // Return with cache-control headers to prevent browser caching
+    return NextResponse.json(data, {
+      headers: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    });
   } catch (error) {
     console.error("[Availability] Error fetching availabilities:", error);
     return NextResponse.json(
