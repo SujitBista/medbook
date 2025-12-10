@@ -12,6 +12,7 @@ import {
 } from "@medbook/types";
 import { Button, Input, Card } from "@medbook/ui";
 import { TimePicker } from "@/components/forms/TimePicker";
+import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationModal";
 
 // Mark this page as dynamic to prevent pre-rendering
 export const dynamic = "force-dynamic";
@@ -1919,7 +1920,7 @@ function AdminDashboardContent() {
       {/* Manage Doctor Tab */}
       {activeTab === "manage-doctor" && (
         <div className="space-y-8">
-          {/* Doctor Registration Form */}
+          {/* Doctor Registration */}
           <div className="rounded-lg bg-white shadow">
             <div className="border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
@@ -1927,157 +1928,13 @@ function AdminDashboardContent() {
                   Doctor Registration
                 </h2>
                 <Button
-                  variant={showDoctorForm ? "outline" : "primary"}
-                  onClick={() => {
-                    setShowDoctorForm(!showDoctorForm);
-                    setDoctorFormErrors({});
-                    setError(null);
-                    if (!showDoctorForm) {
-                      setDoctorFormData({
-                        email: "",
-                        password: "",
-                        confirmPassword: "",
-                        specialization: "",
-                        bio: "",
-                      });
-                    }
-                  }}
+                  variant="primary"
+                  onClick={() => setShowDoctorForm(true)}
                 >
-                  {showDoctorForm ? "Cancel" : "Register New Doctor"}
+                  Register New Doctor
                 </Button>
               </div>
             </div>
-            {showDoctorForm && (
-              <div className="px-6 py-4">
-                <form onSubmit={handleDoctorFormSubmit} className="space-y-4">
-                  <div>
-                    <label
-                      htmlFor="email"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Email <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="email"
-                      id="email"
-                      name="email"
-                      value={doctorFormData.email}
-                      onChange={handleDoctorFormChange}
-                      required
-                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                        doctorFormErrors.email
-                          ? "border-red-500"
-                          : "border-gray-300"
-                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                    />
-                    {doctorFormErrors.email && (
-                      <p className="mt-1 text-sm text-red-600">
-                        {doctorFormErrors.email}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Input
-                      label="Password"
-                      type="password"
-                      id="password"
-                      name="password"
-                      value={doctorFormData.password}
-                      onChange={handleDoctorFormChange}
-                      required
-                      error={doctorFormErrors.password}
-                      disabled={doctorFormLoading}
-                      autoComplete="new-password"
-                    />
-                    <p className="mt-1 text-xs text-gray-500">
-                      Password must be at least 8 characters long and contain at
-                      least one uppercase letter, one lowercase letter, and one
-                      number.
-                    </p>
-                  </div>
-
-                  <div>
-                    <Input
-                      label="Confirm Password"
-                      type="password"
-                      id="confirmPassword"
-                      name="confirmPassword"
-                      value={doctorFormData.confirmPassword}
-                      onChange={handleDoctorFormChange}
-                      required
-                      error={doctorFormErrors.confirmPassword}
-                      disabled={doctorFormLoading}
-                      autoComplete="new-password"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="specialization"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Specialization
-                    </label>
-                    <input
-                      type="text"
-                      id="specialization"
-                      name="specialization"
-                      value={doctorFormData.specialization}
-                      onChange={handleDoctorFormChange}
-                      placeholder="e.g., Cardiology, Pediatrics"
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label
-                      htmlFor="bio"
-                      className="block text-sm font-medium text-gray-700"
-                    >
-                      Bio
-                    </label>
-                    <textarea
-                      id="bio"
-                      name="bio"
-                      value={doctorFormData.bio}
-                      onChange={handleDoctorFormChange}
-                      rows={3}
-                      placeholder="Doctor's bio or description"
-                      className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                    />
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      type="submit"
-                      variant="primary"
-                      disabled={doctorFormLoading}
-                    >
-                      {doctorFormLoading ? "Registering..." : "Register Doctor"}
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => {
-                        setShowDoctorForm(false);
-                        setDoctorFormData({
-                          email: "",
-                          password: "",
-                          confirmPassword: "",
-                          specialization: "",
-                          bio: "",
-                        });
-                        setDoctorFormErrors({});
-                      }}
-                      disabled={doctorFormLoading}
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </form>
-              </div>
-            )}
           </div>
 
           {/* Doctor Management Section */}
@@ -4546,6 +4403,25 @@ function AdminDashboardContent() {
           )}
         </div>
       )}
+
+      {/* Doctor Registration Modal */}
+      <DoctorRegistrationModal
+        isOpen={showDoctorForm}
+        onClose={() => {
+          setShowDoctorForm(false);
+          setDoctorFormErrors({});
+          setError(null);
+        }}
+        onSuccess={async () => {
+          await fetchDoctors();
+          await fetchDoctorStats();
+          await fetchData();
+          setSuccessMessage("Doctor registered successfully!");
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 5000);
+        }}
+      />
     </div>
   );
 }

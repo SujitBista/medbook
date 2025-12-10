@@ -58,6 +58,9 @@ export function DoctorRegistrationModal({
 
   const [errors, setErrors] = useState<FormErrors>({});
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -73,6 +76,94 @@ export function DoctorRegistrationModal({
         delete newErrors[name];
         return newErrors;
       });
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setErrors((prev) => ({
+        ...prev,
+        profilePicture: "Please select a valid image file (JPEG, PNG, or WebP)",
+      }));
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setErrors((prev) => ({
+        ...prev,
+        profilePicture: "File size must be less than 5MB",
+      }));
+      return;
+    }
+
+    // Clear previous errors
+    setErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors.profilePicture;
+      return newErrors;
+    });
+
+    // Set file and create preview
+    setSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedFile(null);
+    setImagePreview(null);
+    setFormData((prev) => ({ ...prev, profilePictureUrl: "" }));
+    // Reset file input
+    const fileInput = document.getElementById(
+      "profilePicture"
+    ) as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
+
+  const uploadImage = async (): Promise<string | null> => {
+    if (!selectedFile) {
+      return formData.profilePictureUrl || null;
+    }
+
+    setUploadingImage(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", selectedFile);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to upload image");
+      }
+
+      return data.data.url;
+    } catch (err) {
+      console.error("[DoctorRegistrationModal] Error uploading image:", err);
+      setErrors((prev) => ({
+        ...prev,
+        profilePicture:
+          err instanceof Error ? err.message : "Failed to upload image",
+      }));
+      return null;
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -127,6 +218,17 @@ export function DoctorRegistrationModal({
     setErrors({});
 
     try {
+      // Upload image first if a file is selected
+      let profilePictureUrl = formData.profilePictureUrl;
+      if (selectedFile) {
+        const uploadedUrl = await uploadImage();
+        if (!uploadedUrl) {
+          setIsLoading(false);
+          return; // Error already set in uploadImage
+        }
+        profilePictureUrl = uploadedUrl;
+      }
+
       const response = await fetch("/api/admin/doctors", {
         method: "POST",
         headers: {
@@ -149,7 +251,7 @@ export function DoctorRegistrationModal({
             ? parseInt(formData.yearsOfExperience, 10)
             : undefined,
           education: formData.education || undefined,
-          profilePictureUrl: formData.profilePictureUrl || undefined,
+          profilePictureUrl: profilePictureUrl || undefined,
         }),
       });
 
@@ -183,6 +285,8 @@ export function DoctorRegistrationModal({
         education: "",
         profilePictureUrl: "",
       });
+      setSelectedFile(null);
+      setImagePreview(null);
 
       onSuccess();
       onClose();
@@ -377,19 +481,98 @@ export function DoctorRegistrationModal({
                   disabled={isLoading}
                 />
               </div>
-              <div>
+              <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Profile Picture URL
+                  Profile Picture
                 </label>
-                <input
-                  type="url"
-                  name="profilePictureUrl"
-                  value={formData.profilePictureUrl}
-                  onChange={handleChange}
-                  placeholder="https://example.com/photo.jpg"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                  disabled={isLoading}
-                />
+                <div className="space-y-3">
+                  {imagePreview ? (
+                    <div className="relative inline-block">
+                      <img
+                        src={imagePreview}
+                        alt="Profile preview"
+                        className="h-32 w-32 rounded-lg object-cover border-2 border-gray-300"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleRemoveImage}
+                        className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                        disabled={isLoading || uploadingImage}
+                      >
+                        <svg
+                          className="w-4 h-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-4">
+                      <label
+                        htmlFor="profilePicture"
+                        className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <svg
+                          className="w-5 h-5 text-gray-500"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                          />
+                        </svg>
+                        <span className="text-sm text-gray-700">
+                          {uploadingImage ? "Uploading..." : "Choose Image"}
+                        </span>
+                      </label>
+                      <input
+                        id="profilePicture"
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleFileChange}
+                        className="hidden"
+                        disabled={isLoading || uploadingImage}
+                      />
+                      <p className="text-xs text-gray-500">
+                        JPEG, PNG, or WebP (max 5MB)
+                      </p>
+                    </div>
+                  )}
+                  {errors.profilePicture && (
+                    <p className="text-sm text-red-600">
+                      {errors.profilePicture}
+                    </p>
+                  )}
+                  {/* Fallback: Allow URL input if no file is selected */}
+                  {!imagePreview && (
+                    <div className="mt-2">
+                      <label className="block text-xs text-gray-500 mb-1">
+                        Or enter image URL:
+                      </label>
+                      <input
+                        type="url"
+                        name="profilePictureUrl"
+                        value={formData.profilePictureUrl}
+                        onChange={handleChange}
+                        placeholder="https://example.com/photo.jpg"
+                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                        disabled={isLoading || uploadingImage}
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
             <div className="mt-4">
@@ -487,8 +670,16 @@ export function DoctorRegistrationModal({
             >
               Cancel
             </Button>
-            <Button type="submit" variant="primary" disabled={isLoading}>
-              {isLoading ? "Registering..." : "Register Doctor"}
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isLoading || uploadingImage}
+            >
+              {isLoading || uploadingImage
+                ? uploadingImage
+                  ? "Uploading Image..."
+                  : "Registering..."
+                : "Register Doctor"}
             </Button>
           </div>
         </form>

@@ -186,6 +186,9 @@ export async function getAllDoctors(options?: {
               id: true;
               email: true;
               role: true;
+              firstName: true;
+              lastName: true;
+              phoneNumber: true;
             };
           };
         };
@@ -201,6 +204,9 @@ export async function getAllDoctors(options?: {
               id: true,
               email: true,
               role: true,
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
             },
           },
         },
@@ -218,10 +224,21 @@ export async function getAllDoctors(options?: {
       userId: doctor.userId,
       specialization: doctor.specialization ?? undefined,
       bio: doctor.bio ?? undefined,
+      licenseNumber: doctor.licenseNumber ?? undefined,
+      address: doctor.address ?? undefined,
+      city: doctor.city ?? undefined,
+      state: doctor.state ?? undefined,
+      zipCode: doctor.zipCode ?? undefined,
+      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+      education: doctor.education ?? undefined,
+      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
       createdAt: doctor.createdAt,
       updatedAt: doctor.updatedAt,
-      // Include user email for display purposes
+      // Include user fields for display purposes
       userEmail: doctor.user?.email,
+      userFirstName: doctor.user?.firstName ?? undefined,
+      userLastName: doctor.user?.lastName ?? undefined,
+      userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
     })),
     pagination: {
       page,
@@ -239,18 +256,36 @@ export async function getAllDoctors(options?: {
  * @throws AppError if user not found, user is not a doctor, or doctor already exists
  */
 export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
-  const { userId, specialization, bio } = input;
+  const {
+    userId,
+    specialization,
+    bio,
+    licenseNumber,
+    address,
+    city,
+    state,
+    zipCode,
+    yearsOfExperience,
+    education,
+    profilePictureUrl,
+  } = input;
 
   // Verify user exists and has DOCTOR role
   const user = await query<{
     id: string;
     role: PrismaUserRole;
+    firstName: string | null;
+    lastName: string | null;
+    phoneNumber: string | null;
   } | null>((prisma) =>
     prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
         role: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
       },
     })
   );
@@ -303,6 +338,14 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
           userId,
           specialization: specialization?.trim() || null,
           bio: bio?.trim() || null,
+          licenseNumber: licenseNumber?.trim() || null,
+          address: address?.trim() || null,
+          city: city?.trim() || null,
+          state: state?.trim() || null,
+          zipCode: zipCode?.trim() || null,
+          yearsOfExperience: yearsOfExperience || null,
+          education: education?.trim() || null,
+          profilePictureUrl: profilePictureUrl?.trim() || null,
         },
         include: {
           user: {
@@ -323,6 +366,14 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
       userId: doctor.userId,
       specialization: doctor.specialization ?? undefined,
       bio: doctor.bio ?? undefined,
+      licenseNumber: doctor.licenseNumber ?? undefined,
+      address: doctor.address ?? undefined,
+      city: doctor.city ?? undefined,
+      state: doctor.state ?? undefined,
+      zipCode: doctor.zipCode ?? undefined,
+      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+      education: doctor.education ?? undefined,
+      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
       createdAt: doctor.createdAt,
       updatedAt: doctor.updatedAt,
     };
@@ -351,7 +402,18 @@ export async function updateDoctor(
   doctorId: string,
   input: UpdateDoctorInput
 ): Promise<Doctor> {
-  const { specialization, bio } = input;
+  const {
+    specialization,
+    bio,
+    licenseNumber,
+    address,
+    city,
+    state,
+    zipCode,
+    yearsOfExperience,
+    education,
+    profilePictureUrl,
+  } = input;
 
   // Check if doctor exists
   const existingDoctor = await query<{
@@ -393,6 +455,22 @@ export async function updateDoctor(
             specialization: specialization.trim() || null,
           }),
           ...(bio !== undefined && { bio: bio.trim() || null }),
+          ...(licenseNumber !== undefined && {
+            licenseNumber: licenseNumber.trim() || null,
+          }),
+          ...(address !== undefined && { address: address.trim() || null }),
+          ...(city !== undefined && { city: city.trim() || null }),
+          ...(state !== undefined && { state: state.trim() || null }),
+          ...(zipCode !== undefined && { zipCode: zipCode.trim() || null }),
+          ...(yearsOfExperience !== undefined && {
+            yearsOfExperience: yearsOfExperience || null,
+          }),
+          ...(education !== undefined && {
+            education: education.trim() || null,
+          }),
+          ...(profilePictureUrl !== undefined && {
+            profilePictureUrl: profilePictureUrl.trim() || null,
+          }),
         },
         include: {
           user: {
@@ -413,6 +491,14 @@ export async function updateDoctor(
       userId: doctor.userId,
       specialization: doctor.specialization ?? undefined,
       bio: doctor.bio ?? undefined,
+      licenseNumber: doctor.licenseNumber ?? undefined,
+      address: doctor.address ?? undefined,
+      city: doctor.city ?? undefined,
+      state: doctor.state ?? undefined,
+      zipCode: doctor.zipCode ?? undefined,
+      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+      education: doctor.education ?? undefined,
+      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
       createdAt: doctor.createdAt,
       updatedAt: doctor.updatedAt,
     };
