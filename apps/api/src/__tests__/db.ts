@@ -284,6 +284,9 @@ export async function createTestDoctor(overrides?: {
           email,
           password: hashedPassword,
           role: "DOCTOR",
+          firstName: "Test",
+          lastName: "Doctor",
+          phoneNumber: "555-123-4567",
         },
         select: {
           id: true,
@@ -432,6 +435,9 @@ export async function createTestAvailability(overrides?: {
           email: doctorEmail,
           password: hashedPassword,
           role: "DOCTOR",
+          firstName: "Test",
+          lastName: "Doctor",
+          phoneNumber: "555-123-4567",
         },
         select: { id: true },
       });
@@ -528,6 +534,9 @@ export async function createTestAppointment(overrides?: {
           email: patientEmail,
           password: hashedPassword,
           role: "PATIENT",
+          firstName: "Test",
+          lastName: "Patient",
+          phoneNumber: "555-123-4567",
         },
         select: { id: true, email: true, role: true },
       });
@@ -555,6 +564,9 @@ export async function createTestAppointment(overrides?: {
           email: doctorEmail,
           password: hashedPassword,
           role: "DOCTOR",
+          firstName: "Test",
+          lastName: "Doctor",
+          phoneNumber: "555-123-4567",
         },
         select: { id: true },
       });

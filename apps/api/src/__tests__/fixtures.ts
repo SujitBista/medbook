@@ -15,6 +15,9 @@ export function createTestUserInput(
     email: `test-${Date.now()}@example.com`,
     password: "Test123!@#",
     role: UserRole.PATIENT,
+    firstName: "Test",
+    lastName: "User",
+    phoneNumber: "555-123-4567",
     ...overrides,
   };
 }

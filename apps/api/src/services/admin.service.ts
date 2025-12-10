@@ -144,6 +144,9 @@ export async function updateUserRole(
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
       createdAt: Date;
       updatedAt: Date;
     }>((prisma) =>
@@ -157,6 +160,9 @@ export async function updateUserRole(
           email: true,
           role: true,
           mustResetPassword: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
           createdAt: true,
           updatedAt: true,
         },
