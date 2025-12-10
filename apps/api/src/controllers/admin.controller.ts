@@ -371,7 +371,18 @@ export async function updateDoctorProfile(
 ): Promise<void> {
   try {
     const { id } = req.params;
-    const { specialization, bio } = req.body;
+    const {
+      specialization,
+      bio,
+      licenseNumber,
+      address,
+      city,
+      state,
+      zipCode,
+      yearsOfExperience,
+      education,
+      profilePictureUrl,
+    } = req.body;
 
     if (!id) {
       const error = createValidationError("Doctor ID is required");
@@ -380,7 +391,19 @@ export async function updateDoctorProfile(
     }
 
     // Validate that at least one field is provided
-    if (specialization === undefined && bio === undefined) {
+    const hasAnyField =
+      specialization !== undefined ||
+      bio !== undefined ||
+      licenseNumber !== undefined ||
+      address !== undefined ||
+      city !== undefined ||
+      state !== undefined ||
+      zipCode !== undefined ||
+      yearsOfExperience !== undefined ||
+      education !== undefined ||
+      profilePictureUrl !== undefined;
+
+    if (!hasAnyField) {
       const error = createValidationError(
         "At least one field must be provided"
       );
@@ -391,6 +414,14 @@ export async function updateDoctorProfile(
     const input: UpdateDoctorInput = {
       ...(specialization !== undefined && { specialization }),
       ...(bio !== undefined && { bio }),
+      ...(licenseNumber !== undefined && { licenseNumber }),
+      ...(address !== undefined && { address }),
+      ...(city !== undefined && { city }),
+      ...(state !== undefined && { state }),
+      ...(zipCode !== undefined && { zipCode }),
+      ...(yearsOfExperience !== undefined && { yearsOfExperience }),
+      ...(education !== undefined && { education }),
+      ...(profilePictureUrl !== undefined && { profilePictureUrl }),
     };
 
     const doctor = await updateDoctor(id, input);
