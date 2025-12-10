@@ -39,9 +39,20 @@ interface Doctor {
   userId: string;
   specialization?: string;
   bio?: string;
+  licenseNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  yearsOfExperience?: number;
+  education?: string;
+  profilePictureUrl?: string;
   createdAt: string;
   updatedAt: string;
   userEmail?: string;
+  userFirstName?: string;
+  userLastName?: string;
+  userPhoneNumber?: string;
 }
 
 interface DoctorStats {
@@ -160,6 +171,9 @@ function AdminDashboardContent() {
   const [editDoctorErrors, setEditDoctorErrors] = useState<
     Record<string, string>
   >({});
+  const [doctorPage, setDoctorPage] = useState(1);
+  const [doctorPageSize, setDoctorPageSize] = useState(10);
+  const [doctorTotal, setDoctorTotal] = useState(0);
 
   // Schedule management state
   const [selectedDoctorForSchedule, setSelectedDoctorForSchedule] =
@@ -246,9 +260,46 @@ function AdminDashboardContent() {
   const [showDoctorModal, setShowDoctorModal] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
 
+  // Define fetchDoctors before useEffect hooks that use it
+  const fetchDoctors = useCallback(async () => {
+    try {
+      setDoctorsLoading(true);
+      const queryParams = new URLSearchParams();
+      if (searchQuery) queryParams.append("search", searchQuery);
+      if (specializationFilter)
+        queryParams.append("specialization", specializationFilter);
+      queryParams.append("page", doctorPage.toString());
+      queryParams.append("limit", doctorPageSize.toString());
+      // Add timestamp to prevent browser caching
+      queryParams.append("_t", Date.now().toString());
+
+      const response = await fetch(
+        `/api/admin/doctors?${queryParams.toString()}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+          cache: "no-store", // Always fetch fresh data
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch doctors");
+      }
+
+      const data = await response.json();
+      setDoctors(data.data || []);
+      setDoctorTotal(data.pagination?.total || 0);
+    } catch (err) {
+      console.error("[AdminDashboard] Error fetching doctors:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch doctors");
+    } finally {
+      setDoctorsLoading(false);
+    }
+  }, [searchQuery, specializationFilter, doctorPage, doctorPageSize]);
+
   useEffect(() => {
     fetchData();
-    fetchDoctors();
     fetchDoctorStats();
   }, []);
 
@@ -261,11 +312,15 @@ function AdminDashboardContent() {
   useEffect(() => {
     // Debounce search
     const timer = setTimeout(() => {
-      fetchDoctors();
+      setDoctorPage(1); // Reset to first page when filters change
     }, 300);
 
     return () => clearTimeout(timer);
   }, [searchQuery, specializationFilter]);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
 
   const fetchAvailabilities = useCallback(async () => {
     if (!selectedDoctorForSchedule) return;
@@ -651,41 +706,6 @@ function AdminDashboardContent() {
       );
     } finally {
       setDoctorFormLoading(false);
-    }
-  };
-
-  const fetchDoctors = async () => {
-    try {
-      setDoctorsLoading(true);
-      const queryParams = new URLSearchParams();
-      if (searchQuery) queryParams.append("search", searchQuery);
-      if (specializationFilter)
-        queryParams.append("specialization", specializationFilter);
-      queryParams.append("limit", "100"); // Get more doctors for admin view
-      // Add timestamp to prevent browser caching
-      queryParams.append("_t", Date.now().toString());
-
-      const response = await fetch(
-        `/api/admin/doctors?${queryParams.toString()}`,
-        {
-          headers: {
-            "Content-Type": "application/json",
-          },
-          cache: "no-store", // Always fetch fresh data
-        }
-      );
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch doctors");
-      }
-
-      const data = await response.json();
-      setDoctors(data.data || []);
-    } catch (err) {
-      console.error("[AdminDashboard] Error fetching doctors:", err);
-      setError(err instanceof Error ? err.message : "Failed to fetch doctors");
-    } finally {
-      setDoctorsLoading(false);
     }
   };
 
@@ -2018,81 +2038,366 @@ function AdminDashboardContent() {
             </div>
 
             {/* Doctors Table */}
-            <div className="overflow-x-auto">
+            <div className="px-6 py-4">
               {doctorsLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
+                  <p className="mt-4 text-sm text-gray-600">
+                    Loading doctors...
+                  </p>
                 </div>
               ) : doctors.length === 0 ? (
-                <div className="px-6 py-12 text-center text-gray-500">
-                  No doctors found
+                <div className="flex flex-col items-center justify-center py-16">
+                  <div className="rounded-full bg-gray-100 p-4">
+                    <svg
+                      className="h-12 w-12 text-gray-400"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+                      />
+                    </svg>
+                  </div>
+                  <h3 className="mt-4 text-lg font-medium text-gray-900">
+                    No doctors found
+                  </h3>
+                  <p className="mt-1 text-sm text-gray-500">
+                    {searchQuery || specializationFilter
+                      ? "Try adjusting your search or filter criteria"
+                      : "There are no doctors in the system yet"}
+                  </p>
                 </div>
               ) : (
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Email
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Specialization
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Bio
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Created
-                      </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200 bg-white">
-                    {doctors.map((doctor) => (
-                      <tr key={doctor.id}>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                          {doctor.userEmail || "N/A"}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {doctor.specialization || (
-                            <span className="text-gray-400">Unspecified</span>
-                          )}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-500">
-                          {doctor.bio ? (
-                            <span className="line-clamp-2 max-w-xs">
-                              {doctor.bio}
-                            </span>
-                          ) : (
-                            <span className="text-gray-400">No bio</span>
-                          )}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                          {new Date(doctor.createdAt).toLocaleDateString()}
-                        </td>
-                        <td className="whitespace-nowrap px-6 py-4 text-sm">
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleEditDoctor(doctor)}
+                <>
+                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Name
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Contact
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Specialization
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            License
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Location
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Experience
+                          </th>
+                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Education
+                          </th>
+                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {doctors.map((doctor) => {
+                          const fullName =
+                            doctor.userFirstName && doctor.userLastName
+                              ? `${doctor.userFirstName} ${doctor.userLastName}`
+                              : doctor.userEmail || "N/A";
+                          const location =
+                            [doctor.city, doctor.state, doctor.zipCode]
+                              .filter(Boolean)
+                              .join(", ") || "Not specified";
+
+                          return (
+                            <tr
+                              key={doctor.id}
+                              className="transition-colors hover:bg-gray-50"
                             >
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleDeleteDoctor(doctor.id)}
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <div className="flex items-center gap-3">
+                                  {doctor.profilePictureUrl ? (
+                                    <img
+                                      src={doctor.profilePictureUrl}
+                                      alt={fullName}
+                                      className="h-10 w-10 rounded-full object-cover"
+                                    />
+                                  ) : (
+                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                                      <span className="text-sm font-medium">
+                                        {fullName
+                                          .split(" ")
+                                          .map((n) => n[0])
+                                          .join("")
+                                          .toUpperCase()
+                                          .slice(0, 2)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="text-sm font-medium text-gray-900">
+                                      {fullName}
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {doctor.userEmail}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <div className="text-sm text-gray-900">
+                                  {doctor.userPhoneNumber || (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                {doctor.specialization ? (
+                                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
+                                    {doctor.specialization}
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">
+                                    Unspecified
+                                  </span>
+                                )}
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                <div className="text-sm text-gray-900">
+                                  {doctor.licenseNumber ? (
+                                    <span className="font-mono text-xs">
+                                      {doctor.licenseNumber}
+                                    </span>
+                                  ) : (
+                                    <span className="text-gray-400">N/A</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-sm text-gray-900">
+                                  {location !== "Not specified" ? (
+                                    <div>
+                                      {doctor.address && (
+                                        <div className="text-xs">
+                                          {doctor.address}
+                                        </div>
+                                      )}
+                                      <div className="text-xs text-gray-500">
+                                        {location}
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <span className="text-gray-400">
+                                      {location}
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3">
+                                {doctor.yearsOfExperience ? (
+                                  <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
+                                    {doctor.yearsOfExperience} years
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-gray-400">
+                                    N/A
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <div className="text-sm text-gray-900">
+                                  {doctor.education ? (
+                                    <span className="line-clamp-2 max-w-xs text-xs">
+                                      {doctor.education}
+                                    </span>
+                                  ) : (
+                                    <span className="text-xs text-gray-400">
+                                      N/A
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="whitespace-nowrap px-4 py-3 text-right">
+                                <div className="flex items-center justify-end gap-1">
+                                  <button
+                                    onClick={() => handleEditDoctor(doctor)}
+                                    className="rounded p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700"
+                                    title="Edit doctor"
+                                  >
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                                      />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    onClick={() =>
+                                      handleDeleteDoctor(doctor.id)
+                                    }
+                                    className="rounded p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700"
+                                    title="Delete doctor"
+                                  >
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                      />
+                                    </svg>
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Pagination */}
+                  {(() => {
+                    const totalDoctorPages = Math.ceil(
+                      doctorTotal / doctorPageSize
+                    );
+                    return (
+                      <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
+                        <div className="flex items-center gap-2 text-sm text-gray-600">
+                          <span>Show</span>
+                          <select
+                            value={doctorPageSize}
+                            onChange={(e) =>
+                              setDoctorPageSize(Number(e.target.value))
+                            }
+                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          >
+                            <option value={10}>10</option>
+                            <option value={25}>25</option>
+                            <option value={50}>50</option>
+                          </select>
+                          <span>per page</span>
+                          <span className="text-gray-400">|</span>
+                          <span>
+                            Showing {(doctorPage - 1) * doctorPageSize + 1} to{" "}
+                            {Math.min(doctorPage * doctorPageSize, doctorTotal)}{" "}
+                            of {doctorTotal}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setDoctorPage(1)}
+                            disabled={doctorPage === 1}
+                            className="rounded-md border border-gray-300 bg-white p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="First Page"
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
                             >
-                              Delete
-                            </Button>
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
+                              />
+                            </svg>
+                          </button>
+                          <button
+                            onClick={() =>
+                              setDoctorPage((p) => Math.max(1, p - 1))
+                            }
+                            disabled={doctorPage === 1}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Previous
+                          </button>
+                          <div className="flex items-center gap-1 px-2">
+                            {Array.from(
+                              { length: Math.min(5, totalDoctorPages) },
+                              (_, i) => {
+                                let pageNum;
+                                if (totalDoctorPages <= 5) {
+                                  pageNum = i + 1;
+                                } else if (doctorPage <= 3) {
+                                  pageNum = i + 1;
+                                } else if (doctorPage >= totalDoctorPages - 2) {
+                                  pageNum = totalDoctorPages - 4 + i;
+                                } else {
+                                  pageNum = doctorPage - 2 + i;
+                                }
+                                return (
+                                  <button
+                                    key={pageNum}
+                                    onClick={() => setDoctorPage(pageNum)}
+                                    className={`h-8 w-8 rounded-md text-sm font-medium ${
+                                      doctorPage === pageNum
+                                        ? "bg-blue-600 text-white"
+                                        : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
+                                    }`}
+                                  >
+                                    {pageNum}
+                                  </button>
+                                );
+                              }
+                            )}
                           </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+                          <button
+                            onClick={() =>
+                              setDoctorPage((p) =>
+                                Math.min(totalDoctorPages, p + 1)
+                              )
+                            }
+                            disabled={doctorPage >= totalDoctorPages}
+                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                          >
+                            Next
+                          </button>
+                          <button
+                            onClick={() => setDoctorPage(totalDoctorPages)}
+                            disabled={doctorPage >= totalDoctorPages}
+                            className="rounded-md border border-gray-300 bg-white p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            title="Last Page"
+                          >
+                            <svg
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M13 5l7 7-7 7M5 5l7 7-7 7"
+                              />
+                            </svg>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
               )}
             </div>
           </div>
