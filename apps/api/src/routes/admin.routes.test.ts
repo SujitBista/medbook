@@ -434,13 +434,25 @@ describe("GET /api/v1/admin/doctors", () => {
     createdUserIds.push(admin.id);
 
     // Create multiple doctors
+    const createdDoctors = [];
     for (let i = 0; i < 5; i++) {
       const doctor = await createTestDoctor({
         specialization: `Specialty${i}`,
       });
+      createdDoctors.push(doctor);
       createdDoctorIds.push(doctor.id);
       createdUserIds.push(doctor.userId);
     }
+
+    // Verify doctors were created in database
+    const doctorCount = await query((prisma) =>
+      prisma.doctor.count({
+        where: {
+          id: { in: createdDoctors.map((d) => d.id) },
+        },
+      })
+    );
+    expect(doctorCount).toBe(5);
 
     const response = await agent
       .get("/api/v1/admin/doctors?page=1&limit=2")
@@ -451,6 +463,7 @@ describe("GET /api/v1/admin/doctors", () => {
     expect(response.body.data.length).toBeLessThanOrEqual(2);
     expect(response.body.pagination.page).toBe(1);
     expect(response.body.pagination.limit).toBe(2);
+    // Check that at least our created doctors are included in the total
     expect(response.body.pagination.total).toBeGreaterThanOrEqual(5);
   });
 
@@ -500,17 +513,27 @@ describe("GET /api/v1/admin/doctors", () => {
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
 
+    // Verify doctors were created with correct specializations
+    const verifyDoctor1 = await query((prisma) =>
+      prisma.doctor.findUnique({
+        where: { id: doctor1.id },
+        select: { specialization: true },
+      })
+    );
+    expect(verifyDoctor1?.specialization).toBe("Cardiology");
+
     const response = await agent
       .get("/api/v1/admin/doctors?specialization=Cardiology")
       .set(createAuthHeaders(admin.id, UserRole.ADMIN))
       .expect(200);
 
     expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
     const found = response.body.data.find(
       (d: { id: string }) => d.id === doctor1.id
     );
     expect(found).toBeDefined();
-    expect(found.specialization).toBe("Cardiology");
+    expect(found?.specialization).toBe("Cardiology");
 
     // Neurology doctor should not be in results (or might be if case-insensitive)
     // If found, it means the filter is case-insensitive which is fine
@@ -981,6 +1004,16 @@ describe("GET /api/v1/admin/doctors/stats", () => {
       doctor4.userId
     );
 
+    // Verify all doctors were created in database
+    const doctorCount = await query((prisma) =>
+      prisma.doctor.count({
+        where: {
+          id: { in: [doctor1.id, doctor2.id, doctor3.id, doctor4.id] },
+        },
+      })
+    );
+    expect(doctorCount).toBe(4);
+
     const response = await agent
       .get("/api/v1/admin/doctors/stats")
       .set(createAuthHeaders(admin.id, UserRole.ADMIN))
@@ -988,6 +1021,7 @@ describe("GET /api/v1/admin/doctors/stats", () => {
 
     expect(response.body.success).toBe(true);
     expect(response.body.stats).toBeDefined();
+    // Check that at least our created doctors are included in the total
     expect(response.body.stats.totalDoctors).toBeGreaterThanOrEqual(4);
     expect(response.body.stats.doctorsBySpecialization).toBeDefined();
     expect(
