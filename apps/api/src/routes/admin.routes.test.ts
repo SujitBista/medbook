@@ -47,6 +47,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email,
         password,
+        firstName: "John",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
         specialization,
         bio,
       })
@@ -94,6 +97,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email,
         password,
+        firstName: "Jane",
+        lastName: "Smith",
+        phoneNumber: "555-987-6543",
       })
       .expect(201);
 
@@ -191,6 +197,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: "invalid-email",
         password: "ValidPass123!",
+        firstName: "Test",
+        lastName: "User",
+        phoneNumber: "555-123-4567",
       })
       .expect(400);
 
@@ -213,6 +222,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: "test@example.com",
         password: "weak",
+        firstName: "Test",
+        lastName: "User",
+        phoneNumber: "555-123-4567",
       })
       .expect(400);
 
@@ -245,6 +257,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: existingUser.email,
         password: "ValidPass123!",
+        firstName: "Test",
+        lastName: "User",
+        phoneNumber: "555-123-4567",
       })
       .expect(409);
 
@@ -267,6 +282,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: emailBase, // Send valid email, normalization will lowercase it
         password,
+        firstName: "Test",
+        lastName: "Doctor",
+        phoneNumber: "555-123-4567",
       })
       .expect(201);
 
@@ -292,6 +310,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email,
         password,
+        firstName: "Test",
+        lastName: "Doctor",
+        phoneNumber: "555-123-4567",
         specialization: "Pediatrics",
       })
       .expect(201);
@@ -326,6 +347,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: email + "1",
         password,
+        firstName: "Test",
+        lastName: "Doctor1",
+        phoneNumber: "555-123-4567",
         specialization: "Dermatology",
       })
       .expect(201);
@@ -343,6 +367,9 @@ describe("POST /api/v1/admin/doctors", () => {
       .send({
         email: email + "2",
         password,
+        firstName: "Test",
+        lastName: "Doctor2",
+        phoneNumber: "555-987-6543",
         bio: "Experienced doctor",
       })
       .expect(201);
