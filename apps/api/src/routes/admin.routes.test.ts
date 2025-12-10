@@ -434,7 +434,7 @@ describe("GET /api/v1/admin/doctors", () => {
     createdUserIds.push(admin.id);
 
     // Create multiple doctors
-    const createdDoctors = [];
+    const createdDoctors: Awaited<ReturnType<typeof createTestDoctor>>[] = [];
     for (let i = 0; i < 5; i++) {
       const doctor = await createTestDoctor({
         specialization: `Specialty${i}`,
