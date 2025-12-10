@@ -31,6 +31,9 @@ const registerSchema = z
         "Password must contain at least one special character (!@#$%^&*)"
       ),
     confirmPassword: z.string().min(1, "Please confirm your password"),
+    firstName: z.string().min(1, "First name is required").trim(),
+    lastName: z.string().min(1, "Last name is required").trim(),
+    phoneNumber: z.string().min(1, "Phone number is required").trim(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -51,10 +54,16 @@ export default function RegisterPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
     confirmPassword?: string;
+    firstName?: string;
+    lastName?: string;
+    phoneNumber?: string;
     general?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -73,6 +82,9 @@ export default function RegisterPage() {
         email,
         password,
         confirmPassword,
+        firstName,
+        lastName,
+        phoneNumber,
       });
       // Validation passed - no errors
       return { isValid: true, errors: {} };
@@ -83,6 +95,9 @@ export default function RegisterPage() {
           email?: string;
           password?: string;
           confirmPassword?: string;
+          firstName?: string;
+          lastName?: string;
+          phoneNumber?: string;
         } = {};
 
         // Zod errors array contains error objects with path and message
@@ -118,7 +133,10 @@ export default function RegisterPage() {
               if (
                 fieldName === "email" ||
                 fieldName === "password" ||
-                fieldName === "confirmPassword"
+                fieldName === "confirmPassword" ||
+                fieldName === "firstName" ||
+                fieldName === "lastName" ||
+                fieldName === "phoneNumber"
               ) {
                 const errorKey = fieldName as keyof typeof newErrors;
                 // Only keep the first error for each field (Zod may return multiple errors per field)
@@ -176,6 +194,9 @@ export default function RegisterPage() {
         email?: string;
         password?: string;
         confirmPassword?: string;
+        firstName?: string;
+        lastName?: string;
+        phoneNumber?: string;
         general?: string;
       } = {};
 
@@ -189,12 +210,24 @@ export default function RegisterPage() {
       if (validation.errors.confirmPassword) {
         errorsToSet.confirmPassword = validation.errors.confirmPassword;
       }
+      if (validation.errors.firstName) {
+        errorsToSet.firstName = validation.errors.firstName;
+      }
+      if (validation.errors.lastName) {
+        errorsToSet.lastName = validation.errors.lastName;
+      }
+      if (validation.errors.phoneNumber) {
+        errorsToSet.phoneNumber = validation.errors.phoneNumber;
+      }
 
       // Check if we have any field-specific errors
       const hasFieldErrors = !!(
         errorsToSet.email ||
         errorsToSet.password ||
-        errorsToSet.confirmPassword
+        errorsToSet.confirmPassword ||
+        errorsToSet.firstName ||
+        errorsToSet.lastName ||
+        errorsToSet.phoneNumber
       );
 
       console.log("[Registration] Has field errors:", hasFieldErrors);
@@ -221,6 +254,9 @@ export default function RegisterPage() {
       const requestBody = {
         email,
         password,
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
+        phoneNumber: phoneNumber.trim(),
       };
 
       console.log("[Registration] Sending POST request to:", registrationUrl);
@@ -366,6 +402,15 @@ export default function RegisterPage() {
           }
           if (passwordError) {
             newErrors.password = passwordError;
+          }
+          if (fieldErrors.firstName) {
+            newErrors.firstName = fieldErrors.firstName;
+          }
+          if (fieldErrors.lastName) {
+            newErrors.lastName = fieldErrors.lastName;
+          }
+          if (fieldErrors.phoneNumber) {
+            newErrors.phoneNumber = fieldErrors.phoneNumber;
           }
 
           // Only show general message if there are no field-specific errors
@@ -541,6 +586,51 @@ export default function RegisterPage() {
               </div>
             )}
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Input
+                  label="First Name"
+                  type="text"
+                  value={firstName}
+                  onChange={(e) => {
+                    setFirstName(e.target.value);
+                    if (errors.firstName) {
+                      setErrors((prev) => ({ ...prev, firstName: undefined }));
+                    }
+                  }}
+                  error={errors.firstName}
+                  disabled={isLoading}
+                  required
+                  autoComplete="given-name"
+                  aria-invalid={errors.firstName ? "true" : "false"}
+                  aria-describedby={
+                    errors.firstName ? "firstName-error" : undefined
+                  }
+                />
+              </div>
+              <div>
+                <Input
+                  label="Last Name"
+                  type="text"
+                  value={lastName}
+                  onChange={(e) => {
+                    setLastName(e.target.value);
+                    if (errors.lastName) {
+                      setErrors((prev) => ({ ...prev, lastName: undefined }));
+                    }
+                  }}
+                  error={errors.lastName}
+                  disabled={isLoading}
+                  required
+                  autoComplete="family-name"
+                  aria-invalid={errors.lastName ? "true" : "false"}
+                  aria-describedby={
+                    errors.lastName ? "lastName-error" : undefined
+                  }
+                />
+              </div>
+            </div>
+
             <div>
               <Input
                 label="Email"
@@ -563,6 +653,29 @@ export default function RegisterPage() {
                 autoComplete="email"
                 aria-invalid={errors.email ? "true" : "false"}
                 aria-describedby={errors.email ? "email-error" : undefined}
+              />
+            </div>
+
+            <div>
+              <Input
+                label="Phone Number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => {
+                  setPhoneNumber(e.target.value);
+                  if (errors.phoneNumber) {
+                    setErrors((prev) => ({ ...prev, phoneNumber: undefined }));
+                  }
+                }}
+                error={errors.phoneNumber}
+                disabled={isLoading}
+                required
+                autoComplete="tel"
+                placeholder="+1 (555) 123-4567"
+                aria-invalid={errors.phoneNumber ? "true" : "false"}
+                aria-describedby={
+                  errors.phoneNumber ? "phoneNumber-error" : undefined
+                }
               />
             </div>
 

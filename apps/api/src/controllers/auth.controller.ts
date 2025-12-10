@@ -16,6 +16,9 @@ import { createValidationError } from "../utils";
 interface RegisterRequestBody {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 }
 
 /**
@@ -36,7 +39,7 @@ export async function register(
   next: NextFunction
 ): Promise<void> {
   try {
-    const { email, password } = req.body;
+    const { email, password, firstName, lastName, phoneNumber } = req.body;
 
     // Validate required fields with field-specific errors
     const fieldErrors: Record<string, string> = {};
@@ -45,6 +48,15 @@ export async function register(
     }
     if (!password) {
       fieldErrors.password = "Password is required";
+    }
+    if (!firstName || !firstName.trim()) {
+      fieldErrors.firstName = "First name is required";
+    }
+    if (!lastName || !lastName.trim()) {
+      fieldErrors.lastName = "Last name is required";
+    }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      fieldErrors.phoneNumber = "Phone number is required";
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -76,6 +88,9 @@ export async function register(
     const input: CreateUserInput = {
       email,
       password,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phoneNumber: phoneNumber.trim(),
       // role is intentionally omitted - public registration always creates PATIENT
     };
 

@@ -207,7 +207,23 @@ export async function registerDoctor(
       return;
     }
 
-    const { email, password, specialization, bio } = req.body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      specialization,
+      bio,
+      licenseNumber,
+      address,
+      city,
+      state,
+      zipCode,
+      yearsOfExperience,
+      education,
+      profilePictureUrl,
+    } = req.body;
 
     // Validate required fields
     const fieldErrors: Record<string, string> = {};
@@ -216,6 +232,15 @@ export async function registerDoctor(
     }
     if (!password) {
       fieldErrors.password = "Password is required";
+    }
+    if (!firstName || !firstName.trim()) {
+      fieldErrors.firstName = "First name is required";
+    }
+    if (!lastName || !lastName.trim()) {
+      fieldErrors.lastName = "Last name is required";
+    }
+    if (!phoneNumber || !phoneNumber.trim()) {
+      fieldErrors.phoneNumber = "Phone number is required";
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -232,8 +257,19 @@ export async function registerDoctor(
     const input: CreateDoctorUserInput = {
       email,
       password,
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phoneNumber: phoneNumber.trim(),
       specialization,
       bio,
+      licenseNumber,
+      address,
+      city,
+      state,
+      zipCode,
+      yearsOfExperience,
+      education,
+      profilePictureUrl,
     };
 
     const result = await createDoctorUser(input);

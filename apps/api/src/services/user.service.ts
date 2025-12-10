@@ -49,6 +49,9 @@ export async function getUserProfile(
     password: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
     createdAt: Date;
     updatedAt: Date;
   } | null>((prisma) =>
@@ -98,6 +101,9 @@ export async function updateUserProfile(
       password: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
       createdAt: Date;
       updatedAt: Date;
     } | null>((prisma) =>
@@ -119,6 +125,9 @@ export async function updateUserProfile(
       password: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
       createdAt: Date;
       updatedAt: Date;
     }>((prisma) =>
@@ -187,6 +196,9 @@ export async function changeUserPassword(
     password: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
     createdAt: Date;
     updatedAt: Date;
   } | null>((prisma) =>

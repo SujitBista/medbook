@@ -51,7 +51,32 @@ export interface LoginResult {
 export async function registerUser(
   input: CreateUserInput
 ): Promise<RegisterResult> {
-  const { email, password, role = UserRole.PATIENT } = input;
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phoneNumber,
+    role = UserRole.PATIENT,
+  } = input;
+
+  // Validate required fields
+  const fieldErrors: Record<string, string> = {};
+  if (!firstName || !firstName.trim()) {
+    fieldErrors.firstName = "First name is required";
+  }
+  if (!lastName || !lastName.trim()) {
+    fieldErrors.lastName = "Last name is required";
+  }
+  if (!phoneNumber || !phoneNumber.trim()) {
+    fieldErrors.phoneNumber = "Phone number is required";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw createValidationError("Please fill in all required fields", {
+      errors: fieldErrors,
+    });
+  }
 
   // Validate password strength
   const passwordValidation = validatePassword(password);
@@ -102,6 +127,9 @@ export async function registerUser(
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
       createdAt: Date;
       updatedAt: Date;
     }>((prisma) =>
@@ -110,12 +138,18 @@ export async function registerUser(
           email: email.toLowerCase().trim(),
           password: hashedPassword,
           role: role as PrismaUserRole,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phoneNumber: phoneNumber.trim(),
         },
         select: {
           id: true,
           email: true,
           role: true,
           mustResetPassword: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -188,6 +222,9 @@ export async function loginUser(
     password: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
     createdAt: Date;
     updatedAt: Date;
   } | null>((prisma) =>

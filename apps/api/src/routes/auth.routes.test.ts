@@ -32,15 +32,21 @@ describe("POST /api/v1/auth/register", () => {
   it("should register a new user successfully", async () => {
     const email = `test-${Date.now()}@example.com`;
     const password = "ValidPass123!";
+    const firstName = "John";
+    const lastName = "Doe";
+    const phoneNumber = "555-123-4567";
 
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email, password })
+      .send({ email, password, firstName, lastName, phoneNumber })
       .expect(201);
 
     expect(response.body.success).toBe(true);
     expect(response.body.user).toBeDefined();
     expect(response.body.user.email).toBe(email.toLowerCase());
+    expect(response.body.user.firstName).toBe(firstName);
+    expect(response.body.user.lastName).toBe(lastName);
+    expect(response.body.user.phoneNumber).toBe(phoneNumber);
     expect(response.body.user.role).toBe(UserRole.PATIENT);
     expect(response.body.user.password).toBeUndefined();
     expect(response.body.token).toBeDefined();
@@ -53,7 +59,12 @@ describe("POST /api/v1/auth/register", () => {
   it("should return 400 if email is missing", async () => {
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ password: "ValidPass123!" })
+      .send({
+        password: "ValidPass123!",
+        firstName: "John",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
+      })
       .expect(400);
 
     expect(response.body.success).toBe(false);
@@ -64,7 +75,12 @@ describe("POST /api/v1/auth/register", () => {
   it("should return 400 if password is missing", async () => {
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email: "test@example.com" })
+      .send({
+        email: "test@example.com",
+        firstName: "John",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
+      })
       .expect(400);
 
     expect(response.body.success).toBe(false);
@@ -72,10 +88,64 @@ describe("POST /api/v1/auth/register", () => {
     expect(response.body.error.message).toContain("required");
   });
 
+  it("should return 400 if firstName is missing", async () => {
+    const response = await agent
+      .post("/api/v1/auth/register")
+      .send({
+        email: "test@example.com",
+        password: "ValidPass123!",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.details?.errors?.firstName).toBeDefined();
+  });
+
+  it("should return 400 if lastName is missing", async () => {
+    const response = await agent
+      .post("/api/v1/auth/register")
+      .send({
+        email: "test@example.com",
+        password: "ValidPass123!",
+        firstName: "John",
+        phoneNumber: "555-123-4567",
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.details?.errors?.lastName).toBeDefined();
+  });
+
+  it("should return 400 if phoneNumber is missing", async () => {
+    const response = await agent
+      .post("/api/v1/auth/register")
+      .send({
+        email: "test@example.com",
+        password: "ValidPass123!",
+        firstName: "John",
+        lastName: "Doe",
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.details?.errors?.phoneNumber).toBeDefined();
+  });
+
   it("should return 400 if email format is invalid", async () => {
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email: "invalid-email", password: "ValidPass123!" })
+      .send({
+        email: "invalid-email",
+        password: "ValidPass123!",
+        firstName: "John",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
+      })
       .expect(400);
 
     expect(response.body.success).toBe(false);
@@ -86,7 +156,13 @@ describe("POST /api/v1/auth/register", () => {
   it("should return 400 if password does not meet requirements", async () => {
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email: "test@example.com", password: "weak" })
+      .send({
+        email: "test@example.com",
+        password: "weak",
+        firstName: "John",
+        lastName: "Doe",
+        phoneNumber: "555-123-4567",
+      })
       .expect(400);
 
     expect(response.body.success).toBe(false);
@@ -97,15 +173,24 @@ describe("POST /api/v1/auth/register", () => {
   it("should return 409 if user already exists", async () => {
     const email = `test-${Date.now()}@example.com`;
     const password = "ValidPass123!";
+    const firstName = "John";
+    const lastName = "Doe";
+    const phoneNumber = "555-123-4567";
 
     // Create user first
-    const existingUser = await createTestUser({ email, password });
+    const existingUser = await createTestUser({
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+    });
     createdUserIds.push(existingUser.id);
 
     // Try to register again
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email, password })
+      .send({ email, password, firstName, lastName, phoneNumber })
       .expect(409);
 
     expect(response.body.success).toBe(false);
@@ -116,34 +201,35 @@ describe("POST /api/v1/auth/register", () => {
   it("should normalize email to lowercase", async () => {
     const email = `Test-${Date.now()}@EXAMPLE.COM`;
     const password = "ValidPass123!";
+    const firstName = "John";
+    const lastName = "Doe";
+    const phoneNumber = "555-123-4567";
 
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email, password })
+      .send({ email, password, firstName, lastName, phoneNumber })
       .expect(201);
 
     expect(response.body.user.email).toBe(email.toLowerCase());
     createdUserIds.push(response.body.user.id);
   });
 
-  it("should trim email whitespace", async () => {
-    // Note: Email validation happens before trimming in the controller
-    // So we need to send a valid email format (the regex rejects emails with spaces)
-    // The service layer will trim it, but controller validation happens first
-    // This test verifies the service layer trimming works
-    const emailBase = `test-${Date.now()}@example.com`;
-    const email = `  ${emailBase}  `;
+  it("should trim firstName, lastName, and phoneNumber whitespace", async () => {
+    const email = `test-${Date.now()}@example.com`;
     const password = "ValidPass123!";
+    const firstName = "  John  ";
+    const lastName = "  Doe  ";
+    const phoneNumber = "  555-123-4567  ";
 
-    // The email regex will reject this, so we expect 400
-    // The actual trimming happens in the service layer after validation
     const response = await agent
       .post("/api/v1/auth/register")
-      .send({ email, password })
-      .expect(400);
+      .send({ email, password, firstName, lastName, phoneNumber })
+      .expect(201);
 
-    // Email with spaces fails validation
-    expect(response.body.success).toBe(false);
+    expect(response.body.user.firstName).toBe("John");
+    expect(response.body.user.lastName).toBe("Doe");
+    expect(response.body.user.phoneNumber).toBe("555-123-4567");
+    createdUserIds.push(response.body.user.id);
   });
 });
 

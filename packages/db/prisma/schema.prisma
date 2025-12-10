@@ -16,6 +16,9 @@ model User {
   password         String
   role             UserRole @default(PATIENT)
   mustResetPassword Boolean @default(false)
+  firstName        String
+  lastName         String
+  phoneNumber      String
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -27,12 +30,20 @@ model User {
 }
 
 model Doctor {
-  id            String   @id @default(uuid())
-  userId        String   @unique
-  specialization String?
-  bio           String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                String   @id @default(uuid())
+  userId            String   @unique
+  specialization    String?
+  bio               String?
+  licenseNumber     String?
+  address           String?
+  city              String?
+  state             String?
+  zipCode           String?
+  yearsOfExperience Int?
+  education         String?
+  profilePictureUrl String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)

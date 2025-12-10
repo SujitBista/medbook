@@ -32,6 +32,9 @@ export async function getAllUsers(): Promise<UserWithoutPassword[]> {
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      firstName: string;
+      lastName: string;
+      phoneNumber: string;
       createdAt: Date;
       updatedAt: Date;
     }[]
@@ -42,6 +45,9 @@ export async function getAllUsers(): Promise<UserWithoutPassword[]> {
         email: true,
         role: true,
         mustResetPassword: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -71,6 +77,9 @@ export async function getUserById(
     email: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    firstName: string;
+    lastName: string;
+    phoneNumber: string;
     createdAt: Date;
     updatedAt: Date;
   } | null>((prisma) =>
@@ -81,6 +90,9 @@ export async function getUserById(
         email: true,
         role: true,
         mustResetPassword: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -209,8 +221,19 @@ export async function deleteUser(userId: string): Promise<void> {
 export interface CreateDoctorUserInput {
   email: string;
   password: string;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
   specialization?: string;
   bio?: string;
+  licenseNumber?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  yearsOfExperience?: number;
+  education?: string;
+  profilePictureUrl?: string;
 }
 
 /**
@@ -231,7 +254,41 @@ export interface CreateDoctorUserResult {
 export async function createDoctorUser(
   input: CreateDoctorUserInput
 ): Promise<CreateDoctorUserResult> {
-  const { email, password, specialization, bio } = input;
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phoneNumber,
+    specialization,
+    bio,
+    licenseNumber,
+    address,
+    city,
+    state,
+    zipCode,
+    yearsOfExperience,
+    education,
+    profilePictureUrl,
+  } = input;
+
+  // Validate required fields
+  const fieldErrors: Record<string, string> = {};
+  if (!firstName || !firstName.trim()) {
+    fieldErrors.firstName = "First name is required";
+  }
+  if (!lastName || !lastName.trim()) {
+    fieldErrors.lastName = "Last name is required";
+  }
+  if (!phoneNumber || !phoneNumber.trim()) {
+    fieldErrors.phoneNumber = "Phone number is required";
+  }
+
+  if (Object.keys(fieldErrors).length > 0) {
+    throw createValidationError("Please fill in all required fields", {
+      errors: fieldErrors,
+    });
+  }
 
   // Validate email format
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -286,12 +343,18 @@ export async function createDoctorUser(
           email: email.toLowerCase().trim(),
           password: hashedPassword,
           role: PrismaUserRole.DOCTOR,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          phoneNumber: phoneNumber.trim(),
         },
         select: {
           id: true,
           email: true,
           role: true,
           mustResetPassword: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
           createdAt: true,
           updatedAt: true,
         },
@@ -303,6 +366,14 @@ export async function createDoctorUser(
           userId: user.id,
           specialization: specialization?.trim() || null,
           bio: bio?.trim() || null,
+          licenseNumber: licenseNumber?.trim() || null,
+          address: address?.trim() || null,
+          city: city?.trim() || null,
+          state: state?.trim() || null,
+          zipCode: zipCode?.trim() || null,
+          yearsOfExperience: yearsOfExperience || null,
+          education: education?.trim() || null,
+          profilePictureUrl: profilePictureUrl?.trim() || null,
         },
       });
 
@@ -310,6 +381,8 @@ export async function createDoctorUser(
         userId: user.id,
         doctorId: doctor.id,
         email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
       });
 
       return {
@@ -322,6 +395,14 @@ export async function createDoctorUser(
           userId: doctor.userId,
           specialization: doctor.specialization ?? undefined,
           bio: doctor.bio ?? undefined,
+          licenseNumber: doctor.licenseNumber ?? undefined,
+          address: doctor.address ?? undefined,
+          city: doctor.city ?? undefined,
+          state: doctor.state ?? undefined,
+          zipCode: doctor.zipCode ?? undefined,
+          yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+          education: doctor.education ?? undefined,
+          profilePictureUrl: doctor.profilePictureUrl ?? undefined,
           createdAt: doctor.createdAt,
           updatedAt: doctor.updatedAt,
         },

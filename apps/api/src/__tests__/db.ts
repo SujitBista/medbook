@@ -153,6 +153,9 @@ export async function createTestUser(overrides?: {
   email?: string;
   password?: string;
   role?: "PATIENT" | "DOCTOR" | "ADMIN";
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
 }) {
   const { hashPassword } = await import("../utils/auth");
 
@@ -163,6 +166,9 @@ export async function createTestUser(overrides?: {
   const email = emailRaw.toLowerCase().trim();
   const password = overrides?.password || "Test123!@#";
   const role = overrides?.role || "PATIENT";
+  const firstName = overrides?.firstName || "Test";
+  const lastName = overrides?.lastName || "User";
+  const phoneNumber = overrides?.phoneNumber || "555-123-4567";
 
   const hashedPassword = await hashPassword(password);
 
@@ -173,11 +179,17 @@ export async function createTestUser(overrides?: {
           email,
           password: hashedPassword,
           role,
+          firstName,
+          lastName,
+          phoneNumber,
         },
         select: {
           id: true,
           email: true,
           role: true,
+          firstName: true,
+          lastName: true,
+          phoneNumber: true,
           createdAt: true,
           updatedAt: true,
         },

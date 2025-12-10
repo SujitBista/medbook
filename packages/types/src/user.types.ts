@@ -14,6 +14,9 @@ export interface User {
   password: string;
   role: UserRole;
   mustResetPassword: boolean;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -24,10 +27,16 @@ export interface CreateUserInput {
   email: string;
   password: string;
   role?: UserRole;
+  firstName: string;
+  lastName: string;
+  phoneNumber: string;
 }
 
 export interface UpdateUserInput {
   email?: string;
   password?: string;
   role?: UserRole;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber?: string;
 }
