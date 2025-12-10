@@ -60,7 +60,7 @@ interface DoctorStats {
   doctorsBySpecialization: Record<string, number>;
 }
 
-type TabType = "general" | "manage-doctor" | "appointments";
+type TabType = "general" | "doctors" | "schedule-management" | "appointments";
 
 const DAYS_OF_WEEK = [
   { value: 0, label: "Sunday" },
@@ -1939,14 +1939,24 @@ function AdminDashboardContent() {
             General
           </button>
           <button
-            onClick={() => setActiveTab("manage-doctor")}
+            onClick={() => setActiveTab("doctors")}
             className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "manage-doctor"
+              activeTab === "doctors"
                 ? "border-blue-500 text-blue-600"
                 : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
             }`}
           >
-            Manage Doctor
+            Doctors
+          </button>
+          <button
+            onClick={() => setActiveTab("schedule-management")}
+            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
+              activeTab === "schedule-management"
+                ? "border-blue-500 text-blue-600"
+                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
+            }`}
+          >
+            Schedule Management
           </button>
           <button
             onClick={() => setActiveTab("appointments")}
@@ -2071,32 +2081,37 @@ function AdminDashboardContent() {
         </div>
       )}
 
-      {/* Manage Doctor Tab */}
-      {activeTab === "manage-doctor" && (
+      {/* Doctors Tab */}
+      {activeTab === "doctors" && (
         <div className="space-y-8">
-          {/* Doctor Registration */}
+          {/* Doctor Management Section */}
           <div className="rounded-lg bg-white shadow">
             <div className="border-b border-gray-200 px-6 py-4">
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-gray-900">
-                  Doctor Registration
+                  Doctor Management
                 </h2>
                 <Button
                   variant="primary"
                   onClick={() => setShowDoctorForm(true)}
+                  className="flex items-center gap-2"
                 >
-                  Register New Doctor
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 4v16m8-8H4"
+                    />
+                  </svg>
+                  Add New Doctor
                 </Button>
               </div>
-            </div>
-          </div>
-
-          {/* Doctor Management Section */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Doctor Management
-              </h2>
             </div>
 
             {/* Doctor Statistics */}
@@ -2535,7 +2550,12 @@ function AdminDashboardContent() {
               )}
             </div>
           </div>
+        </div>
+      )}
 
+      {/* Schedule Management Tab */}
+      {activeTab === "schedule-management" && (
+        <div className="space-y-8">
           {/* Schedule Management Section */}
           <div className="rounded-lg bg-white shadow">
             <div className="border-b border-gray-200 px-6 py-4">
