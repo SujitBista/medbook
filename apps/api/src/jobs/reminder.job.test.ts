@@ -251,11 +251,20 @@ describe("reminder.job", () => {
       );
 
       // Delete the appointment using raw SQL to bypass cascade delete
-      // This simulates a data inconsistency scenario
+      // This simulates a data inconsistency scenario where reminder exists but appointment doesn't
+      // We need to temporarily disable foreign key constraints
       await query(async (prisma) => {
+        // Disable foreign key checks temporarily (PostgreSQL specific)
         await prisma.$executeRawUnsafe(
-          `DELETE FROM appointments WHERE id = $1`,
-          appointment.id
+          `ALTER TABLE reminders DISABLE TRIGGER ALL`
+        );
+        // Delete the appointment (this would normally cascade delete the reminder)
+        await prisma.$executeRawUnsafe(
+          `DELETE FROM appointments WHERE id = '${appointment.id}'`
+        );
+        // Re-enable foreign key checks
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE reminders ENABLE TRIGGER ALL`
         );
       });
 
