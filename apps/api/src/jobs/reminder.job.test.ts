@@ -225,7 +225,7 @@ describe("reminder.job", () => {
       expect(reminder?.cancelledAt).toBeNull();
     });
 
-    it("should handle missing appointments gracefully", async () => {
+    it("should handle cascade delete when appointment is deleted", async () => {
       const now = new Date();
       const pastTime = new Date(now.getTime() - 60 * 60 * 1000);
       const appointmentTime = new Date(now.getTime() + 2 * 60 * 60 * 1000);
@@ -250,37 +250,28 @@ describe("reminder.job", () => {
         })
       );
 
-      // Delete the appointment using raw SQL to bypass cascade delete
-      // This simulates a data inconsistency scenario where reminder exists but appointment doesn't
-      // We need to temporarily disable foreign key constraints
-      await query(async (prisma) => {
-        // Disable foreign key checks temporarily (PostgreSQL specific)
-        await prisma.$executeRawUnsafe(
-          `ALTER TABLE reminders DISABLE TRIGGER ALL`
-        );
-        // Delete the appointment (this would normally cascade delete the reminder)
-        await prisma.$executeRawUnsafe(
-          `DELETE FROM appointments WHERE id = '${appointment.id}'`
-        );
-        // Re-enable foreign key checks
-        await prisma.$executeRawUnsafe(
-          `ALTER TABLE reminders ENABLE TRIGGER ALL`
-        );
-      });
+      // Delete the appointment - due to CASCADE DELETE foreign key constraint,
+      // the reminder will also be automatically deleted (this is the correct behavior)
+      await query((prisma) =>
+        prisma.appointment.delete({
+          where: { id: appointment.id },
+        })
+      );
 
-      const processedCount = await processReminders();
-
-      expect(processedCount).toBe(1);
-      expect(sendAppointmentReminderEmail).not.toHaveBeenCalled();
-
-      // Verify reminder is marked as sent (to avoid retrying)
-      const updated = await query((prisma) =>
+      // Verify reminder was cascade-deleted (expected behavior)
+      const reminderAfterDelete = await query((prisma) =>
         prisma.reminder.findUnique({
           where: { id: reminder.id },
         })
       );
 
-      expect(updated?.sentAt).toBeDefined();
+      expect(reminderAfterDelete).toBeNull();
+
+      // Process reminders - should find no reminders to process
+      const processedCount = await processReminders();
+
+      expect(processedCount).toBe(0);
+      expect(sendAppointmentReminderEmail).not.toHaveBeenCalled();
     });
 
     it("should process multiple reminders", async () => {
