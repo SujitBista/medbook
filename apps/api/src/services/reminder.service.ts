@@ -157,20 +157,66 @@ export async function updateReminderForReschedule(
     return createReminder(appointmentId, newAppointmentStartTime, reminderType);
   }
 
-  // If already sent or cancelled, create a new one
+  // If already sent or cancelled, delete the old one and create a new one
+  // We need to delete because appointmentId has a unique constraint
   if (reminder.sentAt || reminder.cancelledAt) {
     logger.info("Existing reminder already processed, creating new one", {
       appointmentId,
       oldReminderId: reminder.id,
     });
-    // Cancel the old one and create a new one
-    await query((prisma) =>
-      prisma.reminder.update({
+    // Use transaction to ensure atomicity: delete old and create new
+    return await withTransaction(async (tx) => {
+      // Delete the old reminder to allow creating a new one (appointmentId is unique)
+      await tx.reminder.delete({
         where: { id: reminder.id },
-        data: { cancelledAt: new Date() },
-      })
-    );
-    return createReminder(appointmentId, newAppointmentStartTime, reminderType);
+      });
+
+      // Calculate when to send the reminder
+      const hoursBefore =
+        reminderType === ReminderType.TWENTY_FOUR_HOUR ? 24 : 1;
+      const scheduledFor = new Date(
+        newAppointmentStartTime.getTime() - hoursBefore * 60 * 60 * 1000
+      );
+
+      // Don't schedule reminders in the past
+      if (scheduledFor < new Date()) {
+        logger.warn("Cannot schedule reminder in the past", {
+          appointmentId,
+          scheduledFor,
+          appointmentStartTime: newAppointmentStartTime,
+        });
+        throw createValidationError(
+          "Cannot schedule reminder in the past. Appointment is too soon."
+        );
+      }
+
+      // Create new reminder
+      const newReminder = await tx.reminder.create({
+        data: {
+          appointmentId,
+          scheduledFor,
+          reminderType: reminderType as PrismaReminderType,
+        },
+        select: {
+          id: true,
+          appointmentId: true,
+          scheduledFor: true,
+          reminderType: true,
+        },
+      });
+
+      logger.info("Reminder created after deleting old one", {
+        reminderId: newReminder.id,
+        appointmentId,
+        scheduledFor,
+        reminderType,
+      });
+
+      return {
+        ...newReminder,
+        reminderType: newReminder.reminderType as ReminderType,
+      };
+    });
   }
 
   // Calculate new scheduled time
