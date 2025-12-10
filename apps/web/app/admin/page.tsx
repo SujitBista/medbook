@@ -166,11 +166,22 @@ function AdminDashboardContent() {
   const [editDoctorData, setEditDoctorData] = useState({
     specialization: "",
     bio: "",
+    licenseNumber: "",
+    address: "",
+    city: "",
+    state: "",
+    zipCode: "",
+    yearsOfExperience: "",
+    education: "",
+    profilePictureUrl: "",
   });
   const [editDoctorLoading, setEditDoctorLoading] = useState(false);
   const [editDoctorErrors, setEditDoctorErrors] = useState<
     Record<string, string>
   >({});
+  const [editSelectedFile, setEditSelectedFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editUploadingImage, setEditUploadingImage] = useState(false);
   const [doctorPage, setDoctorPage] = useState(1);
   const [doctorPageSize, setDoctorPageSize] = useState(10);
   const [doctorTotal, setDoctorTotal] = useState(0);
@@ -734,8 +745,106 @@ function AdminDashboardContent() {
     setEditDoctorData({
       specialization: doctor.specialization || "",
       bio: doctor.bio || "",
+      licenseNumber: doctor.licenseNumber || "",
+      address: doctor.address || "",
+      city: doctor.city || "",
+      state: doctor.state || "",
+      zipCode: doctor.zipCode || "",
+      yearsOfExperience: doctor.yearsOfExperience?.toString() || "",
+      education: doctor.education || "",
+      profilePictureUrl: doctor.profilePictureUrl || "",
     });
     setEditDoctorErrors({});
+    setEditSelectedFile(null);
+    setEditImagePreview(doctor.profilePictureUrl || null);
+  };
+
+  const handleEditFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const allowedTypes = ["image/jpeg", "image/jpg", "image/png", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      setEditDoctorErrors((prev) => ({
+        ...prev,
+        profilePicture: "Please select a valid image file (JPEG, PNG, or WebP)",
+      }));
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      setEditDoctorErrors((prev) => ({
+        ...prev,
+        profilePicture: "File size must be less than 5MB",
+      }));
+      return;
+    }
+
+    // Clear previous errors
+    setEditDoctorErrors((prev) => {
+      const newErrors = { ...prev };
+      delete newErrors.profilePicture;
+      return newErrors;
+    });
+
+    // Set file and create preview
+    setEditSelectedFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setEditImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleEditRemoveImage = () => {
+    setEditSelectedFile(null);
+    setEditImagePreview(null);
+    setEditDoctorData((prev) => ({ ...prev, profilePictureUrl: "" }));
+    // Reset file input
+    const fileInput = document.getElementById(
+      "edit-profilePicture"
+    ) as HTMLInputElement;
+    if (fileInput) {
+      fileInput.value = "";
+    }
+  };
+
+  const uploadEditImage = async (): Promise<string | null> => {
+    if (!editSelectedFile) {
+      return editDoctorData.profilePictureUrl || null;
+    }
+
+    setEditUploadingImage(true);
+    try {
+      const uploadFormData = new FormData();
+      uploadFormData.append("file", editSelectedFile);
+
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: uploadFormData,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error?.message || "Failed to upload image");
+      }
+
+      return data.data.url;
+    } catch (err) {
+      console.error("[AdminDashboard] Error uploading image:", err);
+      setEditDoctorErrors((prev) => ({
+        ...prev,
+        profilePicture:
+          err instanceof Error ? err.message : "Failed to upload image",
+      }));
+      return null;
+    } finally {
+      setEditUploadingImage(false);
+    }
   };
 
   const handleUpdateDoctor = async () => {
@@ -746,6 +855,19 @@ function AdminDashboardContent() {
     setError(null);
 
     try {
+      // Upload image first if a new file is selected
+      let profilePictureUrl = editDoctorData.profilePictureUrl;
+      if (editSelectedFile) {
+        const uploadedUrl = await uploadEditImage();
+        if (uploadedUrl) {
+          profilePictureUrl = uploadedUrl;
+        } else {
+          // If upload failed, stop the update
+          setEditDoctorLoading(false);
+          return;
+        }
+      }
+
       const response = await fetch(`/api/admin/doctors/${selectedDoctor.id}`, {
         method: "PUT",
         headers: {
@@ -754,6 +876,16 @@ function AdminDashboardContent() {
         body: JSON.stringify({
           specialization: editDoctorData.specialization || undefined,
           bio: editDoctorData.bio || undefined,
+          licenseNumber: editDoctorData.licenseNumber || undefined,
+          address: editDoctorData.address || undefined,
+          city: editDoctorData.city || undefined,
+          state: editDoctorData.state || undefined,
+          zipCode: editDoctorData.zipCode || undefined,
+          yearsOfExperience: editDoctorData.yearsOfExperience
+            ? parseInt(editDoctorData.yearsOfExperience, 10)
+            : undefined,
+          education: editDoctorData.education || undefined,
+          profilePictureUrl: profilePictureUrl || undefined,
         }),
       });
 
@@ -769,6 +901,8 @@ function AdminDashboardContent() {
 
       setSuccessMessage("Doctor updated successfully!");
       setSelectedDoctor(null);
+      setEditSelectedFile(null);
+      setEditImagePreview(null);
       await fetchDoctors();
       await fetchDoctorStats();
 
@@ -3539,89 +3673,351 @@ function AdminDashboardContent() {
 
       {/* Edit Doctor Modal */}
       {selectedDoctor && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold">Edit Doctor Profile</h3>
-            <p className="mb-4 text-sm text-gray-600">
-              Doctor: {selectedDoctor.userEmail || "N/A"}
-            </p>
-            <div className="space-y-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          <div className="w-full max-w-3xl max-h-[90vh] rounded-lg bg-white shadow-xl flex flex-col">
+            {/* Header */}
+            <div className="flex items-center justify-between border-b border-gray-200 px-6 py-4">
               <div>
-                <label
-                  htmlFor="edit-specialization"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Specialization
-                </label>
-                <input
-                  type="text"
-                  id="edit-specialization"
-                  value={editDoctorData.specialization}
-                  onChange={(e) =>
-                    setEditDoctorData({
-                      ...editDoctorData,
-                      specialization: e.target.value,
-                    })
-                  }
-                  placeholder="e.g., Cardiology, Pediatrics"
-                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                    editDoctorErrors.specialization
-                      ? "border-red-500"
-                      : "border-gray-300"
-                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                />
-                {editDoctorErrors.specialization && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {editDoctorErrors.specialization}
-                  </p>
-                )}
+                <h3 className="text-xl font-semibold text-gray-900">
+                  Edit Doctor Profile
+                </h3>
+                <p className="mt-1 text-sm text-gray-600">
+                  {selectedDoctor.userFirstName && selectedDoctor.userLastName
+                    ? `${selectedDoctor.userFirstName} ${selectedDoctor.userLastName}`
+                    : selectedDoctor.userEmail || "N/A"}
+                </p>
               </div>
-              <div>
-                <label
-                  htmlFor="edit-bio"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Bio
-                </label>
-                <textarea
-                  id="edit-bio"
-                  value={editDoctorData.bio}
-                  onChange={(e) =>
-                    setEditDoctorData({
-                      ...editDoctorData,
-                      bio: e.target.value,
-                    })
-                  }
-                  rows={4}
-                  placeholder="Doctor's bio or description"
-                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                    editDoctorErrors.bio ? "border-red-500" : "border-gray-300"
-                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                />
-                {editDoctorErrors.bio && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {editDoctorErrors.bio}
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="mt-6 flex gap-2">
-              <Button
-                variant="primary"
-                onClick={handleUpdateDoctor}
+              <button
+                onClick={() => {
+                  setSelectedDoctor(null);
+                  setEditDoctorErrors({});
+                  setEditSelectedFile(null);
+                  setEditImagePreview(null);
+                }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
                 disabled={editDoctorLoading}
               >
-                {editDoctorLoading ? "Saving..." : "Save"}
-              </Button>
+                <svg
+                  className="h-6 w-6"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto px-6 py-6">
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  handleUpdateDoctor();
+                }}
+                className="space-y-6"
+              >
+                {/* Professional Information Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                    Professional Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Input
+                        label="Medical License Number"
+                        type="text"
+                        value={editDoctorData.licenseNumber}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            licenseNumber: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., MD-12345"
+                        error={editDoctorErrors.licenseNumber}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="Specialization"
+                        type="text"
+                        value={editDoctorData.specialization}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            specialization: e.target.value,
+                          })
+                        }
+                        placeholder="e.g., Cardiology, Pediatrics"
+                        error={editDoctorErrors.specialization}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Years of Experience
+                      </label>
+                      <input
+                        type="number"
+                        value={editDoctorData.yearsOfExperience}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            yearsOfExperience: e.target.value,
+                          })
+                        }
+                        min="0"
+                        max="50"
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          editDoctorErrors.yearsOfExperience
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
+                        disabled={editDoctorLoading}
+                      />
+                      {editDoctorErrors.yearsOfExperience && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {editDoctorErrors.yearsOfExperience}
+                        </p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Profile Picture
+                      </label>
+                      <div className="space-y-3">
+                        {editImagePreview ? (
+                          <div className="relative inline-block">
+                            <img
+                              src={editImagePreview}
+                              alt="Profile preview"
+                              className="h-32 w-32 rounded-lg object-cover border-2 border-gray-300"
+                            />
+                            <button
+                              type="button"
+                              onClick={handleEditRemoveImage}
+                              className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                              disabled={editDoctorLoading || editUploadingImage}
+                            >
+                              <svg
+                                className="w-4 h-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-4">
+                            <label
+                              htmlFor="edit-profilePicture"
+                              className="cursor-pointer flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                            >
+                              <svg
+                                className="w-5 h-5 text-gray-500"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                                />
+                              </svg>
+                              <span className="text-sm text-gray-700">
+                                {editUploadingImage
+                                  ? "Uploading..."
+                                  : "Choose Image"}
+                              </span>
+                            </label>
+                            <input
+                              id="edit-profilePicture"
+                              type="file"
+                              accept="image/jpeg,image/jpg,image/png,image/webp"
+                              onChange={handleEditFileChange}
+                              className="hidden"
+                              disabled={editDoctorLoading || editUploadingImage}
+                            />
+                            <p className="text-xs text-gray-500">
+                              JPEG, PNG, or WebP (max 5MB)
+                            </p>
+                          </div>
+                        )}
+                        {editDoctorErrors.profilePicture && (
+                          <p className="text-sm text-red-600">
+                            {editDoctorErrors.profilePicture}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Education
+                      </label>
+                      <textarea
+                        value={editDoctorData.education}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            education: e.target.value,
+                          })
+                        }
+                        rows={3}
+                        placeholder="e.g., MD from Harvard Medical School, Residency at..."
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          editDoctorErrors.education
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
+                        disabled={editDoctorLoading}
+                      />
+                      {editDoctorErrors.education && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {editDoctorErrors.education}
+                        </p>
+                      )}
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Bio
+                      </label>
+                      <textarea
+                        value={editDoctorData.bio}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            bio: e.target.value,
+                          })
+                        }
+                        rows={4}
+                        placeholder="Doctor's bio or description"
+                        className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                          editDoctorErrors.bio
+                            ? "border-red-500"
+                            : "border-gray-300"
+                        }`}
+                        disabled={editDoctorLoading}
+                      />
+                      {editDoctorErrors.bio && (
+                        <p className="mt-1 text-sm text-red-600">
+                          {editDoctorErrors.bio}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Location Information Section */}
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                    Location Information
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <Input
+                        label="Address"
+                        type="text"
+                        value={editDoctorData.address}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            address: e.target.value,
+                          })
+                        }
+                        placeholder="Street address"
+                        error={editDoctorErrors.address}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="City"
+                        type="text"
+                        value={editDoctorData.city}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            city: e.target.value,
+                          })
+                        }
+                        placeholder="City"
+                        error={editDoctorErrors.city}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="State"
+                        type="text"
+                        value={editDoctorData.state}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            state: e.target.value,
+                          })
+                        }
+                        placeholder="State"
+                        error={editDoctorErrors.state}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                    <div>
+                      <Input
+                        label="Zip Code"
+                        type="text"
+                        value={editDoctorData.zipCode}
+                        onChange={(e) =>
+                          setEditDoctorData({
+                            ...editDoctorData,
+                            zipCode: e.target.value,
+                          })
+                        }
+                        placeholder="Zip code"
+                        error={editDoctorErrors.zipCode}
+                        disabled={editDoctorLoading}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-gray-200 px-6 py-4 flex justify-end gap-2">
               <Button
                 variant="outline"
                 onClick={() => {
                   setSelectedDoctor(null);
                   setEditDoctorErrors({});
+                  setEditSelectedFile(null);
+                  setEditImagePreview(null);
                 }}
                 disabled={editDoctorLoading}
               >
                 Cancel
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleUpdateDoctor}
+                disabled={editDoctorLoading}
+              >
+                {editDoctorLoading ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </div>
