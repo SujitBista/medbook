@@ -43,3 +43,6 @@ Thumbs.db
 .cache/
 PHASE2_ISSUES.md
 
+# User uploaded files
+apps/web/public/uploads/
+

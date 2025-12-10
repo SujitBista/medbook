@@ -316,13 +316,26 @@ After each task typecheck, lint, build and commit
   - [x] Verify admin can login and access admin dashboard (ready for manual testing)
   - [ ] Document admin initial password setup process (optional - can be done later)
 
-- [x] **Admin Doctor Registration**
+- [x] **Admin Doctor Registration** ✅ COMPLETE
   - [x] Create admin UI for registering new doctor users
   - [x] Add form to create user with DOCTOR role
   - [x] Add form to create doctor profile after user creation (done in single transaction)
   - [x] Implement admin API endpoint for creating doctor users (`POST /api/v1/admin/doctors`)
   - [x] Add validation for doctor registration (email, password, confirm password, specialization, bio)
   - [x] Add password visibility toggle to password fields
+  - [x] **Enhanced Registration Form with Complete Doctor Details** ✅ COMPLETE (Dec 2024)
+    - [x] Updated database schema: Added firstName, lastName, phoneNumber to User model
+    - [x] Updated database schema: Added licenseNumber, address, city, state, zipCode, yearsOfExperience, education, profilePictureUrl to Doctor model
+    - [x] Created migration for new fields
+    - [x] Updated TypeScript types to include all new fields
+    - [x] Updated backend services to handle all new fields
+    - [x] Created modal popup component for doctor registration (`DoctorRegistrationModal.tsx`)
+    - [x] Form organized into sections: Personal Information, Account Information, Professional Information, Location Information
+    - [x] Required fields: Email, Password, First Name, Last Name, Phone Number, Medical License Number
+    - [x] Optional fields: Specialization, Bio, Address, City, State, Zip Code, Years of Experience, Education, Profile Picture URL
+    - [x] Form validation for all required fields
+    - [x] Error handling and loading states
+    - [x] Replaced inline form with modal popup in admin dashboard
   - [x] **Testing**: Write tests for admin doctor registration
     - [x] Test admin can create doctor user
     - [x] Test admin can create doctor profile
@@ -336,6 +349,10 @@ After each task typecheck, lint, build and commit
   - [x] Add ability to delete doctor profiles
   - [x] Add search/filter functionality for doctors
   - [x] Show doctor statistics (total doctors, by specialization)
+  - [x] **Enhanced Doctor Data Collection** ✅ COMPLETE (Dec 2024)
+    - [x] Registration form now collects: firstName, lastName, phoneNumber, licenseNumber, address, city, state, zipCode, yearsOfExperience, education, profilePictureUrl
+    - [x] Updated getAllDoctors to include user name fields (firstName, lastName, phoneNumber)
+    - [x] All doctor fields properly stored and retrieved from database
   - [x] **Testing**: Write tests for admin doctor management UI
     - [x] Test doctor listing
     - [x] Test doctor editing
@@ -365,7 +382,13 @@ After each task typecheck, lint, build and commit
 - ✅ Seed script creates admin users with `mustResetPassword: true` and configurable password (via SEED_PASSWORD env var)
 - ✅ Admin authentication and password reset flow fully functional
 - ✅ Admin can register new doctors (create user + doctor profile in single transaction)
-- ✅ Admin can view all doctors
+- ✅ **Enhanced Doctor Registration** (Dec 2024):
+  - ✅ Modal popup form with comprehensive doctor details
+  - ✅ Collects: firstName, lastName, phoneNumber, licenseNumber, address, city, state, zipCode, yearsOfExperience, education, profilePictureUrl
+  - ✅ Required fields validation (email, password, firstName, lastName, phoneNumber, licenseNumber)
+  - ✅ Professional and location information collection
+  - ✅ All data properly stored in database
+- ✅ Admin can view all doctors (with complete profile information)
 - ✅ Admin can edit doctor profiles
 - ✅ Admin can delete doctor profiles
 - ✅ Admin can search/filter doctors
@@ -964,32 +987,64 @@ This was necessary for a complete user experience, even though not explicitly in
 
 ### Tasks
 
-#### 5.1 Email Notifications
+#### 5.1 Email Notifications ✅ COMPLETE
 
-- [ ] Set up email service (SendGrid, Resend, or similar)
-- [ ] Create email templates
-- [ ] Implement appointment confirmation emails
-- [ ] Add appointment reminder emails
-- [ ] Create cancellation notification emails
-- [ ] Add welcome emails for new users
-- [ ] **Testing**: Write tests for email notifications
-  - [ ] Unit tests for email service functions
-  - [ ] Integration tests for email sending (with mocks)
-  - [ ] Test email template rendering
-  - [ ] Test email delivery scenarios
+- [x] Set up email service (SendGrid, Resend, or similar) ✅ COMPLETE
+  - [x] Resend integration implemented
+  - [x] Development mode (logs emails instead of sending when no API key)
+  - [x] Lazy initialization of Resend client
+- [x] Create email templates ✅ COMPLETE
+  - [x] Welcome email template (HTML formatted)
+  - [x] Appointment confirmation email template
+  - [x] Appointment cancellation email template
+  - [x] Appointment rescheduled email template
+  - [x] Appointment reminder email template
+- [x] Implement appointment confirmation emails ✅ COMPLETE
+  - [x] Sent automatically when appointments are created
+  - [x] Includes appointment details (doctor, date, time, confirmation #)
+- [x] Add appointment reminder emails ✅ COMPLETE
+  - [x] Reminder email template implemented
+  - [x] Sent via background job (see Task 5.2)
+- [x] Create cancellation notification emails ✅ COMPLETE
+  - [x] Sent automatically when appointments are cancelled
+  - [x] Includes cancellation reason and cancelled by information
+- [x] Add welcome emails for new users ✅ COMPLETE
+  - [x] Sent automatically on user registration
+  - [x] Role-specific welcome messages (Patient, Doctor, Admin)
+- [x] **Testing**: Write tests for email notifications ✅ COMPLETE
+  - [x] Unit tests for email service functions (`email.service.test.ts`)
+  - [x] Integration tests for email sending (with mocks)
+  - [x] Test email template rendering
+  - [x] Test email delivery scenarios (dev mode, production mode)
 
-#### 5.2 Appointment Reminders
+#### 5.2 Appointment Reminders ✅ COMPLETE
 
-- [ ] Set up background job system (Bull, Agenda, or similar)
-- [ ] Create reminder scheduling logic
-- [ ] Implement 24-hour reminder emails
-- [ ] Add 1-hour reminder notifications (optional)
-- [ ] Create reminder cancellation on appointment cancellation
-- [ ] **Testing**: Write tests for appointment reminders
-  - [ ] Unit tests for reminder scheduling logic
-  - [ ] Integration tests for reminder jobs
-  - [ ] Test reminder cancellation scenarios
-  - [ ] Test reminder timing accuracy
+- [x] Set up background job system (Bull, Agenda, or similar) ✅ COMPLETE
+  - [x] Using node-cron for scheduling
+  - [x] Reminder job runs every hour (`0 * * * *` cron schedule)
+  - [x] Integrated into main server startup
+- [x] Create reminder scheduling logic ✅ COMPLETE
+  - [x] Reminder service with create, cancel, update functions
+  - [x] Supports 24-hour and 1-hour reminder types
+  - [x] Automatic reminder creation when appointments are booked
+  - [x] Reminder model in database schema
+- [x] Implement 24-hour reminder emails ✅ COMPLETE
+  - [x] Default reminder type (TWENTY_FOUR_HOUR)
+  - [x] Automatically scheduled 24 hours before appointment
+  - [x] Sent via background job
+- [x] Add 1-hour reminder notifications (optional) ✅ COMPLETE
+  - [x] ONE_HOUR reminder type supported
+  - [x] Can be configured per appointment
+- [x] Create reminder cancellation on appointment cancellation ✅ COMPLETE
+  - [x] Reminders automatically cancelled when appointments are cancelled
+  - [x] Reminders updated when appointments are rescheduled
+  - [x] Reminders cancelled for completed appointments
+- [x] **Testing**: Write tests for appointment reminders ✅ COMPLETE
+  - [x] Unit tests for reminder scheduling logic (`reminder.service.test.ts`)
+  - [x] Integration tests for reminder jobs (`reminder.job.test.ts`)
+  - [x] Test reminder cancellation scenarios
+  - [x] Test reminder timing accuracy
+  - [x] Test reminder updates on reschedule
 
 #### 5.3 Search and Filtering
 
@@ -1064,8 +1119,17 @@ This was necessary for a complete user experience, even though not explicitly in
 
 **Deliverables:**
 
-- Email notifications working
-- Appointment reminders automated
+- ✅ Email notifications working
+  - Welcome emails sent on user registration
+  - Appointment confirmation emails sent on booking
+  - Cancellation emails sent on cancellation
+  - Rescheduled emails sent on reschedule
+  - Reminder emails sent via background job
+- ✅ Appointment reminders automated
+  - Background job runs every hour
+  - 24-hour reminders automatically scheduled
+  - 1-hour reminders supported
+  - Reminders cancelled/updated on appointment changes
 - Advanced search and filtering functional
 - Admin dashboard with management capabilities
 - Basic analytics and reporting
