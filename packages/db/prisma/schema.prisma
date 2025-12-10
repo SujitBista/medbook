@@ -85,6 +85,7 @@ model Appointment {
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
   availability Availability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
   slot Slot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  reminder Reminder?
 
   @@index([patientId])
   @@index([doctorId])
@@ -150,5 +151,28 @@ enum SlotStatus {
   BOOKED       // Has an appointment
   BLOCKED      // Doctor blocked this slot
   CANCELLED    // Appointment cancelled, slot available again
+}
+
+model Reminder {
+  id            String   @id @default(uuid())
+  appointmentId String   @unique
+  scheduledFor  DateTime // When to send the reminder (24 hours before appointment)
+  sentAt        DateTime? // When the reminder was actually sent
+  cancelledAt   DateTime? // When the reminder was cancelled
+  reminderType  ReminderType @default(TWENTY_FOUR_HOUR)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  appointment Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([scheduledFor])
+  @@index([appointmentId])
+  @@map("reminders")
+}
+
+enum ReminderType {
+  TWENTY_FOUR_HOUR  // 24 hours before appointment
+  ONE_HOUR          // 1 hour before appointment (optional)
 }
 

@@ -21,6 +21,8 @@ import { query, withTransaction } from "@app/db";
 export async function cleanupTestData(): Promise<void> {
   try {
     // Delete in reverse order of dependencies
+    // Note: Reminders are cascade-deleted when appointments are deleted (onDelete: Cascade),
+    // so we don't need to delete them explicitly
     await query(async (prisma) => {
       try {
         // Delete appointments first (has foreign keys to slots, users, doctors, availabilities)
