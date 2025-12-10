@@ -32,6 +32,7 @@ import {
   cancelReminder,
   updateReminderForReschedule,
 } from "./reminder.service";
+import { isAppError } from "../utils/errors";
 
 /**
  * Helper to get doctor details for email notifications
@@ -635,10 +636,22 @@ export async function createAppointmentFromSlot(
   // Schedule reminder email (non-blocking, after transaction commits)
   createReminder(result.appointment.id, result.appointment.startTime).catch(
     (error) => {
-      logger.error("Failed to create reminder", {
-        appointmentId: result.appointment.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      // Log as warning if appointment is too soon (expected), error otherwise
+      const isValidationError =
+        isAppError(error) &&
+        (error.code === "VALIDATION_ERROR" ||
+          error.message.includes("Cannot schedule reminder in the past"));
+      if (isValidationError) {
+        logger.warn("Reminder not scheduled - appointment too soon", {
+          appointmentId: result.appointment.id,
+          error: error.message,
+        });
+      } else {
+        logger.error("Failed to create reminder", {
+          appointmentId: result.appointment.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
       // Don't fail appointment creation if reminder scheduling fails
     }
   );
@@ -833,10 +846,22 @@ export async function createAppointment(
 
     // Schedule reminder email (non-blocking)
     createReminder(appointment.id, appointment.startTime).catch((error) => {
-      logger.error("Failed to create reminder", {
-        appointmentId: appointment.id,
-        error: error instanceof Error ? error.message : "Unknown error",
-      });
+      // Log as warning if appointment is too soon (expected), error otherwise
+      const isValidationError =
+        isAppError(error) &&
+        (error.code === "VALIDATION_ERROR" ||
+          error.message.includes("Cannot schedule reminder in the past"));
+      if (isValidationError) {
+        logger.warn("Reminder not scheduled - appointment too soon", {
+          appointmentId: appointment.id,
+          error: error.message,
+        });
+      } else {
+        logger.error("Failed to create reminder", {
+          appointmentId: appointment.id,
+          error: error instanceof Error ? error.message : "Unknown error",
+        });
+      }
       // Don't fail appointment creation if reminder scheduling fails
     });
 
