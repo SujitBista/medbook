@@ -1,0 +1,299 @@
+{
+  "name": "Appointment Created",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "appointment-created",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [250, 300],
+      "webhookId": "appointment-created"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "patient-email",
+              "name": "patientEmail",
+              "value": "={{ $json.body.patientEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "doctor-name",
+              "name": "doctorName",
+              "value": "={{ $json.body.doctorName }}",
+              "type": "string"
+            },
+            {
+              "id": "appointment-id",
+              "name": "appointmentId",
+              "value": "={{ $json.body.appointmentId }}",
+              "type": "string"
+            },
+            {
+              "id": "start-time",
+              "name": "startTime",
+              "value": "={{ $json.body.startTime }}",
+              "type": "string"
+            },
+            {
+              "id": "end-time",
+              "name": "endTime",
+              "value": "={{ $json.body.endTime }}",
+              "type": "string"
+            },
+            {
+              "id": "doctor-specialization",
+              "name": "doctorSpecialization",
+              "value": "={{ $json.body.doctorSpecialization || 'General Practice' }}",
+              "type": "string"
+            },
+            {
+              "id": "notes",
+              "name": "notes",
+              "value": "={{ $json.body.notes || '' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "extract-data",
+      "name": "Extract Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [470, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-email",
+              "leftValue": "={{ $json.patientEmail }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "validate-data",
+      "name": "Validate Data",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [690, 300]
+    },
+    {
+      "parameters": {
+        "fromEmail": "noreply@medbook.com",
+        "toEmail": "={{ $json.patientEmail }}",
+        "subject": "=Appointment Confirmed - MedBook",
+        "emailType": "html",
+        "html": "=<!DOCTYPE html>\n<html>\n<head>\n  <style>\n    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }\n    .container { max-width: 600px; margin: 0 auto; padding: 20px; }\n    .header { background-color: #4F46E5; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }\n    .content { background-color: #f9fafb; padding: 20px; border-radius: 0 0 8px 8px; }\n    .appointment-details { background-color: white; padding: 15px; border-radius: 8px; margin: 15px 0; }\n    .detail-row { padding: 8px 0; border-bottom: 1px solid #e5e7eb; }\n    .detail-row:last-child { border-bottom: none; }\n    .label { font-weight: bold; color: #6b7280; }\n    .footer { text-align: center; padding: 20px; color: #6b7280; font-size: 12px; }\n  </style>\n</head>\n<body>\n  <div class=\"container\">\n    <div class=\"header\">\n      <h1>Appointment Confirmed</h1>\n    </div>\n    <div class=\"content\">\n      <p>Dear Patient,</p>\n      <p>Your appointment has been successfully booked. Here are the details:</p>\n      \n      <div class=\"appointment-details\">\n        <div class=\"detail-row\">\n          <span class=\"label\">Appointment ID:</span><br>\n          {{ $json.appointmentId }}\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"label\">Doctor:</span><br>\n          Dr. {{ $json.doctorName }} ({{ $json.doctorSpecialization }})\n        </div>\n        <div class=\"detail-row\">\n          <span class=\"label\">Date & Time:</span><br>\n          {{ $json.startTime }}\n        </div>\n        {{ $json.notes ? '<div class=\"detail-row\"><span class=\"label\">Notes:</span><br>' + $json.notes + '</div>' : '' }}\n      </div>\n      \n      <p>Please arrive 10 minutes before your scheduled appointment time.</p>\n      <p>If you need to cancel or reschedule, please do so at least 24 hours in advance.</p>\n      \n      <p>Best regards,<br>The MedBook Team</p>\n    </div>\n    <div class=\"footer\">\n      <p>This is an automated message from MedBook. Please do not reply to this email.</p>\n    </div>\n  </div>\n</body>\n</html>",
+        "options": {}
+      },
+      "id": "send-email",
+      "name": "Send Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2.1,
+      "position": [910, 200],
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": true,
+              "type": "boolean"
+            },
+            {
+              "id": "message",
+              "name": "message",
+              "value": "=Email notification sent to {{ $json.patientEmail }}",
+              "type": "string"
+            },
+            {
+              "id": "timestamp",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "success-response",
+      "name": "Success Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [1130, 200]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "success",
+              "name": "success",
+              "value": false,
+              "type": "boolean"
+            },
+            {
+              "id": "error",
+              "name": "error",
+              "value": "Missing required field: patientEmail",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "error-response",
+      "name": "Error Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [910, 400]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Respond Success",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1350, 200]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {
+          "responseCode": 400
+        }
+      },
+      "id": "respond-error",
+      "name": "Respond Error",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1130, 400]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Data": {
+      "main": [
+        [
+          {
+            "node": "Validate Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Data": {
+      "main": [
+        [
+          {
+            "node": "Send Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Error Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Email": {
+      "main": [
+        [
+          {
+            "node": "Success Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Success Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Error Response": {
+      "main": [
+        [
+          {
+            "node": "Respond Error",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "name": "appointments",
+      "id": "1"
+    },
+    {
+      "name": "notifications",
+      "id": "2"
+    }
+  ],
+  "triggerCount": 1,
+  "active": false,
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "medbook-local"
+  }
+}

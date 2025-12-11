@@ -92,6 +92,16 @@ export const env = {
   get appUrl(): string {
     return process.env.APP_URL || "http://localhost:3000";
   },
+  // n8n configuration
+  get n8nWebhookBaseUrl(): string {
+    return process.env.N8N_WEBHOOK_BASE_URL || "http://localhost:5678/webhook";
+  },
+  get n8nEnabled(): boolean {
+    return process.env.N8N_ENABLED !== "false";
+  },
+  get n8nWebhookTimeout(): number {
+    return parseInt(process.env.N8N_WEBHOOK_TIMEOUT || "10000", 10);
+  },
 };
 
 export const isDevelopment = env.nodeEnv === "development";

@@ -33,6 +33,7 @@ import {
   updateReminderForReschedule,
 } from "./reminder.service";
 import { isAppError } from "../utils/errors";
+import { triggerN8nWebhookAsync } from "../utils/n8n";
 
 /**
  * Helper to get doctor details for email notifications
@@ -656,6 +657,21 @@ export async function createAppointmentFromSlot(
     }
   );
 
+  // Trigger n8n webhook for appointment created (non-blocking)
+  getDoctorDetailsForEmail(result.doctorId).then((doctor) => {
+    if (doctor) {
+      triggerN8nWebhookAsync("appointment-created", {
+        appointmentId: result.appointment.id,
+        patientEmail: result.appointment.patientEmail,
+        doctorName: doctor.name,
+        doctorSpecialization: doctor.specialization,
+        startTime: result.appointment.startTime,
+        endTime: result.appointment.endTime,
+        notes: result.appointment.notes,
+      });
+    }
+  });
+
   return result.appointment;
 }
 
@@ -863,6 +879,21 @@ export async function createAppointment(
         });
       }
       // Don't fail appointment creation if reminder scheduling fails
+    });
+
+    // Trigger n8n webhook for appointment created (non-blocking)
+    getDoctorDetailsForEmail(doctorId).then((doctor) => {
+      if (doctor) {
+        triggerN8nWebhookAsync("appointment-created", {
+          appointmentId: appointment.id,
+          patientEmail: patient.email,
+          doctorName: doctor.name,
+          doctorSpecialization: doctor.specialization,
+          startTime: appointment.startTime,
+          endTime: appointment.endTime,
+          notes: appointment.notes ?? undefined,
+        });
+      }
     });
 
     return result;
