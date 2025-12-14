@@ -10,6 +10,7 @@ import {
   updateUserRole,
   deleteUser,
   getSystemStats,
+  getAppointmentStats,
   createDoctorUser,
   UpdateUserRoleInput,
   CreateDoctorUserInput,
@@ -475,6 +476,27 @@ export async function getDoctorStatistics(
 ): Promise<void> {
   try {
     const stats = await getDoctorStats();
+
+    res.status(200).json({
+      success: true,
+      stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get appointment statistics (admin only)
+ * GET /api/v1/admin/appointments/stats
+ */
+export async function getAppointmentStatistics(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const stats = await getAppointmentStats();
 
     res.status(200).json({
       success: true,

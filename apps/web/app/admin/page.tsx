@@ -34,6 +34,25 @@ interface SystemStats {
   };
 }
 
+interface AppointmentStats {
+  total: number;
+  byStatus: {
+    PENDING: number;
+    CONFIRMED: number;
+    CANCELLED: number;
+    COMPLETED: number;
+  };
+  upcoming: number;
+  today: number;
+  thisWeek: number;
+  thisMonth: number;
+  recentActivity: {
+    createdToday: number;
+    createdThisWeek: number;
+    createdThisMonth: number;
+  };
+}
+
 interface Doctor {
   id: string;
   userId: string;
@@ -139,6 +158,9 @@ function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>("general");
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
+  const [appointmentStats, setAppointmentStats] =
+    useState<AppointmentStats | null>(null);
+  const [appointmentStatsLoading, setAppointmentStatsLoading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -312,6 +334,7 @@ function AdminDashboardContent() {
   useEffect(() => {
     fetchData();
     fetchDoctorStats();
+    fetchAppointmentStats();
   }, []);
 
   useEffect(() => {
@@ -737,6 +760,29 @@ function AdminDashboardContent() {
     } catch (err) {
       console.error("[AdminDashboard] Error fetching doctor stats:", err);
       // Don't set error for stats, just log it
+    }
+  };
+
+  const fetchAppointmentStats = async () => {
+    try {
+      setAppointmentStatsLoading(true);
+      const response = await fetch("/api/admin/appointments/stats", {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch appointment stats");
+      }
+
+      const data = await response.json();
+      setAppointmentStats(data.stats || null);
+    } catch (err) {
+      console.error("[AdminDashboard] Error fetching appointment stats:", err);
+      // Don't set error for stats, just log it
+    } finally {
+      setAppointmentStatsLoading(false);
     }
   };
 
@@ -1974,7 +2020,7 @@ function AdminDashboardContent() {
       {/* General Tab */}
       {activeTab === "general" && (
         <div className="space-y-8">
-          {/* Statistics Cards */}
+          {/* User Statistics Cards */}
           {stats && (
             <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
               <div className="rounded-lg bg-white p-6 shadow">
@@ -2005,6 +2051,112 @@ function AdminDashboardContent() {
               </div>
             </div>
           )}
+
+          {/* Appointment Statistics Cards */}
+          {appointmentStatsLoading ? (
+            <div className="rounded-lg bg-white p-6 shadow">
+              <p className="text-gray-500">Loading appointment statistics...</p>
+            </div>
+          ) : appointmentStats ? (
+            <div className="space-y-6">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Appointment Statistics
+              </h2>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Total Appointments
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-gray-900">
+                    {appointmentStats.total}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Upcoming
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-blue-600">
+                    {appointmentStats.upcoming}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">Today</h3>
+                  <p className="mt-2 text-3xl font-bold text-indigo-600">
+                    {appointmentStats.today}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    This Week
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-purple-600">
+                    {appointmentStats.thisWeek}
+                  </p>
+                </div>
+              </div>
+
+              {/* Status Breakdown */}
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">Pending</h3>
+                  <p className="mt-2 text-3xl font-bold text-yellow-600">
+                    {appointmentStats.byStatus.PENDING}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Confirmed
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-blue-600">
+                    {appointmentStats.byStatus.CONFIRMED}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Completed
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-green-600">
+                    {appointmentStats.byStatus.COMPLETED}
+                  </p>
+                </div>
+                <div className="rounded-lg bg-white p-6 shadow">
+                  <h3 className="text-sm font-medium text-gray-500">
+                    Cancelled
+                  </h3>
+                  <p className="mt-2 text-3xl font-bold text-red-600">
+                    {appointmentStats.byStatus.CANCELLED}
+                  </p>
+                </div>
+              </div>
+
+              {/* Recent Activity */}
+              <div className="rounded-lg bg-white p-6 shadow">
+                <h3 className="mb-4 text-lg font-semibold text-gray-900">
+                  Recent Activity
+                </h3>
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <div>
+                    <p className="text-sm text-gray-500">Created Today</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">
+                      {appointmentStats.recentActivity.createdToday}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Created This Week</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">
+                      {appointmentStats.recentActivity.createdThisWeek}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-gray-500">Created This Month</p>
+                    <p className="mt-1 text-2xl font-bold text-gray-900">
+                      {appointmentStats.recentActivity.createdThisMonth}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : null}
 
           {/* Users Table */}
           <div className="rounded-lg bg-white shadow">
