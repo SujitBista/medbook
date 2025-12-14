@@ -13,146 +13,27 @@ import {
 import { Button, Input, Card } from "@medbook/ui";
 import { TimePicker } from "@/components/forms/TimePicker";
 import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationModal";
+import { TabNavigation } from "@/components/admin/TabNavigation";
+import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
+import type {
+  User,
+  SystemStats,
+  AppointmentStats,
+  Doctor,
+  DoctorStats,
+  TabType,
+} from "@/app/admin/types";
+import {
+  DAYS_OF_WEEK,
+  utcToLocalDate,
+  formatDateTimeLocal,
+  formatDateLocal,
+  formatTimeLocal,
+  localToUtcDate,
+} from "@/app/admin/utils/date.utils";
 
 // Mark this page as dynamic to prevent pre-rendering
 export const dynamic = "force-dynamic";
-
-interface User {
-  id: string;
-  email: string;
-  role: UserRole;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface SystemStats {
-  totalUsers: number;
-  usersByRole: {
-    PATIENT: number;
-    DOCTOR: number;
-    ADMIN: number;
-  };
-}
-
-interface AppointmentStats {
-  total: number;
-  byStatus: {
-    PENDING: number;
-    CONFIRMED: number;
-    CANCELLED: number;
-    COMPLETED: number;
-  };
-  upcoming: number;
-  today: number;
-  thisWeek: number;
-  thisMonth: number;
-  recentActivity: {
-    createdToday: number;
-    createdThisWeek: number;
-    createdThisMonth: number;
-  };
-}
-
-interface Doctor {
-  id: string;
-  userId: string;
-  specialization?: string;
-  bio?: string;
-  licenseNumber?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  yearsOfExperience?: number;
-  education?: string;
-  profilePictureUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-  userEmail?: string;
-  userFirstName?: string;
-  userLastName?: string;
-  userPhoneNumber?: string;
-}
-
-interface DoctorStats {
-  totalDoctors: number;
-  doctorsBySpecialization: Record<string, number>;
-}
-
-type TabType = "general" | "doctors" | "schedule-management" | "appointments";
-
-const DAYS_OF_WEEK = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-];
-
-/**
- * Converts a UTC date string/Date to local time Date object
- * This ensures proper timezone conversion when dates come from backend (UTC)
- */
-function utcToLocalDate(date: Date | string): Date {
-  const d = typeof date === "string" ? new Date(date) : date;
-  // If it's already a Date object from a UTC string, it's correctly parsed
-  // getHours() and getMinutes() will return local time values
-  return d;
-}
-
-/**
- * Formats a Date object to datetime-local input format (YYYY-MM-DDTHH:mm)
- * Converts UTC dates from backend to local time for display in input fields
- */
-function formatDateTimeLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  // getHours() and getMinutes() return local time values
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-/**
- * Formats a Date object to date input format (YYYY-MM-DD)
- * Converts UTC dates from backend to local time for display
- */
-function formatDateLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Formats time for display in local timezone (12-hour format with AM/PM)
- * Converts UTC time from backend to local time for display
- */
-function formatTimeLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(d);
-}
-
-/**
- * Converts a datetime-local input value (local time) to UTC Date
- * datetime-local inputs provide values in local time (e.g., "2024-01-15T14:30")
- * This function ensures they're properly converted to UTC when creating Date objects
- */
-function localToUtcDate(localDateTimeString: string): Date {
-  // datetime-local format: "YYYY-MM-DDTHH:mm"
-  // When we create new Date() from this, JavaScript interprets it as local time
-  // When serialized to JSON, it automatically converts to UTC (ISO string)
-  return new Date(localDateTimeString);
-}
 
 function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>("general");
@@ -1972,265 +1853,30 @@ function AdminDashboardContent() {
       )}
 
       {/* Tab Navigation */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "general"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            General
-          </button>
-          <button
-            onClick={() => setActiveTab("doctors")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "doctors"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Doctors
-          </button>
-          <button
-            onClick={() => setActiveTab("schedule-management")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "schedule-management"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Schedule Management
-          </button>
-          <button
-            onClick={() => setActiveTab("appointments")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "appointments"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Appointments
-          </button>
-        </nav>
-      </div>
+      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* General Tab */}
       {activeTab === "general" && (
-        <div className="space-y-8">
-          {/* User Statistics Cards */}
-          {stats && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Total Users
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {stats.totalUsers}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Patients</h3>
-                <p className="mt-2 text-3xl font-bold text-blue-600">
-                  {stats.usersByRole.PATIENT}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Doctors</h3>
-                <p className="mt-2 text-3xl font-bold text-green-600">
-                  {stats.usersByRole.DOCTOR}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Admins</h3>
-                <p className="mt-2 text-3xl font-bold text-purple-600">
-                  {stats.usersByRole.ADMIN}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Appointment Statistics Cards */}
-          {appointmentStatsLoading ? (
-            <div className="rounded-lg bg-white p-6 shadow">
-              <p className="text-gray-500">Loading appointment statistics...</p>
-            </div>
-          ) : appointmentStats ? (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Appointment Statistics
-              </h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Total Appointments
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">
-                    {appointmentStats.total}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Upcoming
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-blue-600">
-                    {appointmentStats.upcoming}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">Today</h3>
-                  <p className="mt-2 text-3xl font-bold text-indigo-600">
-                    {appointmentStats.today}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    This Week
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-purple-600">
-                    {appointmentStats.thisWeek}
-                  </p>
-                </div>
-              </div>
-
-              {/* Status Breakdown */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-                  <p className="mt-2 text-3xl font-bold text-yellow-600">
-                    {appointmentStats.byStatus.PENDING}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Confirmed
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-blue-600">
-                    {appointmentStats.byStatus.CONFIRMED}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Completed
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-green-600">
-                    {appointmentStats.byStatus.COMPLETED}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Cancelled
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-red-600">
-                    {appointmentStats.byStatus.CANCELLED}
-                  </p>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                  Recent Activity
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div>
-                    <p className="text-sm text-gray-500">Created Today</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdToday}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Created This Week</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdThisWeek}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Created This Month</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdThisMonth}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Users Table */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">All Users</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                        {user.email}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            user.role === UserRole.ADMIN
-                              ? "bg-purple-100 text-purple-800"
-                              : user.role === UserRole.DOCTOR
-                                ? "bg-green-100 text-green-800"
-                                : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setNewRole(user.role);
-                            }}
-                          >
-                            Change Role
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <GeneralTab
+          users={users}
+          stats={stats}
+          appointmentStats={appointmentStats}
+          appointmentStatsLoading={appointmentStatsLoading}
+          selectedUser={selectedUser}
+          newRole={newRole}
+          onRoleChangeClick={(user) => {
+            setSelectedUser(user);
+            setNewRole(user.role);
+          }}
+          onRoleChange={(role) => setNewRole(role)}
+          onRoleChangeConfirm={() => {
+            if (selectedUser) {
+              handleRoleChange(selectedUser.id, newRole);
+            }
+          }}
+          onRoleChangeClose={() => setSelectedUser(null)}
+          onDeleteUser={handleDeleteUser}
+        />
       )}
 
       {/* Doctors Tab */}
@@ -3801,43 +3447,6 @@ function AdminDashboardContent() {
                   </Card>
                 </>
               )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Role Change Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold">Change User Role</h3>
-            <p className="mb-4 text-sm text-gray-600">
-              User: {selectedUser.email}
-            </p>
-            <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                New Role
-              </label>
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value as UserRole)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-              >
-                <option value={UserRole.PATIENT}>PATIENT</option>
-                <option value={UserRole.DOCTOR}>DOCTOR</option>
-                <option value={UserRole.ADMIN}>ADMIN</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="primary"
-                onClick={() => handleRoleChange(selectedUser.id, newRole)}
-              >
-                Save
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedUser(null)}>
-                Cancel
-              </Button>
             </div>
           </div>
         </div>
