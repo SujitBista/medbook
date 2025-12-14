@@ -16,6 +16,7 @@ import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationMo
 import { TabNavigation } from "@/components/admin/TabNavigation";
 import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
+import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
 import type {
   User,
   SystemStats,
@@ -1897,6 +1898,17 @@ function AdminDashboardContent() {
 
       {/* Schedule Management Tab */}
       {activeTab === "schedule-management" && (
+        <ScheduleManagementTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }}
+        />
+      )}
+
+      {/* TEMP: Old schedule tab code to be removed - starts here */}
+      {false && activeTab === "schedule-management-OLD" && (
         <div className="space-y-8">
           {/* Schedule Management Section */}
           <div className="rounded-lg bg-white shadow">
@@ -2995,6 +3007,7 @@ function AdminDashboardContent() {
           </div>
         </div>
       )}
+      {/* TEMP: Old schedule tab code ends here */}
 
       {/* Edit Doctor Modal */}
       {selectedDoctor && (
