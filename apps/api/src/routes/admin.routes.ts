@@ -19,6 +19,7 @@ import {
   updateDoctorProfile,
   removeDoctor,
   getDoctorStatistics,
+  getAppointmentStatistics,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -74,6 +75,12 @@ router.get("/doctors", listDoctors);
  * Get doctor statistics
  */
 router.get("/doctors/stats", getDoctorStatistics);
+
+/**
+ * GET /api/v1/admin/appointments/stats
+ * Get appointment statistics
+ */
+router.get("/appointments/stats", getAppointmentStatistics);
 
 /**
  * GET /api/v1/admin/doctors/:id

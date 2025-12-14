@@ -4,7 +4,12 @@
  */
 
 import { query, UserRole as PrismaUserRole, withTransaction } from "@app/db";
-import { UserRole, UserWithoutPassword, Doctor } from "@medbook/types";
+import {
+  UserRole,
+  UserWithoutPassword,
+  Doctor,
+  AppointmentStatus,
+} from "@medbook/types";
 import { CreateUserInput } from "@medbook/types";
 import {
   createNotFoundError,
@@ -491,5 +496,142 @@ export async function getSystemStats(): Promise<SystemStats> {
   return {
     totalUsers,
     usersByRole,
+  };
+}
+
+/**
+ * Appointment statistics (admin only)
+ */
+export interface AppointmentStats {
+  total: number;
+  byStatus: {
+    PENDING: number;
+    CONFIRMED: number;
+    CANCELLED: number;
+    COMPLETED: number;
+  };
+  upcoming: number; // Appointments with startTime > now
+  today: number; // Appointments scheduled for today
+  thisWeek: number; // Appointments scheduled this week
+  thisMonth: number; // Appointments scheduled this month
+  recentActivity: {
+    createdToday: number;
+    createdThisWeek: number;
+    createdThisMonth: number;
+  };
+}
+
+/**
+ * Get appointment statistics
+ * @returns Appointment statistics
+ */
+export async function getAppointmentStats(): Promise<AppointmentStats> {
+  const now = new Date();
+  const startOfToday = new Date(now);
+  startOfToday.setHours(0, 0, 0, 0);
+  const endOfToday = new Date(now);
+  endOfToday.setHours(23, 59, 59, 999);
+
+  // Start of this week (Sunday)
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - now.getDay());
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  // End of this week (Saturday)
+  const endOfWeek = new Date(startOfWeek);
+  endOfWeek.setDate(startOfWeek.getDate() + 6);
+  endOfWeek.setHours(23, 59, 59, 999);
+
+  // Start of this month
+  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  startOfMonth.setHours(0, 0, 0, 0);
+
+  // End of this month
+  const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  endOfMonth.setHours(23, 59, 59, 999);
+
+  // Get all appointments
+  const appointments = await query<
+    {
+      status: string;
+      startTime: Date;
+      createdAt: Date;
+    }[]
+  >((prisma) =>
+    prisma.appointment.findMany({
+      select: {
+        status: true,
+        startTime: true,
+        createdAt: true,
+      },
+    })
+  );
+
+  // Calculate statistics
+  const total = appointments.length;
+  const byStatus = {
+    PENDING: 0,
+    CONFIRMED: 0,
+    CANCELLED: 0,
+    COMPLETED: 0,
+  };
+
+  let upcoming = 0;
+  let today = 0;
+  let thisWeek = 0;
+  let thisMonth = 0;
+  const recentActivity = {
+    createdToday: 0,
+    createdThisWeek: 0,
+    createdThisMonth: 0,
+  };
+
+  appointments.forEach((apt) => {
+    // Count by status
+    const status = apt.status as keyof typeof byStatus;
+    if (status in byStatus) {
+      byStatus[status]++;
+    }
+
+    // Count upcoming (startTime > now)
+    if (apt.startTime > now) {
+      upcoming++;
+    }
+
+    // Count today
+    if (apt.startTime >= startOfToday && apt.startTime <= endOfToday) {
+      today++;
+    }
+
+    // Count this week
+    if (apt.startTime >= startOfWeek && apt.startTime <= endOfWeek) {
+      thisWeek++;
+    }
+
+    // Count this month
+    if (apt.startTime >= startOfMonth && apt.startTime <= endOfMonth) {
+      thisMonth++;
+    }
+
+    // Count recent activity (by createdAt)
+    if (apt.createdAt >= startOfToday && apt.createdAt <= endOfToday) {
+      recentActivity.createdToday++;
+    }
+    if (apt.createdAt >= startOfWeek && apt.createdAt <= endOfWeek) {
+      recentActivity.createdThisWeek++;
+    }
+    if (apt.createdAt >= startOfMonth && apt.createdAt <= endOfMonth) {
+      recentActivity.createdThisMonth++;
+    }
+  });
+
+  return {
+    total,
+    byStatus,
+    upcoming,
+    today,
+    thisWeek,
+    thisMonth,
+    recentActivity,
   };
 }
