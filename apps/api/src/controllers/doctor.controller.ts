@@ -31,6 +31,15 @@ export async function getDoctors(
       : 10;
     const search = req.query.search as string | undefined;
     const specialization = req.query.specialization as string | undefined;
+    const city = req.query.city as string | undefined;
+    const state = req.query.state as string | undefined;
+    const sortBy = req.query.sortBy as
+      | "name"
+      | "specialization"
+      | "yearsOfExperience"
+      | "createdAt"
+      | undefined;
+    const sortOrder = req.query.sortOrder as "asc" | "desc" | undefined;
     // Default to true: only show doctors with availability (public endpoint)
     const hasAvailability =
       req.query.hasAvailability !== undefined
@@ -50,12 +59,39 @@ export async function getDoctors(
       return;
     }
 
+    // Validate sortBy
+    if (
+      sortBy &&
+      !["name", "specialization", "yearsOfExperience", "createdAt"].includes(
+        sortBy
+      )
+    ) {
+      const error = createValidationError(
+        "sortBy must be one of: name, specialization, yearsOfExperience, createdAt"
+      );
+      next(error);
+      return;
+    }
+
+    // Validate sortOrder
+    if (sortOrder && !["asc", "desc"].includes(sortOrder)) {
+      const error = createValidationError(
+        "sortOrder must be either 'asc' or 'desc'"
+      );
+      next(error);
+      return;
+    }
+
     const result = await getAllDoctors({
       page,
       limit,
       search,
       specialization,
       hasAvailability,
+      city,
+      state,
+      sortBy,
+      sortOrder,
     });
 
     res.status(200).json({

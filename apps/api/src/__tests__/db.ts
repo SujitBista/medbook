@@ -242,6 +242,9 @@ export async function createTestDoctor(overrides?: {
   userId?: string;
   specialization?: string;
   bio?: string;
+  city?: string;
+  state?: string;
+  yearsOfExperience?: number;
 }) {
   let user;
 
@@ -301,6 +304,9 @@ export async function createTestDoctor(overrides?: {
           userId: newUser.id,
           specialization: overrides?.specialization || null,
           bio: overrides?.bio || null,
+          city: overrides?.city || null,
+          state: overrides?.state || null,
+          yearsOfExperience: overrides?.yearsOfExperience || null,
         },
         include: {
           user: {
@@ -355,6 +361,9 @@ export async function createTestDoctor(overrides?: {
           userId: user.id,
           specialization: overrides?.specialization || null,
           bio: overrides?.bio || null,
+          city: overrides?.city || null,
+          state: overrides?.state || null,
+          yearsOfExperience: overrides?.yearsOfExperience || null,
         },
         include: {
           user: {

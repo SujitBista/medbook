@@ -7,6 +7,7 @@ import { Doctor } from "@medbook/types";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import useSWR from "swr";
+import { AdvancedDoctorFilters } from "@/components/features/AdvancedDoctorFilters";
 
 interface DoctorsResponse {
   success: boolean;
@@ -44,6 +45,16 @@ export default function DoctorsPage() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [specializationFilter, setSpecializationFilter] = useState("");
+  const [advancedFilters, setAdvancedFilters] = useState({
+    city: "",
+    state: "",
+    sortBy: "createdAt" as
+      | "name"
+      | "specialization"
+      | "yearsOfExperience"
+      | "createdAt",
+    sortOrder: "desc" as "asc" | "desc",
+  });
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
@@ -64,8 +75,30 @@ export default function DoctorsPage() {
       params.append("specialization", specializationFilter);
     }
 
+    if (advancedFilters.city) {
+      params.append("city", advancedFilters.city);
+    }
+
+    if (advancedFilters.state) {
+      params.append("state", advancedFilters.state);
+    }
+
+    if (advancedFilters.sortBy) {
+      params.append("sortBy", advancedFilters.sortBy);
+    }
+
+    if (advancedFilters.sortOrder) {
+      params.append("sortOrder", advancedFilters.sortOrder);
+    }
+
     return `/api/doctors?${params.toString()}`;
-  }, [pagination.page, pagination.limit, searchTerm, specializationFilter]);
+  }, [
+    pagination.page,
+    pagination.limit,
+    searchTerm,
+    specializationFilter,
+    advancedFilters,
+  ]);
 
   // Use SWR for data fetching with revalidation options
   const {
@@ -96,6 +129,11 @@ export default function DoctorsPage() {
   const handlePageChange = (newPage: number) => {
     setPagination((prev) => ({ ...prev, page: newPage }));
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleAdvancedFiltersChange = (filters: typeof advancedFilters) => {
+    setAdvancedFilters(filters);
+    setPagination((prev) => ({ ...prev, page: 1 }));
   };
 
   // Get unique specializations for filter from current data
@@ -209,6 +247,13 @@ export default function DoctorsPage() {
             </div>
           </form>
         </Card>
+
+        {/* Advanced Filters */}
+        <AdvancedDoctorFilters
+          filters={advancedFilters}
+          onFiltersChange={handleAdvancedFiltersChange}
+          doctors={doctors}
+        />
 
         {/* Error State */}
         {errorMessage && (
