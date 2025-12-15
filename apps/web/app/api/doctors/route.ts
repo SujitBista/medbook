@@ -18,6 +18,10 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit");
     const search = searchParams.get("search");
     const specialization = searchParams.get("specialization");
+    const city = searchParams.get("city");
+    const state = searchParams.get("state");
+    const sortBy = searchParams.get("sortBy");
+    const sortOrder = searchParams.get("sortOrder");
     const hasAvailability = searchParams.get("hasAvailability");
 
     // Build query string
@@ -26,6 +30,10 @@ export async function GET(req: NextRequest) {
     if (limit) queryParams.append("limit", limit);
     if (search) queryParams.append("search", search);
     if (specialization) queryParams.append("specialization", specialization);
+    if (city) queryParams.append("city", city);
+    if (state) queryParams.append("state", state);
+    if (sortBy) queryParams.append("sortBy", sortBy);
+    if (sortOrder) queryParams.append("sortOrder", sortOrder);
     // Default to true: only show doctors with availability (public endpoint)
     // Allow override via query parameter for admin/edge cases
     queryParams.append("hasAvailability", hasAvailability ?? "true");

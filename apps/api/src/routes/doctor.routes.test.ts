@@ -602,3 +602,404 @@ describe("PUT /api/v1/doctors/:id", () => {
     );
   });
 });
+
+describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", () => {
+  const app = createTestApp();
+  const agent = createTestAgent(app);
+  const createdDoctorIds: string[] = [];
+  const createdUserIds: string[] = [];
+
+  beforeEach(async () => {
+    createdDoctorIds.length = 0;
+    createdUserIds.length = 0;
+  });
+
+  afterEach(async () => {
+    await cleanupTestData();
+  });
+
+  it("should search doctors by first name", async () => {
+    const user1 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "John",
+      lastName: "Smith",
+    });
+    const doctor1 = await createTestDoctor({
+      userId: user1.id,
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const user2 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "Jane",
+      lastName: "Doe",
+    });
+    const doctor2 = await createTestDoctor({
+      userId: user2.id,
+      specialization: "Neurology",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(user1.id, user2.id);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ search: "John" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor1.id)
+    ).toBe(true);
+  });
+
+  it("should search doctors by last name", async () => {
+    const user1 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "John",
+      lastName: "Smith",
+    });
+    const doctor1 = await createTestDoctor({
+      userId: user1.id,
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const user2 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "Jane",
+      lastName: "Doe",
+    });
+    const doctor2 = await createTestDoctor({
+      userId: user2.id,
+      specialization: "Neurology",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(user1.id, user2.id);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ search: "Smith" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor1.id)
+    ).toBe(true);
+  });
+
+  it("should filter doctors by city", async () => {
+    const doctor1 = await createTestDoctor({
+      specialization: "Cardiology",
+      city: "New York",
+      state: "NY",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const doctor2 = await createTestDoctor({
+      specialization: "Neurology",
+      city: "Los Angeles",
+      state: "CA",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(doctor1.userId, doctor2.userId);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ city: "New York" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor1.id)
+    ).toBe(true);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor2.id)
+    ).toBe(false);
+  });
+
+  it("should filter doctors by state", async () => {
+    const doctor1 = await createTestDoctor({
+      specialization: "Cardiology",
+      city: "New York",
+      state: "NY",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const doctor2 = await createTestDoctor({
+      specialization: "Neurology",
+      city: "Los Angeles",
+      state: "CA",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(doctor1.userId, doctor2.userId);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ state: "NY" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor1.id)
+    ).toBe(true);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor2.id)
+    ).toBe(false);
+  });
+
+  it("should sort doctors by name (ascending)", async () => {
+    const user1 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "Zebra",
+      lastName: "Doctor",
+    });
+    const doctor1 = await createTestDoctor({
+      userId: user1.id,
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const user2 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "Alice",
+      lastName: "Doctor",
+    });
+    const doctor2 = await createTestDoctor({
+      userId: user2.id,
+      specialization: "Neurology",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(user1.id, user2.id);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ sortBy: "name", sortOrder: "asc" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    // Alice should come before Zebra
+    const aliceIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor2.id
+    );
+    const zebraIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor1.id
+    );
+    expect(aliceIndex).toBeLessThan(zebraIndex);
+  });
+
+  it("should sort doctors by specialization", async () => {
+    const doctor1 = await createTestDoctor({
+      specialization: "Cardiology",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const doctor2 = await createTestDoctor({
+      specialization: "Neurology",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(doctor1.userId, doctor2.userId);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ sortBy: "specialization", sortOrder: "asc" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    // Cardiology should come before Neurology alphabetically
+    const cardiologyIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor1.id
+    );
+    const neurologyIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor2.id
+    );
+    expect(cardiologyIndex).toBeLessThan(neurologyIndex);
+  });
+
+  it("should sort doctors by years of experience", async () => {
+    const doctor1 = await createTestDoctor({
+      specialization: "Cardiology",
+      yearsOfExperience: 5,
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const doctor2 = await createTestDoctor({
+      specialization: "Neurology",
+      yearsOfExperience: 15,
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(doctor1.userId, doctor2.userId);
+
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ sortBy: "yearsOfExperience", sortOrder: "desc" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(2);
+    // Doctor with 15 years should come before doctor with 5 years
+    const experiencedIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor2.id
+    );
+    const lessExperiencedIndex = response.body.data.findIndex(
+      (d: { id: string }) => d.id === doctor1.id
+    );
+    expect(experiencedIndex).toBeLessThan(lessExperiencedIndex);
+  });
+
+  it("should return 400 for invalid sortBy parameter", async () => {
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ sortBy: "invalid" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toContain("sortBy");
+  });
+
+  it("should return 400 for invalid sortOrder parameter", async () => {
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({ sortOrder: "invalid" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toContain("sortOrder");
+  });
+
+  it("should combine multiple filters (search, location, specialization)", async () => {
+    const user1 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "John",
+      lastName: "Smith",
+    });
+    const doctor1 = await createTestDoctor({
+      userId: user1.id,
+      specialization: "Cardiology",
+      city: "New York",
+      state: "NY",
+    });
+    await createTestAvailability({
+      doctorId: doctor1.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    const user2 = await createTestUser({
+      role: "DOCTOR",
+      firstName: "Jane",
+      lastName: "Doe",
+    });
+    const doctor2 = await createTestDoctor({
+      userId: user2.id,
+      specialization: "Neurology",
+      city: "New York",
+      state: "NY",
+    });
+    await createTestAvailability({
+      doctorId: doctor2.id,
+      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
+      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+    });
+
+    createdDoctorIds.push(doctor1.id, doctor2.id);
+    createdUserIds.push(user1.id, user2.id);
+
+    // Search for "John", filter by city "New York" and specialization "Cardiology"
+    const response = await agent
+      .get("/api/v1/doctors")
+      .query({
+        search: "John",
+        city: "New York",
+        specialization: "Cardiology",
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(1);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor1.id)
+    ).toBe(true);
+    expect(
+      response.body.data.some((d: { id: string }) => d.id === doctor2.id)
+    ).toBe(false);
+  });
+});

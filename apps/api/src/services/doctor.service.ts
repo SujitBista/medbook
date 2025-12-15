@@ -106,7 +106,7 @@ export async function getDoctorByUserId(userId: string): Promise<Doctor> {
 
 /**
  * Gets all doctors with optional pagination and search
- * @param options Query options (page, limit, search, hasAvailability)
+ * @param options Query options (page, limit, search, specialization, hasAvailability, city, state, sortBy, sortOrder)
  * @returns List of doctors and pagination info
  */
 export async function getAllDoctors(options?: {
@@ -115,6 +115,10 @@ export async function getAllDoctors(options?: {
   search?: string;
   specialization?: string;
   hasAvailability?: boolean;
+  city?: string;
+  state?: string;
+  sortBy?: "name" | "specialization" | "yearsOfExperience" | "createdAt";
+  sortOrder?: "asc" | "desc";
 }) {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? 10;
@@ -122,6 +126,10 @@ export async function getAllDoctors(options?: {
   const search = options?.search?.trim().toLowerCase();
   const specialization = options?.specialization?.trim();
   const hasAvailability = options?.hasAvailability ?? false;
+  const city = options?.city?.trim();
+  const state = options?.state?.trim();
+  const sortBy = options?.sortBy ?? "createdAt";
+  const sortOrder = options?.sortOrder ?? "desc";
 
   const now = new Date();
 
@@ -136,6 +144,7 @@ export async function getAllDoctors(options?: {
     };
   }
 
+  // Enhanced search: search by name (firstName, lastName), email
   if (search) {
     where.OR = [
       {
@@ -146,7 +155,38 @@ export async function getAllDoctors(options?: {
           },
         },
       },
+      {
+        user: {
+          firstName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
+      {
+        user: {
+          lastName: {
+            contains: search,
+            mode: "insensitive",
+          },
+        },
+      },
     ];
+  }
+
+  // Location filtering
+  if (city) {
+    where.city = {
+      contains: city,
+      mode: "insensitive",
+    };
+  }
+
+  if (state) {
+    where.state = {
+      contains: state,
+      mode: "insensitive",
+    };
   }
 
   // Filter by availability if requested
@@ -174,6 +214,30 @@ export async function getAllDoctors(options?: {
           },
         ],
       },
+    };
+  }
+
+  // Build orderBy clause based on sortBy
+  let orderBy: Prisma.DoctorOrderByWithRelationInput;
+  if (sortBy === "name") {
+    // Sort by firstName, then lastName
+    orderBy = {
+      user: {
+        firstName: sortOrder,
+      },
+    };
+  } else if (sortBy === "specialization") {
+    orderBy = {
+      specialization: sortOrder === "asc" ? "asc" : "desc",
+    };
+  } else if (sortBy === "yearsOfExperience") {
+    orderBy = {
+      yearsOfExperience: sortOrder === "asc" ? "asc" : "desc",
+    };
+  } else {
+    // Default: createdAt
+    orderBy = {
+      createdAt: sortOrder,
     };
   }
 
@@ -210,9 +274,7 @@ export async function getAllDoctors(options?: {
             },
           },
         },
-        orderBy: {
-          createdAt: "desc",
-        },
+        orderBy,
       })
     ),
     query<number>((prisma) => prisma.doctor.count({ where })),
