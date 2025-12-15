@@ -52,7 +52,9 @@ export async function GET(
       queryString ? `?${queryString}` : ""
     }`;
 
-    console.log("[Slots] Fetching slots:", url);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Slots] Fetching slots:", url);
+    }
 
     const response = await fetch(url, {
       headers: {

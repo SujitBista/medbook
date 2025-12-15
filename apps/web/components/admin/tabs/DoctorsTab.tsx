@@ -1086,12 +1086,11 @@ export function DoctorsTab({
       )}
 
       {/* Doctor Registration Modal */}
-      {showDoctorForm && (
-        <DoctorRegistrationModal
-          onClose={() => setShowDoctorForm(false)}
-          onSuccess={handleDoctorCreated}
-        />
-      )}
+      <DoctorRegistrationModal
+        isOpen={showDoctorForm}
+        onClose={() => setShowDoctorForm(false)}
+        onSuccess={handleDoctorCreated}
+      />
     </div>
   );
 }

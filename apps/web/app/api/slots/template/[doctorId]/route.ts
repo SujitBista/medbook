@@ -30,7 +30,9 @@ export async function GET(
     // Call backend API (public endpoint, no auth required)
     const url = `${env.apiUrl}/slots/template/${doctorId}`;
 
-    console.log("[SlotTemplate] Fetching template:", url);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[SlotTemplate] Fetching template:", url);
+    }
 
     const response = await fetch(url, {
       headers: {
