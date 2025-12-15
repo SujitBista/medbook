@@ -4,6 +4,9 @@ import { UserRole, AppointmentStatus } from "@medbook/types";
  * Type definitions for admin dashboard
  */
 
+// Re-export types for convenience
+export { UserRole, AppointmentStatus };
+
 export interface User {
   id: string;
   email: string;
