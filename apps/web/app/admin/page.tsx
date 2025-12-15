@@ -9,6 +9,7 @@ import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
 import { AppointmentsTab } from "@/components/admin/tabs/AppointmentsTab";
+import { SettingsTab } from "@/components/admin/tabs/SettingsTab";
 import type {
   User,
   SystemStats,
@@ -230,6 +231,7 @@ function AdminDashboardContent() {
           }}
           onRoleChangeClose={() => setSelectedUser(null)}
           onDeleteUser={handleDeleteUser}
+          onError={setError}
         />
       )}
 
@@ -241,7 +243,7 @@ function AdminDashboardContent() {
             setSuccessMessage(message);
             setTimeout(() => setSuccessMessage(null), 5000);
           }}
-          onDoctorSelectForSchedule={(_doctor) => {
+          onDoctorSelectForSchedule={() => {
             setActiveTab("schedule-management");
           }}
         />
@@ -269,6 +271,9 @@ function AdminDashboardContent() {
           }}
         />
       )}
+
+      {/* Settings Tab */}
+      {activeTab === "settings" && <SettingsTab onError={setError} />}
 
       {/* Doctor Registration Modal */}
       <DoctorRegistrationModal

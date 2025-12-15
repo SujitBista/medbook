@@ -3,7 +3,12 @@
  * Handles admin-only business logic
  */
 
-import { query, UserRole as PrismaUserRole, withTransaction } from "@app/db";
+import {
+  query,
+  UserRole as PrismaUserRole,
+  withTransaction,
+  checkDatabaseHealth,
+} from "@app/db";
 import {
   UserRole,
   UserWithoutPassword,
@@ -18,6 +23,7 @@ import {
 } from "../utils/errors";
 import { hashPassword, validatePassword } from "../utils";
 import { logger } from "../utils/logger";
+import { env, isDevelopment } from "../config/env";
 
 /**
  * Converts Prisma UserRole to @medbook/types UserRole
@@ -460,6 +466,14 @@ export interface SystemStats {
     DOCTOR: number;
     ADMIN: number;
   };
+  growthTrends?: {
+    totalUsersChange: number; // Percentage change from previous month
+    usersByRoleChange: {
+      PATIENT: number;
+      DOCTOR: number;
+      ADMIN: number;
+    };
+  };
 }
 
 /**
@@ -467,14 +481,33 @@ export interface SystemStats {
  * @returns System statistics
  */
 export async function getSystemStats(): Promise<SystemStats> {
+  const now = new Date();
+
+  // Current month boundaries
+  const startOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  startOfCurrentMonth.setHours(0, 0, 0, 0);
+
+  // Previous month boundaries
+  const startOfPreviousMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1
+  );
+  startOfPreviousMonth.setHours(0, 0, 0, 0);
+  const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  endOfPreviousMonth.setHours(23, 59, 59, 999);
+
+  // Get all users
   const users = await query<
     {
       role: PrismaUserRole;
+      createdAt: Date;
     }[]
   >((prisma) =>
     prisma.user.findMany({
       select: {
         role: true,
+        createdAt: true,
       },
     })
   );
@@ -486,6 +519,7 @@ export async function getSystemStats(): Promise<SystemStats> {
     ADMIN: 0,
   };
 
+  // Count users by role (current)
   users.forEach((user) => {
     const role = user.role as keyof typeof usersByRole;
     if (role in usersByRole) {
@@ -493,9 +527,89 @@ export async function getSystemStats(): Promise<SystemStats> {
     }
   });
 
+  // Calculate growth trends (compare new users this month vs previous month)
+  const usersCreatedThisMonth = users.filter(
+    (user) => user.createdAt >= startOfCurrentMonth
+  ).length;
+
+  const usersCreatedPreviousMonth = users.filter(
+    (user) =>
+      user.createdAt >= startOfPreviousMonth &&
+      user.createdAt < startOfCurrentMonth
+  ).length;
+
+  // Calculate percentage change in new user signups
+  const totalUsersChange =
+    usersCreatedPreviousMonth > 0
+      ? ((usersCreatedThisMonth - usersCreatedPreviousMonth) /
+          usersCreatedPreviousMonth) *
+        100
+      : usersCreatedThisMonth > 0
+        ? 100 // 100% growth if there were no users last month but there are this month
+        : 0;
+
+  // Calculate role-based growth (new users by role this month vs previous month)
+  const previousMonthNewByRole = {
+    PATIENT: 0,
+    DOCTOR: 0,
+    ADMIN: 0,
+  };
+  const currentMonthNewByRole = {
+    PATIENT: 0,
+    DOCTOR: 0,
+    ADMIN: 0,
+  };
+
+  users.forEach((user) => {
+    const role = user.role as keyof typeof usersByRole;
+    if (
+      user.createdAt >= startOfPreviousMonth &&
+      user.createdAt < startOfCurrentMonth
+    ) {
+      previousMonthNewByRole[role]++;
+    } else if (user.createdAt >= startOfCurrentMonth) {
+      currentMonthNewByRole[role]++;
+    }
+  });
+
+  const usersByRoleChange = {
+    PATIENT:
+      previousMonthNewByRole.PATIENT > 0
+        ? ((currentMonthNewByRole.PATIENT - previousMonthNewByRole.PATIENT) /
+            previousMonthNewByRole.PATIENT) *
+          100
+        : currentMonthNewByRole.PATIENT > 0
+          ? 100
+          : 0,
+    DOCTOR:
+      previousMonthNewByRole.DOCTOR > 0
+        ? ((currentMonthNewByRole.DOCTOR - previousMonthNewByRole.DOCTOR) /
+            previousMonthNewByRole.DOCTOR) *
+          100
+        : currentMonthNewByRole.DOCTOR > 0
+          ? 100
+          : 0,
+    ADMIN:
+      previousMonthNewByRole.ADMIN > 0
+        ? ((currentMonthNewByRole.ADMIN - previousMonthNewByRole.ADMIN) /
+            previousMonthNewByRole.ADMIN) *
+          100
+        : currentMonthNewByRole.ADMIN > 0
+          ? 100
+          : 0,
+  };
+
   return {
     totalUsers,
     usersByRole,
+    growthTrends: {
+      totalUsersChange: Math.round(totalUsersChange * 100) / 100,
+      usersByRoleChange: {
+        PATIENT: Math.round(usersByRoleChange.PATIENT * 100) / 100,
+        DOCTOR: Math.round(usersByRoleChange.DOCTOR * 100) / 100,
+        ADMIN: Math.round(usersByRoleChange.ADMIN * 100) / 100,
+      },
+    },
   };
 }
 
@@ -518,6 +632,10 @@ export interface AppointmentStats {
     createdToday: number;
     createdThisWeek: number;
     createdThisMonth: number;
+  };
+  growthTrends?: {
+    thisMonthChange: number; // Percentage change in appointments created this month vs previous month
+    thisWeekChange: number; // Percentage change in appointments created this week vs previous week
   };
 }
 
@@ -549,6 +667,23 @@ export async function getAppointmentStats(): Promise<AppointmentStats> {
   // End of this month
   const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0);
   endOfMonth.setHours(23, 59, 59, 999);
+
+  // Previous month boundaries (for growth comparison)
+  const startOfPreviousMonth = new Date(
+    now.getFullYear(),
+    now.getMonth() - 1,
+    1
+  );
+  startOfPreviousMonth.setHours(0, 0, 0, 0);
+  const endOfPreviousMonth = new Date(now.getFullYear(), now.getMonth(), 0);
+  endOfPreviousMonth.setHours(23, 59, 59, 999);
+
+  // Previous week boundaries (for growth comparison)
+  const startOfPreviousWeek = new Date(startOfWeek);
+  startOfPreviousWeek.setDate(startOfWeek.getDate() - 7);
+  const endOfPreviousWeek = new Date(startOfWeek);
+  endOfPreviousWeek.setDate(startOfWeek.getDate() - 1);
+  endOfPreviousWeek.setHours(23, 59, 59, 999);
 
   // Get all appointments
   const appointments = await query<
@@ -585,6 +720,9 @@ export async function getAppointmentStats(): Promise<AppointmentStats> {
     createdThisWeek: 0,
     createdThisMonth: 0,
   };
+
+  let previousMonthCreated = 0;
+  let previousWeekCreated = 0;
 
   appointments.forEach((apt) => {
     // Count by status
@@ -623,7 +761,40 @@ export async function getAppointmentStats(): Promise<AppointmentStats> {
     if (apt.createdAt >= startOfMonth && apt.createdAt <= endOfMonth) {
       recentActivity.createdThisMonth++;
     }
+
+    // Count previous period for growth comparison
+    if (
+      apt.createdAt >= startOfPreviousMonth &&
+      apt.createdAt <= endOfPreviousMonth
+    ) {
+      previousMonthCreated++;
+    }
+    if (
+      apt.createdAt >= startOfPreviousWeek &&
+      apt.createdAt <= endOfPreviousWeek
+    ) {
+      previousWeekCreated++;
+    }
   });
+
+  // Calculate growth trends
+  const thisMonthChange =
+    previousMonthCreated > 0
+      ? ((recentActivity.createdThisMonth - previousMonthCreated) /
+          previousMonthCreated) *
+        100
+      : recentActivity.createdThisMonth > 0
+        ? 100
+        : 0;
+
+  const thisWeekChange =
+    previousWeekCreated > 0
+      ? ((recentActivity.createdThisWeek - previousWeekCreated) /
+          previousWeekCreated) *
+        100
+      : recentActivity.createdThisWeek > 0
+        ? 100
+        : 0;
 
   return {
     total,
@@ -633,5 +804,68 @@ export async function getAppointmentStats(): Promise<AppointmentStats> {
     thisWeek,
     thisMonth,
     recentActivity,
+    growthTrends: {
+      thisMonthChange: Math.round(thisMonthChange * 100) / 100,
+      thisWeekChange: Math.round(thisWeekChange * 100) / 100,
+    },
+  };
+}
+
+/**
+ * System health status (admin only)
+ */
+export interface SystemHealth {
+  status: "healthy" | "degraded" | "unhealthy";
+  database: {
+    status: "connected" | "disconnected";
+    healthy: boolean;
+  };
+  email: {
+    status: "configured" | "not_configured" | "unknown";
+    healthy: boolean;
+  };
+  environment: string;
+  timestamp: string;
+}
+
+/**
+ * Get system health status
+ * @returns System health information
+ */
+export async function getSystemHealth(): Promise<SystemHealth> {
+  const timestamp = new Date().toISOString();
+
+  // Check database health
+  const dbHealthy = await checkDatabaseHealth();
+
+  // Check email service configuration
+  const emailConfigured = !!env.resendApiKey;
+  // In development, email service is considered healthy even without API key (it logs emails)
+  const emailHealthy = isDevelopment || emailConfigured;
+
+  // Determine overall system status
+  let overallStatus: "healthy" | "degraded" | "unhealthy" = "healthy";
+  if (!dbHealthy) {
+    overallStatus = "unhealthy";
+  } else if (!emailHealthy) {
+    overallStatus = "degraded";
+  }
+
+  return {
+    status: overallStatus,
+    database: {
+      status: dbHealthy ? "connected" : "disconnected",
+      healthy: dbHealthy,
+    },
+    email: {
+      status: emailConfigured
+        ? "configured"
+        : isDevelopment
+          ? "not_configured"
+          : "unknown",
+      healthy: emailHealthy,
+    },
+    environment: env.nodeEnv,
+    timestamp,
   };
 }

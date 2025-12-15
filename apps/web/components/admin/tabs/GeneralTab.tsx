@@ -17,6 +17,7 @@ interface GeneralTabProps {
   onRoleChangeConfirm: () => void;
   onRoleChangeClose: () => void;
   onDeleteUser: (userId: string) => void;
+  onError?: (error: string) => void;
 }
 
 export function GeneralTab({
@@ -31,6 +32,7 @@ export function GeneralTab({
   onRoleChangeConfirm,
   onRoleChangeClose,
   onDeleteUser,
+  onError,
 }: GeneralTabProps) {
   return (
     <div className="space-y-8">

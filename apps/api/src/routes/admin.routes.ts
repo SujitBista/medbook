@@ -20,6 +20,7 @@ import {
   removeDoctor,
   getDoctorStatistics,
   getAppointmentStatistics,
+  getSystemHealthStatus,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -33,6 +34,12 @@ router.use(requireRole(UserRole.ADMIN));
  * Get system statistics
  */
 router.get("/stats", getStats);
+
+/**
+ * GET /api/v1/admin/health
+ * Get system health status
+ */
+router.get("/health", getSystemHealthStatus);
 
 /**
  * GET /api/v1/admin/users

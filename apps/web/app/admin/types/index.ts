@@ -22,6 +22,14 @@ export interface SystemStats {
     DOCTOR: number;
     ADMIN: number;
   };
+  growthTrends?: {
+    totalUsersChange: number; // Percentage change from previous month
+    usersByRoleChange: {
+      PATIENT: number;
+      DOCTOR: number;
+      ADMIN: number;
+    };
+  };
 }
 
 export interface AppointmentStats {
@@ -41,6 +49,24 @@ export interface AppointmentStats {
     createdThisWeek: number;
     createdThisMonth: number;
   };
+  growthTrends?: {
+    thisMonthChange: number; // Percentage change in appointments created this month vs previous month
+    thisWeekChange: number; // Percentage change in appointments created this week vs previous week
+  };
+}
+
+export interface SystemHealth {
+  status: "healthy" | "degraded" | "unhealthy";
+  database: {
+    status: "connected" | "disconnected";
+    healthy: boolean;
+  };
+  email: {
+    status: "configured" | "not_configured" | "unknown";
+    healthy: boolean;
+  };
+  environment: string;
+  timestamp: string;
 }
 
 export interface Doctor {
@@ -73,4 +99,5 @@ export type TabType =
   | "general"
   | "doctors"
   | "schedule-management"
-  | "appointments";
+  | "appointments"
+  | "settings";
