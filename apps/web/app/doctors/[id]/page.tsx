@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
@@ -28,10 +28,17 @@ function DoctorAvatar({
   size?: "small" | "large";
 }) {
   const [imageError, setImageError] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const sizeClasses =
     size === "large" ? "h-32 w-32 text-3xl" : "h-20 w-20 text-xl";
 
-  if (!profilePictureUrl || imageError) {
+  // Only set mounted after client-side hydration
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Show initials if no profile picture, or if image error occurred after mount
+  if (!profilePictureUrl || (mounted && imageError)) {
     return (
       <div
         className={`${sizeClasses} rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold border-4 border-primary-100 shadow-lg`}
@@ -46,7 +53,11 @@ function DoctorAvatar({
       src={profilePictureUrl}
       alt={name}
       className={`${sizeClasses} rounded-full object-cover border-4 border-primary-100 shadow-lg`}
-      onError={() => setImageError(true)}
+      onError={() => {
+        if (mounted) {
+          setImageError(true);
+        }
+      }}
     />
   );
 }
