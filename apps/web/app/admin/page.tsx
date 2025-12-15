@@ -1907,1107 +1907,1065 @@ function AdminDashboardContent() {
         />
       )}
 
-      {/* TEMP: Old schedule tab code to be removed - starts here */}
-      {false && activeTab === "schedule-management-OLD" && (
-        <div className="space-y-8">
-          {/* Schedule Management Section */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Doctor Schedule Management
-              </h2>
-            </div>
+      {/* Schedule Management Section */}
+      <div className="rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Doctor Schedule Management
+          </h2>
+        </div>
 
-            <div className="px-6 py-4">
-              {/* Doctor Selection - Autocomplete */}
-              <div className="mb-6" data-doctor-autocomplete>
-                <label
-                  htmlFor="doctor-schedule-select"
-                  className="block text-sm font-medium text-gray-700"
+        <div className="px-6 py-4">
+          {/* Doctor Selection - Autocomplete */}
+          <div className="mb-6" data-doctor-autocomplete>
+            <label
+              htmlFor="doctor-schedule-select"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Select Doctor <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <input
+                id="doctor-schedule-select"
+                type="text"
+                value={doctorSearchQuery}
+                onChange={handleDoctorSearchChange}
+                onFocus={() => {
+                  setShowDoctorDropdown(true);
+                }}
+                onKeyDown={handleDoctorSearchKeyDown}
+                placeholder={
+                  selectedDoctorForSchedule
+                    ? "Type to search for another doctor..."
+                    : "Search by email or specialization..."
+                }
+                className={`w-full rounded-md border px-3 py-2 pr-10 ${
+                  scheduleFormErrors.doctorId
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+              />
+              {selectedDoctorForSchedule && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDoctorForSchedule(null);
+                    setDoctorSearchQuery("");
+                    setShowScheduleForm(false);
+                    setEditingScheduleId(null);
+                    resetScheduleForm();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear selection"
                 >
-                  Select Doctor <span className="text-red-500">*</span>
-                </label>
-                <div className="relative mt-1">
-                  <input
-                    id="doctor-schedule-select"
-                    type="text"
-                    value={doctorSearchQuery}
-                    onChange={handleDoctorSearchChange}
-                    onFocus={() => {
-                      setShowDoctorDropdown(true);
-                    }}
-                    onKeyDown={handleDoctorSearchKeyDown}
-                    placeholder={
-                      selectedDoctorForSchedule
-                        ? "Type to search for another doctor..."
-                        : "Search by email or specialization..."
-                    }
-                    className={`w-full rounded-md border px-3 py-2 pr-10 ${
-                      scheduleFormErrors.doctorId
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                  />
-                  {selectedDoctorForSchedule && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDoctorForSchedule(null);
-                        setDoctorSearchQuery("");
-                        setShowScheduleForm(false);
-                        setEditingScheduleId(null);
-                        resetScheduleForm();
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      aria-label="Clear selection"
+                  <svg
+                    className="h-5 w-5"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              )}
+              {showDoctorDropdown && filteredDoctorsForSelection.length > 0 && (
+                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                  {filteredDoctorsForSelection.map((doctor, index) => (
+                    <div
+                      key={doctor.id}
+                      onClick={() => handleDoctorSelect(doctor)}
+                      className={`cursor-pointer px-4 py-2 ${
+                        index === highlightedIndex
+                          ? "bg-blue-50"
+                          : "hover:bg-gray-50"
+                      } ${
+                        selectedDoctorForSchedule?.id === doctor.id
+                          ? "bg-blue-100"
+                          : ""
+                      }`}
                     >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
+                      <div className="font-medium text-gray-900">
+                        {doctor.userEmail || "N/A"}
+                      </div>
+                      {doctor.specialization && (
+                        <div className="text-sm text-gray-500">
+                          {doctor.specialization}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showDoctorDropdown &&
+                doctorSearchQuery &&
+                filteredDoctorsForSelection.length === 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
+                    No doctors found matching &quot;{doctorSearchQuery}
+                    &quot;
+                  </div>
+                )}
+            </div>
+            {scheduleFormErrors.doctorId && (
+              <p className="mt-1 text-sm text-red-600">
+                {scheduleFormErrors.doctorId}
+              </p>
+            )}
+          </div>
+
+          {selectedDoctorForSchedule && (
+            <>
+              {/* Slot Template Display */}
+              {slotTemplate ? (
+                <Card title="Slot Template Settings" className="mb-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Slot Duration
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.durationMinutes} minutes
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Buffer Between Slots
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.bufferMinutes} minutes
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Advance Booking Days
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.advanceBookingDays} days
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSlotTemplateForm(true)}
+                    >
+                      Update Template
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
+                <Card title="Slot Template Settings" className="mb-6">
+                  <div className="rounded-md bg-blue-50 p-4">
+                    <p className="text-sm font-medium text-blue-900 mb-2">
+                      No custom template set. Using default values:
+                    </p>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• Slot Duration: 30 minutes</li>
+                      <li>• Buffer Between Slots: 0 minutes</li>
+                      <li>• Advance Booking Days: 30 days</li>
+                    </ul>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSlotTemplateFormData({
+                          durationMinutes: 30,
+                          bufferMinutes: 0,
+                          advanceBookingDays: 30,
+                        });
+                        setShowSlotTemplateForm(true);
+                      }}
+                    >
+                      Create Custom Template
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {/* Schedule Filters */}
+              <Card title="Filter Schedules" className="mb-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Input
+                    label="Start Date"
+                    type="date"
+                    value={scheduleFilterStartDate}
+                    onChange={(e) => setScheduleFilterStartDate(e.target.value)}
+                  />
+                  <Input
+                    label="End Date"
+                    type="date"
+                    value={scheduleFilterEndDate}
+                    onChange={(e) => setScheduleFilterEndDate(e.target.value)}
+                  />
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setScheduleFilterStartDate("");
+                        setScheduleFilterEndDate("");
+                        // The useEffect will automatically refetch when filter dates change
+                      }}
+                      className="w-full"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Create/Edit Schedule Form */}
+              {showScheduleForm && (
+                <Card
+                  title={
+                    editingScheduleId ? "Edit Schedule" : "Add New Schedule"
+                  }
+                  className="mb-6"
+                >
+                  <form
+                    onSubmit={handleScheduleSubmit}
+                    noValidate
+                    className="space-y-4"
+                  >
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        <input
+                          type="checkbox"
+                          name="isRecurring"
+                          checked={scheduleFormData.isRecurring}
+                          onChange={handleScheduleFormChange}
+                          className="mr-2"
                         />
-                      </svg>
-                    </button>
-                  )}
-                  {showDoctorDropdown &&
-                    filteredDoctorsForSelection.length > 0 && (
-                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                        {filteredDoctorsForSelection.map((doctor, index) => (
-                          <div
-                            key={doctor.id}
-                            onClick={() => handleDoctorSelect(doctor)}
-                            className={`cursor-pointer px-4 py-2 ${
-                              index === highlightedIndex
-                                ? "bg-blue-50"
-                                : "hover:bg-gray-50"
-                            } ${
-                              selectedDoctorForSchedule?.id === doctor.id
-                                ? "bg-blue-100"
-                                : ""
-                            }`}
+                        Recurring Schedule
+                      </label>
+                    </div>
+
+                    {scheduleFormData.isRecurring ? (
+                      <>
+                        <div>
+                          <label
+                            htmlFor="dayOfWeek"
+                            className="block text-sm font-medium text-gray-700"
                           >
-                            <div className="font-medium text-gray-900">
-                              {doctor.userEmail || "N/A"}
-                            </div>
-                            {doctor.specialization && (
-                              <div className="text-sm text-gray-500">
-                                {doctor.specialization}
-                              </div>
+                            Day of Week <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="dayOfWeek"
+                            name="dayOfWeek"
+                            value={scheduleFormData.dayOfWeek ?? ""}
+                            onChange={handleScheduleFormChange}
+                            required
+                            className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                              scheduleFormErrors.dayOfWeek
+                                ? "border-red-500"
+                                : "border-gray-300"
+                            } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                          >
+                            <option value="">Select day</option>
+                            {DAYS_OF_WEEK.map((day) => (
+                              <option key={day.value} value={day.value}>
+                                {day.label}
+                              </option>
+                            ))}
+                          </select>
+                          {scheduleFormErrors.dayOfWeek && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {scheduleFormErrors.dayOfWeek}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <TimePicker
+                              id="recurring-start-time"
+                              name="startTime"
+                              label="Start Time"
+                              required
+                              value={
+                                scheduleFormData.startTime
+                                  ? scheduleFormData.startTime.split("T")[1] ||
+                                    "00:00"
+                                  : "00:00"
+                              }
+                              onChange={(time) => {
+                                const datePart =
+                                  scheduleFormData.startTime.split("T")[0] ||
+                                  formatDateLocal(new Date());
+                                setScheduleFormData((prev) => ({
+                                  ...prev,
+                                  startTime: `${datePart}T${time}`,
+                                }));
+                              }}
+                              error={scheduleFormErrors.startTime}
+                            />
+                          </div>
+
+                          <div>
+                            <TimePicker
+                              id="recurring-end-time"
+                              name="endTime"
+                              label="End Time"
+                              required
+                              value={
+                                scheduleFormData.endTime
+                                  ? scheduleFormData.endTime.split("T")[1] ||
+                                    "00:00"
+                                  : "00:00"
+                              }
+                              onChange={(time) => {
+                                const datePart =
+                                  scheduleFormData.endTime.split("T")[0] ||
+                                  formatDateLocal(new Date());
+                                setScheduleFormData((prev) => ({
+                                  ...prev,
+                                  endTime: `${datePart}T${time}`,
+                                }));
+                              }}
+                              error={scheduleFormErrors.endTime}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <label
+                              htmlFor="validFrom"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Valid From <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              id="validFrom"
+                              name="validFrom"
+                              value={scheduleFormData.validFrom || ""}
+                              onChange={handleScheduleFormChange}
+                              required
+                              className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                scheduleFormErrors.validFrom
+                                  ? "border-red-500"
+                                  : "border-gray-300"
+                              } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                            {scheduleFormErrors.validFrom && (
+                              <p className="mt-1 text-sm text-red-600">
+                                {scheduleFormErrors.validFrom}
+                              </p>
                             )}
                           </div>
-                        ))}
-                      </div>
-                    )}
-                  {showDoctorDropdown &&
-                    doctorSearchQuery &&
-                    filteredDoctorsForSelection.length === 0 && (
-                      <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
-                        No doctors found matching &quot;{doctorSearchQuery}
-                        &quot;
-                      </div>
-                    )}
-                </div>
-                {scheduleFormErrors.doctorId && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {scheduleFormErrors.doctorId}
-                  </p>
-                )}
-              </div>
 
-              {selectedDoctorForSchedule && (
-                <>
-                  {/* Slot Template Display */}
-                  {slotTemplate ? (
-                    <Card title="Slot Template Settings" className="mb-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Slot Duration
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.durationMinutes} minutes
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Buffer Between Slots
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.bufferMinutes} minutes
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Advance Booking Days
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.advanceBookingDays} days
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowSlotTemplateForm(true)}
-                        >
-                          Update Template
-                        </Button>
-                      </div>
-                    </Card>
-                  ) : (
-                    <Card title="Slot Template Settings" className="mb-6">
-                      <div className="rounded-md bg-blue-50 p-4">
-                        <p className="text-sm font-medium text-blue-900 mb-2">
-                          No custom template set. Using default values:
-                        </p>
-                        <ul className="text-sm text-blue-800 space-y-1">
-                          <li>• Slot Duration: 30 minutes</li>
-                          <li>• Buffer Between Slots: 0 minutes</li>
-                          <li>• Advance Booking Days: 30 days</li>
-                        </ul>
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSlotTemplateFormData({
-                              durationMinutes: 30,
-                              bufferMinutes: 0,
-                              advanceBookingDays: 30,
-                            });
-                            setShowSlotTemplateForm(true);
-                          }}
-                        >
-                          Create Custom Template
-                        </Button>
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Schedule Filters */}
-                  <Card title="Filter Schedules" className="mb-6">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <Input
-                        label="Start Date"
-                        type="date"
-                        value={scheduleFilterStartDate}
-                        onChange={(e) =>
-                          setScheduleFilterStartDate(e.target.value)
-                        }
-                      />
-                      <Input
-                        label="End Date"
-                        type="date"
-                        value={scheduleFilterEndDate}
-                        onChange={(e) =>
-                          setScheduleFilterEndDate(e.target.value)
-                        }
-                      />
-                      <div className="flex items-end">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setScheduleFilterStartDate("");
-                            setScheduleFilterEndDate("");
-                            // The useEffect will automatically refetch when filter dates change
-                          }}
-                          className="w-full"
-                        >
-                          Clear Filters
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Create/Edit Schedule Form */}
-                  {showScheduleForm && (
-                    <Card
-                      title={
-                        editingScheduleId ? "Edit Schedule" : "Add New Schedule"
-                      }
-                      className="mb-6"
-                    >
-                      <form
-                        onSubmit={handleScheduleSubmit}
-                        noValidate
-                        className="space-y-4"
-                      >
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700">
+                          <div>
+                            <label
+                              htmlFor="validTo"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Valid To
+                            </label>
                             <input
-                              type="checkbox"
-                              name="isRecurring"
-                              checked={scheduleFormData.isRecurring}
+                              type="date"
+                              id="validTo"
+                              name="validTo"
+                              value={scheduleFormData.validTo || ""}
                               onChange={handleScheduleFormChange}
-                              className="mr-2"
+                              className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                scheduleFormErrors.validTo
+                                  ? "border-red-500"
+                                  : "border-gray-300"
+                              } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
                             />
-                            Recurring Schedule
-                          </label>
+                            {scheduleFormErrors.validTo && (
+                              <p className="mt-1 text-sm text-red-600">
+                                {scheduleFormErrors.validTo}
+                              </p>
+                            )}
+                          </div>
                         </div>
-
-                        {scheduleFormData.isRecurring ? (
-                          <>
-                            <div>
-                              <label
-                                htmlFor="dayOfWeek"
-                                className="block text-sm font-medium text-gray-700"
-                              >
-                                Day of Week{" "}
-                                <span className="text-red-500">*</span>
-                              </label>
-                              <select
-                                id="dayOfWeek"
-                                name="dayOfWeek"
-                                value={scheduleFormData.dayOfWeek ?? ""}
-                                onChange={handleScheduleFormChange}
-                                required
-                                className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                  scheduleFormErrors.dayOfWeek
-                                    ? "border-red-500"
-                                    : "border-gray-300"
-                                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                              >
-                                <option value="">Select day</option>
-                                {DAYS_OF_WEEK.map((day) => (
-                                  <option key={day.value} value={day.value}>
-                                    {day.label}
-                                  </option>
-                                ))}
-                              </select>
-                              {scheduleFormErrors.dayOfWeek && (
-                                <p className="mt-1 text-sm text-red-600">
-                                  {scheduleFormErrors.dayOfWeek}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                              <div>
-                                <TimePicker
-                                  id="recurring-start-time"
-                                  name="startTime"
-                                  label="Start Time"
-                                  required
-                                  value={
-                                    scheduleFormData.startTime
-                                      ? scheduleFormData.startTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
+                      </>
+                    ) : (
+                      <>
+                        {/* Date Selection - Single or Range */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={useDateRange}
+                                onChange={(e) => {
+                                  setUseDateRange(e.target.checked);
+                                  if (!e.target.checked) {
+                                    setDateRangeStart("");
+                                    setDateRangeEnd("");
+                                    setSelectedDates([]);
+                                    // Clear date range errors
+                                    setScheduleFormErrors((prev) => {
+                                      const newErrors = { ...prev };
+                                      delete newErrors.dateRangeStart;
+                                      delete newErrors.dateRangeEnd;
+                                      delete newErrors.dateRange;
+                                      return newErrors;
+                                    });
                                   }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.startTime.split(
-                                        "T"
-                                      )[0] || formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      startTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  error={scheduleFormErrors.startTime}
-                                />
-                              </div>
+                                }}
+                                className="mr-2"
+                              />
+                              Schedule for multiple dates (bulk scheduling)
+                            </label>
+                          </div>
 
-                              <div>
-                                <TimePicker
-                                  id="recurring-end-time"
-                                  name="endTime"
-                                  label="End Time"
-                                  required
-                                  value={
-                                    scheduleFormData.endTime
-                                      ? scheduleFormData.endTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
-                                  }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.endTime.split("T")[0] ||
-                                      formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      endTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  error={scheduleFormErrors.endTime}
-                                />
-                              </div>
-                            </div>
-
+                          {useDateRange ? (
                             <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                               <div>
                                 <label
-                                  htmlFor="validFrom"
+                                  htmlFor="date-range-start"
                                   className="block text-sm font-medium text-gray-700"
                                 >
-                                  Valid From{" "}
+                                  Start Date{" "}
                                   <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                   type="date"
-                                  id="validFrom"
-                                  name="validFrom"
-                                  value={scheduleFormData.validFrom || ""}
-                                  onChange={handleScheduleFormChange}
-                                  required
+                                  id="date-range-start"
+                                  value={dateRangeStart}
+                                  onChange={(e) => {
+                                    const newStartDate = e.target.value;
+                                    // Ensure the date is in valid format (YYYY-MM-DD)
+                                    if (
+                                      newStartDate &&
+                                      !/^\d{4}-\d{2}-\d{2}$/.test(newStartDate)
+                                    ) {
+                                      return; // Invalid format, don't update
+                                    }
+                                    setDateRangeStart(newStartDate);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dateRangeStart: "",
+                                      dateRange: "",
+                                    }));
+                                    // Generate date list
+                                    if (newStartDate && dateRangeEnd) {
+                                      const dates = generateDateRange(
+                                        newStartDate,
+                                        dateRangeEnd
+                                      );
+                                      setSelectedDates(dates);
+                                      // Validate date range
+                                      if (
+                                        dates.length === 0 &&
+                                        dateRangeEnd < newStartDate
+                                      ) {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRange:
+                                            "End date must be after start date",
+                                        }));
+                                      }
+                                    } else {
+                                      setSelectedDates([]);
+                                    }
+                                  }}
+                                  onInvalid={(e) => {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    if (!target.value) {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeStart:
+                                          "Start date is required",
+                                      }));
+                                    } else {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeStart:
+                                          "Please select a valid start date",
+                                      }));
+                                    }
+                                  }}
+                                  min={formatDateLocal(new Date())}
+                                  required={useDateRange}
                                   className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                    scheduleFormErrors.validFrom
+                                    scheduleFormErrors.dateRangeStart ||
+                                    scheduleFormErrors.dateRange
                                       ? "border-red-500"
                                       : "border-gray-300"
                                   } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
                                 />
-                                {scheduleFormErrors.validFrom && (
+                                {scheduleFormErrors.dateRangeStart && (
                                   <p className="mt-1 text-sm text-red-600">
-                                    {scheduleFormErrors.validFrom}
+                                    {scheduleFormErrors.dateRangeStart}
                                   </p>
                                 )}
                               </div>
-
                               <div>
                                 <label
-                                  htmlFor="validTo"
+                                  htmlFor="date-range-end"
                                   className="block text-sm font-medium text-gray-700"
                                 >
-                                  Valid To
+                                  End Date{" "}
+                                  <span className="text-red-500">*</span>
                                 </label>
                                 <input
                                   type="date"
-                                  id="validTo"
-                                  name="validTo"
-                                  value={scheduleFormData.validTo || ""}
-                                  onChange={handleScheduleFormChange}
+                                  id="date-range-end"
+                                  value={dateRangeEnd}
+                                  onChange={(e) => {
+                                    const newEndDate = e.target.value;
+                                    // Ensure the date is in valid format (YYYY-MM-DD)
+                                    if (
+                                      newEndDate &&
+                                      !/^\d{4}-\d{2}-\d{2}$/.test(newEndDate)
+                                    ) {
+                                      return; // Invalid format, don't update
+                                    }
+                                    setDateRangeEnd(newEndDate);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dateRangeEnd: "",
+                                      dateRange: "",
+                                    }));
+                                    // Generate date list
+                                    if (dateRangeStart && newEndDate) {
+                                      const dates = generateDateRange(
+                                        dateRangeStart,
+                                        newEndDate
+                                      );
+                                      setSelectedDates(dates);
+                                      // Validate date range
+                                      if (dates.length === 0) {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRange:
+                                            "End date must be after start date",
+                                        }));
+                                      }
+                                    } else {
+                                      setSelectedDates([]);
+                                    }
+                                  }}
+                                  onInvalid={(e) => {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    if (!target.value) {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeEnd: "End date is required",
+                                      }));
+                                    } else {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeEnd:
+                                          "Please select a valid end date",
+                                      }));
+                                    }
+                                  }}
+                                  min={
+                                    dateRangeStart ||
+                                    formatDateLocal(new Date())
+                                  }
+                                  required={useDateRange}
                                   className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                    scheduleFormErrors.validTo
+                                    scheduleFormErrors.dateRangeEnd ||
+                                    scheduleFormErrors.dateRange
                                       ? "border-red-500"
                                       : "border-gray-300"
                                   } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
                                 />
-                                {scheduleFormErrors.validTo && (
+                                {scheduleFormErrors.dateRangeEnd && (
                                   <p className="mt-1 text-sm text-red-600">
-                                    {scheduleFormErrors.validTo}
+                                    {scheduleFormErrors.dateRangeEnd}
+                                  </p>
+                                )}
+                                {scheduleFormErrors.dateRange && (
+                                  <p className="mt-1 text-sm text-red-600">
+                                    {scheduleFormErrors.dateRange}
                                   </p>
                                 )}
                               </div>
                             </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* Date Selection - Single or Range */}
-                            <div className="space-y-4">
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  <input
-                                    type="checkbox"
-                                    checked={useDateRange}
-                                    onChange={(e) => {
-                                      setUseDateRange(e.target.checked);
-                                      if (!e.target.checked) {
-                                        setDateRangeStart("");
-                                        setDateRangeEnd("");
-                                        setSelectedDates([]);
-                                        // Clear date range errors
-                                        setScheduleFormErrors((prev) => {
-                                          const newErrors = { ...prev };
-                                          delete newErrors.dateRangeStart;
-                                          delete newErrors.dateRangeEnd;
-                                          delete newErrors.dateRange;
-                                          return newErrors;
-                                        });
-                                      }
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  Schedule for multiple dates (bulk scheduling)
-                                </label>
-                              </div>
+                          ) : (
+                            <div>
+                              <label
+                                htmlFor="single-date"
+                                className="block text-sm font-medium text-gray-700"
+                              >
+                                Select Date{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                id="single-date"
+                                value={selectedDates[0] || ""}
+                                onChange={(e) => {
+                                  const newDate = e.target.value;
+                                  // HTML date inputs always return YYYY-MM-DD format
+                                  // Update state if date is valid or empty
+                                  if (newDate) {
+                                    // Validate format (YYYY-MM-DD)
+                                    if (/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                                      setSelectedDates([newDate]);
+                                      // Clear errors for this field
+                                      setScheduleFormErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.dates;
+                                        return newErrors;
+                                      });
+                                    }
+                                  } else {
+                                    // Empty value - clear selection
+                                    setSelectedDates([]);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => {
+                                      const newErrors = { ...prev };
+                                      delete newErrors.dates;
+                                      return newErrors;
+                                    });
+                                  }
+                                }}
+                                onInvalid={(e) => {
+                                  e.preventDefault();
+                                  const target = e.target as HTMLInputElement;
+                                  if (!target.value) {
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dates: "Please select a date",
+                                    }));
+                                  } else {
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dates: "Please select a valid date",
+                                    }));
+                                  }
+                                }}
+                                min={formatDateLocal(new Date())}
+                                required
+                                className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                  scheduleFormErrors.dates
+                                    ? "border-red-500"
+                                    : "border-gray-300"
+                                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                              />
+                              {scheduleFormErrors.dates && (
+                                <p className="mt-1 text-sm text-red-600">
+                                  {scheduleFormErrors.dates}
+                                </p>
+                              )}
+                            </div>
+                          )}
 
-                              {useDateRange ? (
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                  <div>
-                                    <label
-                                      htmlFor="date-range-start"
-                                      className="block text-sm font-medium text-gray-700"
-                                    >
-                                      Start Date{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                      type="date"
-                                      id="date-range-start"
-                                      value={dateRangeStart}
-                                      onChange={(e) => {
-                                        const newStartDate = e.target.value;
-                                        // Ensure the date is in valid format (YYYY-MM-DD)
-                                        if (
-                                          newStartDate &&
-                                          !/^\d{4}-\d{2}-\d{2}$/.test(
-                                            newStartDate
-                                          )
-                                        ) {
-                                          return; // Invalid format, don't update
-                                        }
-                                        setDateRangeStart(newStartDate);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dateRangeStart: "",
-                                          dateRange: "",
-                                        }));
-                                        // Generate date list
-                                        if (newStartDate && dateRangeEnd) {
-                                          const dates = generateDateRange(
-                                            newStartDate,
-                                            dateRangeEnd
-                                          );
-                                          setSelectedDates(dates);
-                                          // Validate date range
-                                          if (
-                                            dates.length === 0 &&
-                                            dateRangeEnd < newStartDate
-                                          ) {
-                                            setScheduleFormErrors((prev) => ({
-                                              ...prev,
-                                              dateRange:
-                                                "End date must be after start date",
-                                            }));
-                                          }
-                                        } else {
-                                          setSelectedDates([]);
-                                        }
-                                      }}
-                                      onInvalid={(e) => {
-                                        e.preventDefault();
-                                        const target =
-                                          e.target as HTMLInputElement;
-                                        if (!target.value) {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeStart:
-                                              "Start date is required",
-                                          }));
-                                        } else {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeStart:
-                                              "Please select a valid start date",
-                                          }));
-                                        }
-                                      }}
-                                      min={formatDateLocal(new Date())}
-                                      required={useDateRange}
-                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                        scheduleFormErrors.dateRangeStart ||
-                                        scheduleFormErrors.dateRange
-                                          ? "border-red-500"
-                                          : "border-gray-300"
-                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                    />
-                                    {scheduleFormErrors.dateRangeStart && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRangeStart}
-                                      </p>
+                          {selectedDates.length > 0 && (
+                            <div className="rounded-md bg-blue-50 p-3">
+                              <p className="text-sm font-medium text-blue-900">
+                                {selectedDates.length} date
+                                {selectedDates.length > 1 ? "s" : ""} selected
+                              </p>
+                              <p className="mt-1 text-xs text-blue-700">
+                                {selectedDates.slice(0, 5).join(", ")}
+                                {selectedDates.length > 5 &&
+                                  ` ... and ${selectedDates.length - 5} more`}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Scheduling Mode Selection */}
+                        <div className="space-y-4">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Scheduling Mode
+                          </label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="schedulingMode"
+                                value="timeRange"
+                                checked={schedulingMode === "timeRange"}
+                                onChange={(e) =>
+                                  setSchedulingMode(
+                                    e.target.value as "timeRange" | "individual"
+                                  )
+                                }
+                                className="mr-2"
+                              />
+                              Time Range (auto-generate slots)
+                            </label>
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="schedulingMode"
+                                value="individual"
+                                checked={schedulingMode === "individual"}
+                                onChange={(e) =>
+                                  setSchedulingMode(
+                                    e.target.value as "timeRange" | "individual"
+                                  )
+                                }
+                                className="mr-2"
+                              />
+                              Individual Slots
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Time Range Mode */}
+                        {schedulingMode === "timeRange" && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div>
+                                <TimePicker
+                                  id="time-range-start"
+                                  label="Start Time"
+                                  value={timeRangeStart}
+                                  onChange={setTimeRangeStart}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <TimePicker
+                                  id="time-range-end"
+                                  label="End Time"
+                                  value={timeRangeEnd}
+                                  onChange={setTimeRangeEnd}
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            {/* Slot Preview */}
+                            {previewSlots.length > 0 && (
+                              <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                                <p className="mb-2 text-sm font-medium text-gray-700">
+                                  Preview: {previewSlots.length} slot
+                                  {previewSlots.length > 1 ? "s" : ""} will be
+                                  generated
+                                </p>
+                                <div className="max-h-40 overflow-y-auto">
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {previewSlots
+                                      .slice(0, 10)
+                                      .map((slot, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="rounded bg-white px-2 py-1"
+                                        >
+                                          {formatTimeDisplay(slot.start)} -{" "}
+                                          {formatTimeDisplay(slot.end)}
+                                        </div>
+                                      ))}
+                                    {previewSlots.length > 10 && (
+                                      <div className="col-span-2 text-center text-gray-500">
+                                        ... and {previewSlots.length - 10} more
+                                      </div>
                                     )}
                                   </div>
-                                  <div>
-                                    <label
-                                      htmlFor="date-range-end"
-                                      className="block text-sm font-medium text-gray-700"
-                                    >
-                                      End Date{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Individual Slots Mode */}
+                        {schedulingMode === "individual" && (
+                          <div className="space-y-4">
+                            <p className="text-sm text-gray-600">
+                              Select individual time slots to schedule (based on
+                              slot template:{" "}
+                              {slotTemplate?.durationMinutes || 30} min
+                              duration)
+                            </p>
+                            <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
+                              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                {individualSlots.map((slot) => (
+                                  <label
+                                    key={slot.key}
+                                    className="flex items-center rounded border p-2 hover:bg-gray-50"
+                                  >
                                     <input
-                                      type="date"
-                                      id="date-range-end"
-                                      value={dateRangeEnd}
+                                      type="checkbox"
+                                      checked={selectedIndividualSlots.has(
+                                        slot.key
+                                      )}
                                       onChange={(e) => {
-                                        const newEndDate = e.target.value;
-                                        // Ensure the date is in valid format (YYYY-MM-DD)
-                                        if (
-                                          newEndDate &&
-                                          !/^\d{4}-\d{2}-\d{2}$/.test(
-                                            newEndDate
-                                          )
-                                        ) {
-                                          return; // Invalid format, don't update
-                                        }
-                                        setDateRangeEnd(newEndDate);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dateRangeEnd: "",
-                                          dateRange: "",
-                                        }));
-                                        // Generate date list
-                                        if (dateRangeStart && newEndDate) {
-                                          const dates = generateDateRange(
-                                            dateRangeStart,
-                                            newEndDate
-                                          );
-                                          setSelectedDates(dates);
-                                          // Validate date range
-                                          if (dates.length === 0) {
-                                            setScheduleFormErrors((prev) => ({
-                                              ...prev,
-                                              dateRange:
-                                                "End date must be after start date",
-                                            }));
-                                          }
+                                        const newSet = new Set(
+                                          selectedIndividualSlots
+                                        );
+                                        if (e.target.checked) {
+                                          newSet.add(slot.key);
                                         } else {
-                                          setSelectedDates([]);
+                                          newSet.delete(slot.key);
                                         }
+                                        setSelectedIndividualSlots(newSet);
                                       }}
-                                      onInvalid={(e) => {
-                                        e.preventDefault();
-                                        const target =
-                                          e.target as HTMLInputElement;
-                                        if (!target.value) {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeEnd:
-                                              "End date is required",
-                                          }));
-                                        } else {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeEnd:
-                                              "Please select a valid end date",
-                                          }));
-                                        }
-                                      }}
-                                      min={
-                                        dateRangeStart ||
-                                        formatDateLocal(new Date())
-                                      }
-                                      required={useDateRange}
-                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                        scheduleFormErrors.dateRangeEnd ||
-                                        scheduleFormErrors.dateRange
-                                          ? "border-red-500"
-                                          : "border-gray-300"
-                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                      className="mr-2"
                                     />
-                                    {scheduleFormErrors.dateRangeEnd && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRangeEnd}
-                                      </p>
-                                    )}
-                                    {scheduleFormErrors.dateRange && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRange}
-                                      </p>
-                                    )}
+                                    <span className="text-sm">
+                                      {formatTimeDisplay(slot.start)}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                            {selectedIndividualSlots.size > 0 && (
+                              <p className="text-sm text-gray-600">
+                                {selectedIndividualSlots.size} slot
+                                {selectedIndividualSlots.size > 1
+                                  ? "s"
+                                  : ""}{" "}
+                                selected
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={scheduleSubmitting}
+                      >
+                        {scheduleSubmitting
+                          ? "Saving..."
+                          : editingScheduleId
+                            ? "Update Schedule"
+                            : "Create Schedule"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelSchedule}
+                        disabled={scheduleSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              )}
+
+              {/* Add Schedule Button - Show when form is hidden */}
+              {!showScheduleForm && (
+                <div className="mb-6">
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      resetScheduleForm();
+                      setScheduleFormData((prev) => ({
+                        ...prev,
+                        doctorId: selectedDoctorForSchedule.id,
+                      }));
+                      setShowScheduleForm(true);
+                      setEditingScheduleId(null);
+                    }}
+                  >
+                    Add New Schedule
+                  </Button>
+                </div>
+              )}
+
+              {/* Schedule List */}
+              <Card
+                title={`Schedules for ${selectedDoctorForSchedule.userEmail}`}
+              >
+                {/* Delete Error Banner - shown when trying to delete schedule with appointments */}
+                {deleteError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800">
+                          Cannot Delete Schedule
+                        </h4>
+                        <p className="mt-1 text-sm text-red-700">
+                          {deleteError}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setDeleteError(null)}
+                        className="flex-shrink-0 rounded-md p-1 hover:bg-red-100"
+                      >
+                        <svg
+                          className="h-4 w-4 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {availabilitiesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                  </div>
+                ) : availabilities.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500">
+                    No schedules found. Click &quot;Add New Schedule&quot; to
+                    create one.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full divide-y divide-gray-200">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Type
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Schedule
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-200 bg-white">
+                        {availabilities.map((availability) => (
+                          <tr key={availability.id}>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                  availability.isRecurring
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {availability.isRecurring
+                                  ? "Recurring"
+                                  : "One-time"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {availability.isRecurring ? (
+                                <div>
+                                  <div>
+                                    <strong>
+                                      {
+                                        DAYS_OF_WEEK.find(
+                                          (d) =>
+                                            d.value === availability.dayOfWeek
+                                        )?.label
+                                      }
+                                    </strong>
+                                    : {formatTimeLocal(availability.startTime)}{" "}
+                                    - {formatTimeLocal(availability.endTime)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    Valid:{" "}
+                                    {availability.validFrom
+                                      ? formatDateLocal(availability.validFrom)
+                                      : "N/A"}{" "}
+                                    -{" "}
+                                    {availability.validTo
+                                      ? formatDateLocal(availability.validTo)
+                                      : "Ongoing"}
                                   </div>
                                 </div>
                               ) : (
                                 <div>
-                                  <label
-                                    htmlFor="single-date"
-                                    className="block text-sm font-medium text-gray-700"
-                                  >
-                                    Select Date{" "}
-                                    <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="date"
-                                    id="single-date"
-                                    value={selectedDates[0] || ""}
-                                    onChange={(e) => {
-                                      const newDate = e.target.value;
-                                      // HTML date inputs always return YYYY-MM-DD format
-                                      // Update state if date is valid or empty
-                                      if (newDate) {
-                                        // Validate format (YYYY-MM-DD)
-                                        if (
-                                          /^\d{4}-\d{2}-\d{2}$/.test(newDate)
-                                        ) {
-                                          setSelectedDates([newDate]);
-                                          // Clear errors for this field
-                                          setScheduleFormErrors((prev) => {
-                                            const newErrors = { ...prev };
-                                            delete newErrors.dates;
-                                            return newErrors;
-                                          });
-                                        }
-                                      } else {
-                                        // Empty value - clear selection
-                                        setSelectedDates([]);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => {
-                                          const newErrors = { ...prev };
-                                          delete newErrors.dates;
-                                          return newErrors;
-                                        });
-                                      }
-                                    }}
-                                    onInvalid={(e) => {
-                                      e.preventDefault();
-                                      const target =
-                                        e.target as HTMLInputElement;
-                                      if (!target.value) {
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dates: "Please select a date",
-                                        }));
-                                      } else {
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dates: "Please select a valid date",
-                                        }));
-                                      }
-                                    }}
-                                    min={formatDateLocal(new Date())}
-                                    required
-                                    className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                      scheduleFormErrors.dates
-                                        ? "border-red-500"
-                                        : "border-gray-300"
-                                    } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                  />
-                                  {scheduleFormErrors.dates && (
-                                    <p className="mt-1 text-sm text-red-600">
-                                      {scheduleFormErrors.dates}
-                                    </p>
-                                  )}
+                                  {formatDateTime(availability.startTime)} -{" "}
+                                  {formatDateTime(availability.endTime)}
                                 </div>
                               )}
-
-                              {selectedDates.length > 0 && (
-                                <div className="rounded-md bg-blue-50 p-3">
-                                  <p className="text-sm font-medium text-blue-900">
-                                    {selectedDates.length} date
-                                    {selectedDates.length > 1 ? "s" : ""}{" "}
-                                    selected
-                                  </p>
-                                  <p className="mt-1 text-xs text-blue-700">
-                                    {selectedDates.slice(0, 5).join(", ")}
-                                    {selectedDates.length > 5 &&
-                                      ` ... and ${selectedDates.length - 5} more`}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Scheduling Mode Selection */}
-                            <div className="space-y-4">
-                              <label className="block text-sm font-medium text-gray-700">
-                                Scheduling Mode
-                              </label>
-                              <div className="flex gap-4">
-                                <label className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    name="schedulingMode"
-                                    value="timeRange"
-                                    checked={schedulingMode === "timeRange"}
-                                    onChange={(e) =>
-                                      setSchedulingMode(
-                                        e.target.value as
-                                          | "timeRange"
-                                          | "individual"
-                                      )
-                                    }
-                                    className="mr-2"
-                                  />
-                                  Time Range (auto-generate slots)
-                                </label>
-                                <label className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    name="schedulingMode"
-                                    value="individual"
-                                    checked={schedulingMode === "individual"}
-                                    onChange={(e) =>
-                                      setSchedulingMode(
-                                        e.target.value as
-                                          | "timeRange"
-                                          | "individual"
-                                      )
-                                    }
-                                    className="mr-2"
-                                  />
-                                  Individual Slots
-                                </label>
-                              </div>
-                            </div>
-
-                            {/* Time Range Mode */}
-                            {schedulingMode === "timeRange" && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                  <div>
-                                    <TimePicker
-                                      id="time-range-start"
-                                      label="Start Time"
-                                      value={timeRangeStart}
-                                      onChange={setTimeRangeStart}
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <TimePicker
-                                      id="time-range-end"
-                                      label="End Time"
-                                      value={timeRangeEnd}
-                                      onChange={setTimeRangeEnd}
-                                      required
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Slot Preview */}
-                                {previewSlots.length > 0 && (
-                                  <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
-                                    <p className="mb-2 text-sm font-medium text-gray-700">
-                                      Preview: {previewSlots.length} slot
-                                      {previewSlots.length > 1 ? "s" : ""} will
-                                      be generated
-                                    </p>
-                                    <div className="max-h-40 overflow-y-auto">
-                                      <div className="grid grid-cols-2 gap-2 text-xs">
-                                        {previewSlots
-                                          .slice(0, 10)
-                                          .map((slot, idx) => (
-                                            <div
-                                              key={idx}
-                                              className="rounded bg-white px-2 py-1"
-                                            >
-                                              {formatTimeDisplay(slot.start)} -{" "}
-                                              {formatTimeDisplay(slot.end)}
-                                            </div>
-                                          ))}
-                                        {previewSlots.length > 10 && (
-                                          <div className="col-span-2 text-center text-gray-500">
-                                            ... and {previewSlots.length - 10}{" "}
-                                            more
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Individual Slots Mode */}
-                            {schedulingMode === "individual" && (
-                              <div className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                  Select individual time slots to schedule
-                                  (based on slot template:{" "}
-                                  {slotTemplate?.durationMinutes || 30} min
-                                  duration)
-                                </p>
-                                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
-                                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                                    {individualSlots.map((slot) => (
-                                      <label
-                                        key={slot.key}
-                                        className="flex items-center rounded border p-2 hover:bg-gray-50"
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleEditSchedule(availability)
+                                  }
+                                  disabled={
+                                    deletingScheduleId === availability.id
+                                  }
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleDeleteSchedule(availability.id)
+                                  }
+                                  disabled={
+                                    deletingScheduleId === availability.id
+                                  }
+                                  className={
+                                    deletingScheduleId === availability.id
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                  }
+                                >
+                                  {deletingScheduleId === availability.id ? (
+                                    <span className="flex items-center gap-1">
+                                      <svg
+                                        className="h-4 w-4 animate-spin"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
                                       >
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedIndividualSlots.has(
-                                            slot.key
-                                          )}
-                                          onChange={(e) => {
-                                            const newSet = new Set(
-                                              selectedIndividualSlots
-                                            );
-                                            if (e.target.checked) {
-                                              newSet.add(slot.key);
-                                            } else {
-                                              newSet.delete(slot.key);
-                                            }
-                                            setSelectedIndividualSlots(newSet);
-                                          }}
-                                          className="mr-2"
-                                        />
-                                        <span className="text-sm">
-                                          {formatTimeDisplay(slot.start)}
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                                {selectedIndividualSlots.size > 0 && (
-                                  <p className="text-sm text-gray-600">
-                                    {selectedIndividualSlots.size} slot
-                                    {selectedIndividualSlots.size > 1
-                                      ? "s"
-                                      : ""}{" "}
-                                    selected
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <div className="flex gap-2">
-                          <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={scheduleSubmitting}
-                          >
-                            {scheduleSubmitting
-                              ? "Saving..."
-                              : editingScheduleId
-                                ? "Update Schedule"
-                                : "Create Schedule"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleCancelSchedule}
-                            disabled={scheduleSubmitting}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    </Card>
-                  )}
-
-                  {/* Add Schedule Button - Show when form is hidden */}
-                  {!showScheduleForm && (
-                    <div className="mb-6">
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          resetScheduleForm();
-                          setScheduleFormData((prev) => ({
-                            ...prev,
-                            doctorId: selectedDoctorForSchedule.id,
-                          }));
-                          setShowScheduleForm(true);
-                          setEditingScheduleId(null);
-                        }}
-                      >
-                        Add New Schedule
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Schedule List */}
-                  <Card
-                    title={`Schedules for ${selectedDoctorForSchedule.userEmail}`}
-                  >
-                    {/* Delete Error Banner - shown when trying to delete schedule with appointments */}
-                    {deleteError && (
-                      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0">
-                            <svg
-                              className="h-5 w-5 text-red-600"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-red-800">
-                              Cannot Delete Schedule
-                            </h4>
-                            <p className="mt-1 text-sm text-red-700">
-                              {deleteError}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setDeleteError(null)}
-                            className="flex-shrink-0 rounded-md p-1 hover:bg-red-100"
-                          >
-                            <svg
-                              className="h-4 w-4 text-red-600"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {availabilitiesLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-                      </div>
-                    ) : availabilities.length === 0 ? (
-                      <div className="py-12 text-center text-gray-500">
-                        No schedules found. Click &quot;Add New Schedule&quot;
-                        to create one.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Type
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Schedule
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 bg-white">
-                            {availabilities.map((availability) => (
-                              <tr key={availability.id}>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                  <span
-                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                      availability.isRecurring
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-gray-100 text-gray-800"
-                                    }`}
-                                  >
-                                    {availability.isRecurring
-                                      ? "Recurring"
-                                      : "One-time"}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-900">
-                                  {availability.isRecurring ? (
-                                    <div>
-                                      <div>
-                                        <strong>
-                                          {
-                                            DAYS_OF_WEEK.find(
-                                              (d) =>
-                                                d.value ===
-                                                availability.dayOfWeek
-                                            )?.label
-                                          }
-                                        </strong>
-                                        :{" "}
-                                        {formatTimeLocal(
-                                          availability.startTime
-                                        )}{" "}
-                                        -{" "}
-                                        {formatTimeLocal(availability.endTime)}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        Valid:{" "}
-                                        {availability.validFrom
-                                          ? formatDateLocal(
-                                              availability.validFrom
-                                            )
-                                          : "N/A"}{" "}
-                                        -{" "}
-                                        {availability.validTo
-                                          ? formatDateLocal(
-                                              availability.validTo
-                                            )
-                                          : "Ongoing"}
-                                      </div>
-                                    </div>
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="currentColor"
+                                          strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                      </svg>
+                                      Deleting…
+                                    </span>
                                   ) : (
-                                    <div>
-                                      {formatDateTime(availability.startTime)} -{" "}
-                                      {formatDateTime(availability.endTime)}
-                                    </div>
+                                    "Delete"
                                   )}
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleEditSchedule(availability)
-                                      }
-                                      disabled={
-                                        deletingScheduleId === availability.id
-                                      }
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteSchedule(availability.id)
-                                      }
-                                      disabled={
-                                        deletingScheduleId === availability.id
-                                      }
-                                      className={
-                                        deletingScheduleId === availability.id
-                                          ? "opacity-50 cursor-not-allowed"
-                                          : ""
-                                      }
-                                    >
-                                      {deletingScheduleId ===
-                                      availability.id ? (
-                                        <span className="flex items-center gap-1">
-                                          <svg
-                                            className="h-4 w-4 animate-spin"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <circle
-                                              className="opacity-25"
-                                              cx="12"
-                                              cy="12"
-                                              r="10"
-                                              stroke="currentColor"
-                                              strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                              className="opacity-75"
-                                              fill="currentColor"
-                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            ></path>
-                                          </svg>
-                                          Deleting…
-                                        </span>
-                                      ) : (
-                                        "Delete"
-                                      )}
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </Card>
-                </>
-              )}
-            </div>
-          </div>
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
         </div>
-      )}
-      {/* TEMP: Old schedule tab code ends here */}
+      </div>
 
       {/* Edit Doctor Modal */}
       {selectedDoctor && (

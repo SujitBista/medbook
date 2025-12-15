@@ -38,10 +38,12 @@ export function GeneralTab({
       {stats && <SystemStatsCards stats={stats} />}
 
       {/* Appointment Statistics Cards */}
-      <AppointmentStatsCards
-        stats={appointmentStats}
-        loading={appointmentStatsLoading}
-      />
+      {appointmentStats && (
+        <AppointmentStatsCards
+          stats={appointmentStats}
+          loading={appointmentStatsLoading}
+        />
+      )}
 
       {/* Users Table */}
       <UserTable
