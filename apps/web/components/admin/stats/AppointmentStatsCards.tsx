@@ -5,6 +5,15 @@ interface AppointmentStatsCardsProps {
   loading?: boolean;
 }
 
+function formatGrowthTrend(change: number): { text: string; color: string } {
+  if (change > 0) {
+    return { text: `+${change.toFixed(1)}%`, color: "text-green-600" };
+  } else if (change < 0) {
+    return { text: `${change.toFixed(1)}%`, color: "text-red-600" };
+  }
+  return { text: "0%", color: "text-gray-500" };
+}
+
 export function AppointmentStatsCards({
   stats,
   loading,
@@ -18,6 +27,13 @@ export function AppointmentStatsCards({
   }
 
   if (!stats) return null;
+
+  const monthTrend = stats.growthTrends
+    ? formatGrowthTrend(stats.growthTrends.thisMonthChange)
+    : null;
+  const weekTrend = stats.growthTrends
+    ? formatGrowthTrend(stats.growthTrends.thisWeekChange)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -94,16 +110,40 @@ export function AppointmentStatsCards({
             </p>
           </div>
           <div>
-            <p className="text-sm text-gray-500">Created This Week</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {stats.recentActivity.createdThisWeek}
-            </p>
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Created This Week</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {stats.recentActivity.createdThisWeek}
+                </p>
+              </div>
+              {weekTrend && (
+                <span className={`text-sm font-medium ${weekTrend.color}`}>
+                  {weekTrend.text}
+                </span>
+              )}
+            </div>
+            {weekTrend && (
+              <p className="mt-1 text-xs text-gray-500">vs last week</p>
+            )}
           </div>
           <div>
-            <p className="text-sm text-gray-500">Created This Month</p>
-            <p className="mt-1 text-2xl font-bold text-gray-900">
-              {stats.recentActivity.createdThisMonth}
-            </p>
+            <div className="flex items-baseline justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Created This Month</p>
+                <p className="mt-1 text-2xl font-bold text-gray-900">
+                  {stats.recentActivity.createdThisMonth}
+                </p>
+              </div>
+              {monthTrend && (
+                <span className={`text-sm font-medium ${monthTrend.color}`}>
+                  {monthTrend.text}
+                </span>
+              )}
+            </div>
+            {monthTrend && (
+              <p className="mt-1 text-xs text-gray-500">vs last month</p>
+            )}
           </div>
         </div>
       </div>

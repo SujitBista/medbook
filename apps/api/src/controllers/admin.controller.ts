@@ -11,6 +11,7 @@ import {
   deleteUser,
   getSystemStats,
   getAppointmentStats,
+  getSystemHealth,
   createDoctorUser,
   UpdateUserRoleInput,
   CreateDoctorUserInput,
@@ -501,6 +502,27 @@ export async function getAppointmentStatistics(
     res.status(200).json({
       success: true,
       stats,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get system health status (admin only)
+ * GET /api/v1/admin/health
+ */
+export async function getSystemHealthStatus(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const health = await getSystemHealth();
+
+    res.status(200).json({
+      success: true,
+      health,
     });
   } catch (error) {
     next(error);

@@ -11,6 +11,7 @@ export function TabNavigation({ activeTab, onTabChange }: TabNavigationProps) {
     { id: "doctors", label: "Manage Doctor" },
     { id: "schedule-management", label: "Schedule Management" },
     { id: "appointments", label: "Appointments" },
+    { id: "settings", label: "Settings" },
   ];
 
   return (

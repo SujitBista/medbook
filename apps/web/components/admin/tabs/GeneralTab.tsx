@@ -1,6 +1,7 @@
 import { SystemStats, AppointmentStats, User } from "@/app/admin/types";
 import { SystemStatsCards } from "../stats/SystemStatsCards";
 import { AppointmentStatsCards } from "../stats/AppointmentStatsCards";
+import { SystemHealthIndicators } from "../stats/SystemHealthIndicators";
 import { UserTable } from "../tables/UserTable";
 import { RoleChangeModal } from "../modals/RoleChangeModal";
 import { UserRole } from "@medbook/types";
@@ -17,6 +18,7 @@ interface GeneralTabProps {
   onRoleChangeConfirm: () => void;
   onRoleChangeClose: () => void;
   onDeleteUser: (userId: string) => void;
+  onError?: (error: string) => void;
 }
 
 export function GeneralTab({
@@ -31,9 +33,13 @@ export function GeneralTab({
   onRoleChangeConfirm,
   onRoleChangeClose,
   onDeleteUser,
+  onError,
 }: GeneralTabProps) {
   return (
     <div className="space-y-8">
+      {/* System Health Indicators */}
+      <SystemHealthIndicators onError={onError} />
+
       {/* User Statistics Cards */}
       {stats && <SystemStatsCards stats={stats} />}
 
