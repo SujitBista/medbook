@@ -58,7 +58,6 @@ export function AppointmentsTab({
     page: appointmentPage,
     pageSize: appointmentPageSize,
     paginatedAppointments,
-    totalPages: totalAppointmentPages,
     paginationRange,
     pageNumbers,
     setPage: setAppointmentPage,

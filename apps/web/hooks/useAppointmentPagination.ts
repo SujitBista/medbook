@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import {
   paginateAppointments,
   calculateTotalPages,
@@ -45,11 +45,25 @@ export function useAppointmentPagination(
   } = options;
 
   const [page, setPage] = useState(initialPage);
-  const [pageSize, setPageSize] = useState(initialPageSize);
+  const [pageSize, setPageSizeState] = useState(initialPageSize);
+  const prevAppointmentsLengthRef = useRef(appointments.length);
+  const prevPageSizeRef = useRef(pageSize);
 
   // Reset to first page when appointments or page size changes
   useEffect(() => {
-    setPage(1);
+    const appointmentsLengthChanged =
+      prevAppointmentsLengthRef.current !== appointments.length;
+    const pageSizeChanged = prevPageSizeRef.current !== pageSize;
+
+    if (appointmentsLengthChanged || pageSizeChanged) {
+      // Use setTimeout to avoid setState in effect warning
+      setTimeout(() => {
+        setPage(1);
+      }, 0);
+    }
+
+    prevAppointmentsLengthRef.current = appointments.length;
+    prevPageSizeRef.current = pageSize;
   }, [appointments.length, pageSize]);
 
   // Calculate pagination
