@@ -9,6 +9,36 @@ import { useRouter } from "next/navigation";
 import useSWR from "swr";
 import { AdvancedDoctorFilters } from "@/components/features/AdvancedDoctorFilters";
 
+// Doctor Avatar Component with fallback
+function DoctorAvatar({
+  profilePictureUrl,
+  name,
+  initials,
+}: {
+  profilePictureUrl?: string;
+  name: string;
+  initials: string;
+}) {
+  const [imageError, setImageError] = useState(false);
+
+  if (!profilePictureUrl || imageError) {
+    return (
+      <div className="h-20 w-20 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xl font-bold border-2 border-primary-100 shadow-md group-hover:shadow-lg transition-shadow">
+        {initials}
+      </div>
+    );
+  }
+
+  return (
+    <img
+      src={profilePictureUrl}
+      alt={name}
+      className="h-20 w-20 rounded-full object-cover border-2 border-primary-100 shadow-md group-hover:border-primary-300 transition-colors"
+      onError={() => setImageError(true)}
+    />
+  );
+}
+
 interface DoctorsResponse {
   success: boolean;
   data: Doctor[];
@@ -119,6 +149,33 @@ export default function DoctorsPage() {
     limit: pagination.limit,
     total: 0,
     totalPages: 0,
+  };
+
+  // Helper function to get doctor's full name
+  const getDoctorName = (doctor: Doctor): string => {
+    if (doctor.userFirstName && doctor.userLastName) {
+      return `${doctor.userFirstName} ${doctor.userLastName}`;
+    }
+    if (doctor.userFirstName) {
+      return doctor.userFirstName;
+    }
+    if (doctor.userLastName) {
+      return doctor.userLastName;
+    }
+    return doctor.userEmail || "Doctor";
+  };
+
+  // Helper function to get doctor's initials
+  const getDoctorInitials = (doctor: Doctor): string => {
+    const name = getDoctorName(doctor);
+    if (name === "Doctor") {
+      return "D";
+    }
+    const parts = name.trim().split(" ");
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    }
+    return name.charAt(0).toUpperCase();
   };
 
   const handleSearch = (e: React.FormEvent) => {
@@ -339,63 +396,107 @@ export default function DoctorsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {doctors.map((doctor) => (
-                    <Card
-                      key={doctor.id}
-                      className="hover:shadow-xl transition-shadow duration-300 overflow-hidden"
-                    >
-                      <div className="p-6">
-                        {/* Doctor Avatar */}
-                        <div className="flex items-center gap-4 mb-4">
-                          <div className="flex-shrink-0">
-                            <div className="h-16 w-16 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white text-xl font-bold">
-                              {doctor.userEmail
-                                ? doctor.userEmail.charAt(0).toUpperCase()
-                                : "D"}
+                  {doctors.map((doctor) => {
+                    const doctorName = getDoctorName(doctor);
+                    const doctorInitials = getDoctorInitials(doctor);
+
+                    return (
+                      <Card
+                        key={doctor.id}
+                        className="hover:shadow-xl transition-all duration-300 overflow-hidden group border border-gray-200"
+                      >
+                        <div className="p-6">
+                          {/* Doctor Avatar and Name */}
+                          <div className="flex items-start gap-4 mb-4">
+                            <div className="flex-shrink-0">
+                              <DoctorAvatar
+                                profilePictureUrl={doctor.profilePictureUrl}
+                                name={doctorName}
+                                initials={doctorInitials}
+                              />
+                            </div>
+                            <div className="flex-1 min-w-0 pt-1">
+                              <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
+                                {doctorName}
+                              </h3>
+                              {doctor.specialization && (
+                                <p className="text-sm text-primary-600 font-medium mt-1">
+                                  {doctor.specialization}
+                                </p>
+                              )}
+                              {doctor.yearsOfExperience && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {doctor.yearsOfExperience}{" "}
+                                  {doctor.yearsOfExperience === 1
+                                    ? "year"
+                                    : "years"}{" "}
+                                  of experience
+                                </p>
+                              )}
                             </div>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <h3 className="text-lg font-semibold text-gray-900 truncate">
-                              {doctor.userEmail || "Doctor"}
-                            </h3>
-                            {doctor.specialization && (
-                              <p className="text-sm text-primary-600 font-medium">
-                                {doctor.specialization}
-                              </p>
-                            )}
-                          </div>
+
+                          {/* Bio */}
+                          {doctor.bio && (
+                            <p className="text-sm text-gray-600 mb-4 line-clamp-3 leading-relaxed">
+                              {doctor.bio}
+                            </p>
+                          )}
+
+                          {/* Location (if available) */}
+                          {(doctor.city || doctor.state) && (
+                            <div className="flex items-center gap-1 text-xs text-gray-500 mb-4">
+                              <svg
+                                className="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                                />
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                                />
+                              </svg>
+                              <span>
+                                {[doctor.city, doctor.state]
+                                  .filter(Boolean)
+                                  .join(", ")}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Action Button */}
+                          <Link href={`/doctors/${doctor.id}`}>
+                            <Button
+                              variant="primary"
+                              className="w-full group-hover:shadow-md transition-all"
+                              onClick={() => {
+                                if (!session) {
+                                  router.push(
+                                    `/login?callbackUrl=/doctors/${doctor.id}`
+                                  );
+                                }
+                              }}
+                            >
+                              {!session
+                                ? "View Profile"
+                                : session.user?.role === "PATIENT"
+                                  ? "Book Appointment"
+                                  : "View Profile"}
+                            </Button>
+                          </Link>
                         </div>
-
-                        {/* Bio */}
-                        {doctor.bio && (
-                          <p className="text-sm text-gray-600 mb-4 line-clamp-3">
-                            {doctor.bio}
-                          </p>
-                        )}
-
-                        {/* Action Button */}
-                        <Link href={`/doctors/${doctor.id}`}>
-                          <Button
-                            variant="primary"
-                            className="w-full"
-                            onClick={() => {
-                              if (!session) {
-                                router.push(
-                                  `/login?callbackUrl=/doctors/${doctor.id}`
-                                );
-                              }
-                            }}
-                          >
-                            {!session
-                              ? "View Profile"
-                              : session.user?.role === "PATIENT"
-                                ? "Book Appointment"
-                                : "View Profile"}
-                          </Button>
-                        </Link>
-                      </div>
-                    </Card>
-                  ))}
+                      </Card>
+                    );
+                  })}
                 </div>
 
                 {/* Pagination */}
