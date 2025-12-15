@@ -13,146 +13,29 @@ import {
 import { Button, Input, Card } from "@medbook/ui";
 import { TimePicker } from "@/components/forms/TimePicker";
 import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationModal";
+import { TabNavigation } from "@/components/admin/TabNavigation";
+import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
+import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
+import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
+import type {
+  User,
+  SystemStats,
+  AppointmentStats,
+  Doctor,
+  DoctorStats,
+  TabType,
+} from "@/app/admin/types";
+import {
+  DAYS_OF_WEEK,
+  utcToLocalDate,
+  formatDateTimeLocal,
+  formatDateLocal,
+  formatTimeLocal,
+  localToUtcDate,
+} from "@/app/admin/utils/date.utils";
 
 // Mark this page as dynamic to prevent pre-rendering
 export const dynamic = "force-dynamic";
-
-interface User {
-  id: string;
-  email: string;
-  role: UserRole;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface SystemStats {
-  totalUsers: number;
-  usersByRole: {
-    PATIENT: number;
-    DOCTOR: number;
-    ADMIN: number;
-  };
-}
-
-interface AppointmentStats {
-  total: number;
-  byStatus: {
-    PENDING: number;
-    CONFIRMED: number;
-    CANCELLED: number;
-    COMPLETED: number;
-  };
-  upcoming: number;
-  today: number;
-  thisWeek: number;
-  thisMonth: number;
-  recentActivity: {
-    createdToday: number;
-    createdThisWeek: number;
-    createdThisMonth: number;
-  };
-}
-
-interface Doctor {
-  id: string;
-  userId: string;
-  specialization?: string;
-  bio?: string;
-  licenseNumber?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zipCode?: string;
-  yearsOfExperience?: number;
-  education?: string;
-  profilePictureUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-  userEmail?: string;
-  userFirstName?: string;
-  userLastName?: string;
-  userPhoneNumber?: string;
-}
-
-interface DoctorStats {
-  totalDoctors: number;
-  doctorsBySpecialization: Record<string, number>;
-}
-
-type TabType = "general" | "doctors" | "schedule-management" | "appointments";
-
-const DAYS_OF_WEEK = [
-  { value: 0, label: "Sunday" },
-  { value: 1, label: "Monday" },
-  { value: 2, label: "Tuesday" },
-  { value: 3, label: "Wednesday" },
-  { value: 4, label: "Thursday" },
-  { value: 5, label: "Friday" },
-  { value: 6, label: "Saturday" },
-];
-
-/**
- * Converts a UTC date string/Date to local time Date object
- * This ensures proper timezone conversion when dates come from backend (UTC)
- */
-function utcToLocalDate(date: Date | string): Date {
-  const d = typeof date === "string" ? new Date(date) : date;
-  // If it's already a Date object from a UTC string, it's correctly parsed
-  // getHours() and getMinutes() will return local time values
-  return d;
-}
-
-/**
- * Formats a Date object to datetime-local input format (YYYY-MM-DDTHH:mm)
- * Converts UTC dates from backend to local time for display in input fields
- */
-function formatDateTimeLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  // getHours() and getMinutes() return local time values
-  const hours = String(d.getHours()).padStart(2, "0");
-  const minutes = String(d.getMinutes()).padStart(2, "0");
-  return `${year}-${month}-${day}T${hours}:${minutes}`;
-}
-
-/**
- * Formats a Date object to date input format (YYYY-MM-DD)
- * Converts UTC dates from backend to local time for display
- */
-function formatDateLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-/**
- * Formats time for display in local timezone (12-hour format with AM/PM)
- * Converts UTC time from backend to local time for display
- */
-function formatTimeLocal(date: Date | string): string {
-  const d = utcToLocalDate(date);
-  return new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  }).format(d);
-}
-
-/**
- * Converts a datetime-local input value (local time) to UTC Date
- * datetime-local inputs provide values in local time (e.g., "2024-01-15T14:30")
- * This function ensures they're properly converted to UTC when creating Date objects
- */
-function localToUtcDate(localDateTimeString: string): Date {
-  // datetime-local format: "YYYY-MM-DDTHH:mm"
-  // When we create new Date() from this, JavaScript interprets it as local time
-  // When serialized to JSON, it automatically converts to UTC (ISO string)
-  return new Date(localDateTimeString);
-}
 
 function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState<TabType>("general");
@@ -1972,281 +1855,108 @@ function AdminDashboardContent() {
       )}
 
       {/* Tab Navigation */}
-      <div className="mb-6 border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab("general")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "general"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            General
-          </button>
-          <button
-            onClick={() => setActiveTab("doctors")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "doctors"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Doctors
-          </button>
-          <button
-            onClick={() => setActiveTab("schedule-management")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "schedule-management"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Schedule Management
-          </button>
-          <button
-            onClick={() => setActiveTab("appointments")}
-            className={`whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium ${
-              activeTab === "appointments"
-                ? "border-blue-500 text-blue-600"
-                : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700"
-            }`}
-          >
-            Appointments
-          </button>
-        </nav>
-      </div>
+      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
 
       {/* General Tab */}
       {activeTab === "general" && (
-        <div className="space-y-8">
-          {/* User Statistics Cards */}
-          {stats && (
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">
-                  Total Users
-                </h3>
-                <p className="mt-2 text-3xl font-bold text-gray-900">
-                  {stats.totalUsers}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Patients</h3>
-                <p className="mt-2 text-3xl font-bold text-blue-600">
-                  {stats.usersByRole.PATIENT}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Doctors</h3>
-                <p className="mt-2 text-3xl font-bold text-green-600">
-                  {stats.usersByRole.DOCTOR}
-                </p>
-              </div>
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="text-sm font-medium text-gray-500">Admins</h3>
-                <p className="mt-2 text-3xl font-bold text-purple-600">
-                  {stats.usersByRole.ADMIN}
-                </p>
-              </div>
-            </div>
-          )}
-
-          {/* Appointment Statistics Cards */}
-          {appointmentStatsLoading ? (
-            <div className="rounded-lg bg-white p-6 shadow">
-              <p className="text-gray-500">Loading appointment statistics...</p>
-            </div>
-          ) : appointmentStats ? (
-            <div className="space-y-6">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Appointment Statistics
-              </h2>
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Total Appointments
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-gray-900">
-                    {appointmentStats.total}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Upcoming
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-blue-600">
-                    {appointmentStats.upcoming}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">Today</h3>
-                  <p className="mt-2 text-3xl font-bold text-indigo-600">
-                    {appointmentStats.today}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    This Week
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-purple-600">
-                    {appointmentStats.thisWeek}
-                  </p>
-                </div>
-              </div>
-
-              {/* Status Breakdown */}
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-4">
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">Pending</h3>
-                  <p className="mt-2 text-3xl font-bold text-yellow-600">
-                    {appointmentStats.byStatus.PENDING}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Confirmed
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-blue-600">
-                    {appointmentStats.byStatus.CONFIRMED}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Completed
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-green-600">
-                    {appointmentStats.byStatus.COMPLETED}
-                  </p>
-                </div>
-                <div className="rounded-lg bg-white p-6 shadow">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Cancelled
-                  </h3>
-                  <p className="mt-2 text-3xl font-bold text-red-600">
-                    {appointmentStats.byStatus.CANCELLED}
-                  </p>
-                </div>
-              </div>
-
-              {/* Recent Activity */}
-              <div className="rounded-lg bg-white p-6 shadow">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                  Recent Activity
-                </h3>
-                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                  <div>
-                    <p className="text-sm text-gray-500">Created Today</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdToday}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Created This Week</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdThisWeek}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Created This Month</p>
-                    <p className="mt-1 text-2xl font-bold text-gray-900">
-                      {appointmentStats.recentActivity.createdThisMonth}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          ) : null}
-
-          {/* Users Table */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">All Users</h2>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
-                  <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Email
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Role
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Created
-                    </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-200 bg-white">
-                  {users.map((user) => (
-                    <tr key={user.id}>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-900">
-                        {user.email}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <span
-                          className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                            user.role === UserRole.ADMIN
-                              ? "bg-purple-100 text-purple-800"
-                              : user.role === UserRole.DOCTOR
-                                ? "bg-green-100 text-green-800"
-                                : "bg-blue-100 text-blue-800"
-                          }`}
-                        >
-                          {user.role}
-                        </span>
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
-                        {new Date(user.createdAt).toLocaleDateString()}
-                      </td>
-                      <td className="whitespace-nowrap px-6 py-4 text-sm">
-                        <div className="flex gap-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedUser(user);
-                              setNewRole(user.role);
-                            }}
-                          >
-                            Change Role
-                          </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleDeleteUser(user.id)}
-                          >
-                            Delete
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <GeneralTab
+          users={users}
+          stats={stats}
+          appointmentStats={appointmentStats}
+          appointmentStatsLoading={appointmentStatsLoading}
+          selectedUser={selectedUser}
+          newRole={newRole}
+          onRoleChangeClick={(user) => {
+            setSelectedUser(user);
+            setNewRole(user.role);
+          }}
+          onRoleChange={(role) => setNewRole(role)}
+          onRoleChangeConfirm={() => {
+            if (selectedUser) {
+              handleRoleChange(selectedUser.id, newRole);
+            }
+          }}
+          onRoleChangeClose={() => setSelectedUser(null)}
+          onDeleteUser={handleDeleteUser}
+        />
       )}
 
       {/* Doctors Tab */}
       {activeTab === "doctors" && (
-        <div className="space-y-8">
-          {/* Doctor Management Section */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-gray-900">
-                  Doctor Management
-                </h2>
-                <Button
-                  variant="primary"
-                  onClick={() => setShowDoctorForm(true)}
-                  className="flex items-center gap-2"
+        <DoctorsTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }}
+          onDoctorSelectForSchedule={(doctor) => {
+            setSelectedDoctorForSchedule(doctor);
+            setActiveTab("schedule-management");
+          }}
+        />
+      )}
+
+      {/* Schedule Management Tab */}
+      {activeTab === "schedule-management" && (
+        <ScheduleManagementTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }}
+        />
+      )}
+
+      {/* Schedule Management Section */}
+      <div className="rounded-lg bg-white shadow">
+        <div className="border-b border-gray-200 px-6 py-4">
+          <h2 className="text-xl font-semibold text-gray-900">
+            Doctor Schedule Management
+          </h2>
+        </div>
+
+        <div className="px-6 py-4">
+          {/* Doctor Selection - Autocomplete */}
+          <div className="mb-6" data-doctor-autocomplete>
+            <label
+              htmlFor="doctor-schedule-select"
+              className="block text-sm font-medium text-gray-700"
+            >
+              Select Doctor <span className="text-red-500">*</span>
+            </label>
+            <div className="relative mt-1">
+              <input
+                id="doctor-schedule-select"
+                type="text"
+                value={doctorSearchQuery}
+                onChange={handleDoctorSearchChange}
+                onFocus={() => {
+                  setShowDoctorDropdown(true);
+                }}
+                onKeyDown={handleDoctorSearchKeyDown}
+                placeholder={
+                  selectedDoctorForSchedule
+                    ? "Type to search for another doctor..."
+                    : "Search by email or specialization..."
+                }
+                className={`w-full rounded-md border px-3 py-2 pr-10 ${
+                  scheduleFormErrors.doctorId
+                    ? "border-red-500"
+                    : "border-gray-300"
+                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+              />
+              {selectedDoctorForSchedule && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedDoctorForSchedule(null);
+                    setDoctorSearchQuery("");
+                    setShowScheduleForm(false);
+                    setEditingScheduleId(null);
+                    resetScheduleForm();
+                  }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label="Clear selection"
                 >
                   <svg
                     className="h-5 w-5"
@@ -2258,1590 +1968,1004 @@ function AdminDashboardContent() {
                       strokeLinecap="round"
                       strokeLinejoin="round"
                       strokeWidth={2}
-                      d="M12 4v16m8-8H4"
+                      d="M6 18L18 6M6 6l12 12"
                     />
                   </svg>
-                  Add New Doctor
-                </Button>
-              </div>
-            </div>
-
-            {/* Doctor Statistics */}
-            {doctorStats && (
-              <div className="border-b border-gray-200 px-6 py-4">
-                <div className="mb-4">
-                  <h3 className="text-sm font-medium text-gray-500">
-                    Total Doctors:{" "}
-                    <span className="text-lg font-bold text-green-600">
-                      {doctorStats.totalDoctors}
-                    </span>
-                  </h3>
-                </div>
-                {Object.keys(doctorStats.doctorsBySpecialization).length >
-                  0 && (
-                  <div>
-                    <h4 className="mb-2 text-sm font-medium text-gray-700">
-                      By Specialization:
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(doctorStats.doctorsBySpecialization).map(
-                        ([specialization, count]) => (
-                          <span
-                            key={specialization}
-                            className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-800"
-                          >
-                            {specialization}: {count}
-                          </span>
-                        )
+                </button>
+              )}
+              {showDoctorDropdown && filteredDoctorsForSelection.length > 0 && (
+                <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
+                  {filteredDoctorsForSelection.map((doctor, index) => (
+                    <div
+                      key={doctor.id}
+                      onClick={() => handleDoctorSelect(doctor)}
+                      className={`cursor-pointer px-4 py-2 ${
+                        index === highlightedIndex
+                          ? "bg-blue-50"
+                          : "hover:bg-gray-50"
+                      } ${
+                        selectedDoctorForSchedule?.id === doctor.id
+                          ? "bg-blue-100"
+                          : ""
+                      }`}
+                    >
+                      <div className="font-medium text-gray-900">
+                        {doctor.userEmail || "N/A"}
+                      </div>
+                      {doctor.specialization && (
+                        <div className="text-sm text-gray-500">
+                          {doctor.specialization}
+                        </div>
                       )}
+                    </div>
+                  ))}
+                </div>
+              )}
+              {showDoctorDropdown &&
+                doctorSearchQuery &&
+                filteredDoctorsForSelection.length === 0 && (
+                  <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
+                    No doctors found matching &quot;{doctorSearchQuery}
+                    &quot;
+                  </div>
+                )}
+            </div>
+            {scheduleFormErrors.doctorId && (
+              <p className="mt-1 text-sm text-red-600">
+                {scheduleFormErrors.doctorId}
+              </p>
+            )}
+          </div>
+
+          {selectedDoctorForSchedule && (
+            <>
+              {/* Slot Template Display */}
+              {slotTemplate ? (
+                <Card title="Slot Template Settings" className="mb-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Slot Duration
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.durationMinutes} minutes
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Buffer Between Slots
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.bufferMinutes} minutes
+                      </p>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700">
+                        Advance Booking Days
+                      </label>
+                      <p className="mt-1 text-sm text-gray-900">
+                        {slotTemplate.advanceBookingDays} days
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setShowSlotTemplateForm(true)}
+                    >
+                      Update Template
+                    </Button>
+                  </div>
+                </Card>
+              ) : (
+                <Card title="Slot Template Settings" className="mb-6">
+                  <div className="rounded-md bg-blue-50 p-4">
+                    <p className="text-sm font-medium text-blue-900 mb-2">
+                      No custom template set. Using default values:
+                    </p>
+                    <ul className="text-sm text-blue-800 space-y-1">
+                      <li>• Slot Duration: 30 minutes</li>
+                      <li>• Buffer Between Slots: 0 minutes</li>
+                      <li>• Advance Booking Days: 30 days</li>
+                    </ul>
+                  </div>
+                  <div className="mt-4">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSlotTemplateFormData({
+                          durationMinutes: 30,
+                          bufferMinutes: 0,
+                          advanceBookingDays: 30,
+                        });
+                        setShowSlotTemplateForm(true);
+                      }}
+                    >
+                      Create Custom Template
+                    </Button>
+                  </div>
+                </Card>
+              )}
+
+              {/* Schedule Filters */}
+              <Card title="Filter Schedules" className="mb-6">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+                  <Input
+                    label="Start Date"
+                    type="date"
+                    value={scheduleFilterStartDate}
+                    onChange={(e) => setScheduleFilterStartDate(e.target.value)}
+                  />
+                  <Input
+                    label="End Date"
+                    type="date"
+                    value={scheduleFilterEndDate}
+                    onChange={(e) => setScheduleFilterEndDate(e.target.value)}
+                  />
+                  <div className="flex items-end">
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setScheduleFilterStartDate("");
+                        setScheduleFilterEndDate("");
+                        // The useEffect will automatically refetch when filter dates change
+                      }}
+                      className="w-full"
+                    >
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+              </Card>
+
+              {/* Create/Edit Schedule Form */}
+              {showScheduleForm && (
+                <Card
+                  title={
+                    editingScheduleId ? "Edit Schedule" : "Add New Schedule"
+                  }
+                  className="mb-6"
+                >
+                  <form
+                    onSubmit={handleScheduleSubmit}
+                    noValidate
+                    className="space-y-4"
+                  >
+                    <div>
+                      <label className="mb-2 block text-sm font-medium text-gray-700">
+                        <input
+                          type="checkbox"
+                          name="isRecurring"
+                          checked={scheduleFormData.isRecurring}
+                          onChange={handleScheduleFormChange}
+                          className="mr-2"
+                        />
+                        Recurring Schedule
+                      </label>
+                    </div>
+
+                    {scheduleFormData.isRecurring ? (
+                      <>
+                        <div>
+                          <label
+                            htmlFor="dayOfWeek"
+                            className="block text-sm font-medium text-gray-700"
+                          >
+                            Day of Week <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            id="dayOfWeek"
+                            name="dayOfWeek"
+                            value={scheduleFormData.dayOfWeek ?? ""}
+                            onChange={handleScheduleFormChange}
+                            required
+                            className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                              scheduleFormErrors.dayOfWeek
+                                ? "border-red-500"
+                                : "border-gray-300"
+                            } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                          >
+                            <option value="">Select day</option>
+                            {DAYS_OF_WEEK.map((day) => (
+                              <option key={day.value} value={day.value}>
+                                {day.label}
+                              </option>
+                            ))}
+                          </select>
+                          {scheduleFormErrors.dayOfWeek && (
+                            <p className="mt-1 text-sm text-red-600">
+                              {scheduleFormErrors.dayOfWeek}
+                            </p>
+                          )}
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <TimePicker
+                              id="recurring-start-time"
+                              name="startTime"
+                              label="Start Time"
+                              required
+                              value={
+                                scheduleFormData.startTime
+                                  ? scheduleFormData.startTime.split("T")[1] ||
+                                    "00:00"
+                                  : "00:00"
+                              }
+                              onChange={(time) => {
+                                const datePart =
+                                  scheduleFormData.startTime.split("T")[0] ||
+                                  formatDateLocal(new Date());
+                                setScheduleFormData((prev) => ({
+                                  ...prev,
+                                  startTime: `${datePart}T${time}`,
+                                }));
+                              }}
+                              error={scheduleFormErrors.startTime}
+                            />
+                          </div>
+
+                          <div>
+                            <TimePicker
+                              id="recurring-end-time"
+                              name="endTime"
+                              label="End Time"
+                              required
+                              value={
+                                scheduleFormData.endTime
+                                  ? scheduleFormData.endTime.split("T")[1] ||
+                                    "00:00"
+                                  : "00:00"
+                              }
+                              onChange={(time) => {
+                                const datePart =
+                                  scheduleFormData.endTime.split("T")[0] ||
+                                  formatDateLocal(new Date());
+                                setScheduleFormData((prev) => ({
+                                  ...prev,
+                                  endTime: `${datePart}T${time}`,
+                                }));
+                              }}
+                              error={scheduleFormErrors.endTime}
+                            />
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                          <div>
+                            <label
+                              htmlFor="validFrom"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Valid From <span className="text-red-500">*</span>
+                            </label>
+                            <input
+                              type="date"
+                              id="validFrom"
+                              name="validFrom"
+                              value={scheduleFormData.validFrom || ""}
+                              onChange={handleScheduleFormChange}
+                              required
+                              className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                scheduleFormErrors.validFrom
+                                  ? "border-red-500"
+                                  : "border-gray-300"
+                              } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                            {scheduleFormErrors.validFrom && (
+                              <p className="mt-1 text-sm text-red-600">
+                                {scheduleFormErrors.validFrom}
+                              </p>
+                            )}
+                          </div>
+
+                          <div>
+                            <label
+                              htmlFor="validTo"
+                              className="block text-sm font-medium text-gray-700"
+                            >
+                              Valid To
+                            </label>
+                            <input
+                              type="date"
+                              id="validTo"
+                              name="validTo"
+                              value={scheduleFormData.validTo || ""}
+                              onChange={handleScheduleFormChange}
+                              className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                scheduleFormErrors.validTo
+                                  ? "border-red-500"
+                                  : "border-gray-300"
+                              } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                            />
+                            {scheduleFormErrors.validTo && (
+                              <p className="mt-1 text-sm text-red-600">
+                                {scheduleFormErrors.validTo}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        {/* Date Selection - Single or Range */}
+                        <div className="space-y-4">
+                          <div>
+                            <label className="mb-2 block text-sm font-medium text-gray-700">
+                              <input
+                                type="checkbox"
+                                checked={useDateRange}
+                                onChange={(e) => {
+                                  setUseDateRange(e.target.checked);
+                                  if (!e.target.checked) {
+                                    setDateRangeStart("");
+                                    setDateRangeEnd("");
+                                    setSelectedDates([]);
+                                    // Clear date range errors
+                                    setScheduleFormErrors((prev) => {
+                                      const newErrors = { ...prev };
+                                      delete newErrors.dateRangeStart;
+                                      delete newErrors.dateRangeEnd;
+                                      delete newErrors.dateRange;
+                                      return newErrors;
+                                    });
+                                  }
+                                }}
+                                className="mr-2"
+                              />
+                              Schedule for multiple dates (bulk scheduling)
+                            </label>
+                          </div>
+
+                          {useDateRange ? (
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div>
+                                <label
+                                  htmlFor="date-range-start"
+                                  className="block text-sm font-medium text-gray-700"
+                                >
+                                  Start Date{" "}
+                                  <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="date"
+                                  id="date-range-start"
+                                  value={dateRangeStart}
+                                  onChange={(e) => {
+                                    const newStartDate = e.target.value;
+                                    // Ensure the date is in valid format (YYYY-MM-DD)
+                                    if (
+                                      newStartDate &&
+                                      !/^\d{4}-\d{2}-\d{2}$/.test(newStartDate)
+                                    ) {
+                                      return; // Invalid format, don't update
+                                    }
+                                    setDateRangeStart(newStartDate);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dateRangeStart: "",
+                                      dateRange: "",
+                                    }));
+                                    // Generate date list
+                                    if (newStartDate && dateRangeEnd) {
+                                      const dates = generateDateRange(
+                                        newStartDate,
+                                        dateRangeEnd
+                                      );
+                                      setSelectedDates(dates);
+                                      // Validate date range
+                                      if (
+                                        dates.length === 0 &&
+                                        dateRangeEnd < newStartDate
+                                      ) {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRange:
+                                            "End date must be after start date",
+                                        }));
+                                      }
+                                    } else {
+                                      setSelectedDates([]);
+                                    }
+                                  }}
+                                  onInvalid={(e) => {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    if (!target.value) {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeStart:
+                                          "Start date is required",
+                                      }));
+                                    } else {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeStart:
+                                          "Please select a valid start date",
+                                      }));
+                                    }
+                                  }}
+                                  min={formatDateLocal(new Date())}
+                                  required={useDateRange}
+                                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                    scheduleFormErrors.dateRangeStart ||
+                                    scheduleFormErrors.dateRange
+                                      ? "border-red-500"
+                                      : "border-gray-300"
+                                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                />
+                                {scheduleFormErrors.dateRangeStart && (
+                                  <p className="mt-1 text-sm text-red-600">
+                                    {scheduleFormErrors.dateRangeStart}
+                                  </p>
+                                )}
+                              </div>
+                              <div>
+                                <label
+                                  htmlFor="date-range-end"
+                                  className="block text-sm font-medium text-gray-700"
+                                >
+                                  End Date{" "}
+                                  <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                  type="date"
+                                  id="date-range-end"
+                                  value={dateRangeEnd}
+                                  onChange={(e) => {
+                                    const newEndDate = e.target.value;
+                                    // Ensure the date is in valid format (YYYY-MM-DD)
+                                    if (
+                                      newEndDate &&
+                                      !/^\d{4}-\d{2}-\d{2}$/.test(newEndDate)
+                                    ) {
+                                      return; // Invalid format, don't update
+                                    }
+                                    setDateRangeEnd(newEndDate);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dateRangeEnd: "",
+                                      dateRange: "",
+                                    }));
+                                    // Generate date list
+                                    if (dateRangeStart && newEndDate) {
+                                      const dates = generateDateRange(
+                                        dateRangeStart,
+                                        newEndDate
+                                      );
+                                      setSelectedDates(dates);
+                                      // Validate date range
+                                      if (dates.length === 0) {
+                                        setScheduleFormErrors((prev) => ({
+                                          ...prev,
+                                          dateRange:
+                                            "End date must be after start date",
+                                        }));
+                                      }
+                                    } else {
+                                      setSelectedDates([]);
+                                    }
+                                  }}
+                                  onInvalid={(e) => {
+                                    e.preventDefault();
+                                    const target = e.target as HTMLInputElement;
+                                    if (!target.value) {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeEnd: "End date is required",
+                                      }));
+                                    } else {
+                                      setScheduleFormErrors((prev) => ({
+                                        ...prev,
+                                        dateRangeEnd:
+                                          "Please select a valid end date",
+                                      }));
+                                    }
+                                  }}
+                                  min={
+                                    dateRangeStart ||
+                                    formatDateLocal(new Date())
+                                  }
+                                  required={useDateRange}
+                                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                    scheduleFormErrors.dateRangeEnd ||
+                                    scheduleFormErrors.dateRange
+                                      ? "border-red-500"
+                                      : "border-gray-300"
+                                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                                />
+                                {scheduleFormErrors.dateRangeEnd && (
+                                  <p className="mt-1 text-sm text-red-600">
+                                    {scheduleFormErrors.dateRangeEnd}
+                                  </p>
+                                )}
+                                {scheduleFormErrors.dateRange && (
+                                  <p className="mt-1 text-sm text-red-600">
+                                    {scheduleFormErrors.dateRange}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <label
+                                htmlFor="single-date"
+                                className="block text-sm font-medium text-gray-700"
+                              >
+                                Select Date{" "}
+                                <span className="text-red-500">*</span>
+                              </label>
+                              <input
+                                type="date"
+                                id="single-date"
+                                value={selectedDates[0] || ""}
+                                onChange={(e) => {
+                                  const newDate = e.target.value;
+                                  // HTML date inputs always return YYYY-MM-DD format
+                                  // Update state if date is valid or empty
+                                  if (newDate) {
+                                    // Validate format (YYYY-MM-DD)
+                                    if (/^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                                      setSelectedDates([newDate]);
+                                      // Clear errors for this field
+                                      setScheduleFormErrors((prev) => {
+                                        const newErrors = { ...prev };
+                                        delete newErrors.dates;
+                                        return newErrors;
+                                      });
+                                    }
+                                  } else {
+                                    // Empty value - clear selection
+                                    setSelectedDates([]);
+                                    // Clear errors for this field
+                                    setScheduleFormErrors((prev) => {
+                                      const newErrors = { ...prev };
+                                      delete newErrors.dates;
+                                      return newErrors;
+                                    });
+                                  }
+                                }}
+                                onInvalid={(e) => {
+                                  e.preventDefault();
+                                  const target = e.target as HTMLInputElement;
+                                  if (!target.value) {
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dates: "Please select a date",
+                                    }));
+                                  } else {
+                                    setScheduleFormErrors((prev) => ({
+                                      ...prev,
+                                      dates: "Please select a valid date",
+                                    }));
+                                  }
+                                }}
+                                min={formatDateLocal(new Date())}
+                                required
+                                className={`mt-1 w-full rounded-md border px-3 py-2 ${
+                                  scheduleFormErrors.dates
+                                    ? "border-red-500"
+                                    : "border-gray-300"
+                                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
+                              />
+                              {scheduleFormErrors.dates && (
+                                <p className="mt-1 text-sm text-red-600">
+                                  {scheduleFormErrors.dates}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
+                          {selectedDates.length > 0 && (
+                            <div className="rounded-md bg-blue-50 p-3">
+                              <p className="text-sm font-medium text-blue-900">
+                                {selectedDates.length} date
+                                {selectedDates.length > 1 ? "s" : ""} selected
+                              </p>
+                              <p className="mt-1 text-xs text-blue-700">
+                                {selectedDates.slice(0, 5).join(", ")}
+                                {selectedDates.length > 5 &&
+                                  ` ... and ${selectedDates.length - 5} more`}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Scheduling Mode Selection */}
+                        <div className="space-y-4">
+                          <label className="block text-sm font-medium text-gray-700">
+                            Scheduling Mode
+                          </label>
+                          <div className="flex gap-4">
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="schedulingMode"
+                                value="timeRange"
+                                checked={schedulingMode === "timeRange"}
+                                onChange={(e) =>
+                                  setSchedulingMode(
+                                    e.target.value as "timeRange" | "individual"
+                                  )
+                                }
+                                className="mr-2"
+                              />
+                              Time Range (auto-generate slots)
+                            </label>
+                            <label className="flex items-center">
+                              <input
+                                type="radio"
+                                name="schedulingMode"
+                                value="individual"
+                                checked={schedulingMode === "individual"}
+                                onChange={(e) =>
+                                  setSchedulingMode(
+                                    e.target.value as "timeRange" | "individual"
+                                  )
+                                }
+                                className="mr-2"
+                              />
+                              Individual Slots
+                            </label>
+                          </div>
+                        </div>
+
+                        {/* Time Range Mode */}
+                        {schedulingMode === "timeRange" && (
+                          <div className="space-y-4">
+                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                              <div>
+                                <TimePicker
+                                  id="time-range-start"
+                                  label="Start Time"
+                                  value={timeRangeStart}
+                                  onChange={setTimeRangeStart}
+                                  required
+                                />
+                              </div>
+                              <div>
+                                <TimePicker
+                                  id="time-range-end"
+                                  label="End Time"
+                                  value={timeRangeEnd}
+                                  onChange={setTimeRangeEnd}
+                                  required
+                                />
+                              </div>
+                            </div>
+
+                            {/* Slot Preview */}
+                            {previewSlots.length > 0 && (
+                              <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
+                                <p className="mb-2 text-sm font-medium text-gray-700">
+                                  Preview: {previewSlots.length} slot
+                                  {previewSlots.length > 1 ? "s" : ""} will be
+                                  generated
+                                </p>
+                                <div className="max-h-40 overflow-y-auto">
+                                  <div className="grid grid-cols-2 gap-2 text-xs">
+                                    {previewSlots
+                                      .slice(0, 10)
+                                      .map((slot, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="rounded bg-white px-2 py-1"
+                                        >
+                                          {formatTimeDisplay(slot.start)} -{" "}
+                                          {formatTimeDisplay(slot.end)}
+                                        </div>
+                                      ))}
+                                    {previewSlots.length > 10 && (
+                                      <div className="col-span-2 text-center text-gray-500">
+                                        ... and {previewSlots.length - 10} more
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Individual Slots Mode */}
+                        {schedulingMode === "individual" && (
+                          <div className="space-y-4">
+                            <p className="text-sm text-gray-600">
+                              Select individual time slots to schedule (based on
+                              slot template:{" "}
+                              {slotTemplate?.durationMinutes || 30} min
+                              duration)
+                            </p>
+                            <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
+                              <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
+                                {individualSlots.map((slot) => (
+                                  <label
+                                    key={slot.key}
+                                    className="flex items-center rounded border p-2 hover:bg-gray-50"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedIndividualSlots.has(
+                                        slot.key
+                                      )}
+                                      onChange={(e) => {
+                                        const newSet = new Set(
+                                          selectedIndividualSlots
+                                        );
+                                        if (e.target.checked) {
+                                          newSet.add(slot.key);
+                                        } else {
+                                          newSet.delete(slot.key);
+                                        }
+                                        setSelectedIndividualSlots(newSet);
+                                      }}
+                                      className="mr-2"
+                                    />
+                                    <span className="text-sm">
+                                      {formatTimeDisplay(slot.start)}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                            {selectedIndividualSlots.size > 0 && (
+                              <p className="text-sm text-gray-600">
+                                {selectedIndividualSlots.size} slot
+                                {selectedIndividualSlots.size > 1
+                                  ? "s"
+                                  : ""}{" "}
+                                selected
+                              </p>
+                            )}
+                          </div>
+                        )}
+                      </>
+                    )}
+
+                    <div className="flex gap-2">
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        disabled={scheduleSubmitting}
+                      >
+                        {scheduleSubmitting
+                          ? "Saving..."
+                          : editingScheduleId
+                            ? "Update Schedule"
+                            : "Create Schedule"}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={handleCancelSchedule}
+                        disabled={scheduleSubmitting}
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </form>
+                </Card>
+              )}
+
+              {/* Add Schedule Button - Show when form is hidden */}
+              {!showScheduleForm && (
+                <div className="mb-6">
+                  <Button
+                    variant="primary"
+                    onClick={() => {
+                      resetScheduleForm();
+                      setScheduleFormData((prev) => ({
+                        ...prev,
+                        doctorId: selectedDoctorForSchedule.id,
+                      }));
+                      setShowScheduleForm(true);
+                      setEditingScheduleId(null);
+                    }}
+                  >
+                    Add New Schedule
+                  </Button>
+                </div>
+              )}
+
+              {/* Schedule List */}
+              <Card
+                title={`Schedules for ${selectedDoctorForSchedule.userEmail}`}
+              >
+                {/* Delete Error Banner - shown when trying to delete schedule with appointments */}
+                {deleteError && (
+                  <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <div className="flex items-start gap-3">
+                      <div className="flex-shrink-0">
+                        <svg
+                          className="h-5 w-5 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-red-800">
+                          Cannot Delete Schedule
+                        </h4>
+                        <p className="mt-1 text-sm text-red-700">
+                          {deleteError}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => setDeleteError(null)}
+                        className="flex-shrink-0 rounded-md p-1 hover:bg-red-100"
+                      >
+                        <svg
+                          className="h-4 w-4 text-red-600"
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                            clipRule="evenodd"
+                          />
+                        </svg>
+                      </button>
                     </div>
                   </div>
                 )}
-              </div>
-            )}
 
-            {/* Search and Filter */}
-            <div className="border-b border-gray-200 px-6 py-4">
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <div>
-                  <label
-                    htmlFor="doctor-search"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Search Doctors
-                  </label>
-                  <input
-                    type="text"
-                    id="doctor-search"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search by email..."
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label
-                    htmlFor="specialization-filter"
-                    className="block text-sm font-medium text-gray-700"
-                  >
-                    Filter by Specialization
-                  </label>
-                  <input
-                    type="text"
-                    id="specialization-filter"
-                    value={specializationFilter}
-                    onChange={(e) => setSpecializationFilter(e.target.value)}
-                    placeholder="e.g., Cardiology"
-                    className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Doctors Table */}
-            <div className="px-6 py-4">
-              {doctorsLoading ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="h-12 w-12 animate-spin rounded-full border-4 border-gray-200 border-t-blue-600"></div>
-                  <p className="mt-4 text-sm text-gray-600">
-                    Loading doctors...
-                  </p>
-                </div>
-              ) : doctors.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16">
-                  <div className="rounded-full bg-gray-100 p-4">
-                    <svg
-                      className="h-12 w-12 text-gray-400"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={1.5}
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
-                      />
-                    </svg>
+                {availabilitiesLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
                   </div>
-                  <h3 className="mt-4 text-lg font-medium text-gray-900">
-                    No doctors found
-                  </h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    {searchQuery || specializationFilter
-                      ? "Try adjusting your search or filter criteria"
-                      : "There are no doctors in the system yet"}
-                  </p>
-                </div>
-              ) : (
-                <>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200">
+                ) : availabilities.length === 0 ? (
+                  <div className="py-12 text-center text-gray-500">
+                    No schedules found. Click &quot;Add New Schedule&quot; to
+                    create one.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
                     <table className="min-w-full divide-y divide-gray-200">
                       <thead className="bg-gray-50">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Name
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Type
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Contact
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
+                            Schedule
                           </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Specialization
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            License
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Location
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Experience
-                          </th>
-                          <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                            Education
-                          </th>
-                          <th className="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-gray-600">
+                          <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
                             Actions
                           </th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-200 bg-white">
-                        {doctors.map((doctor) => {
-                          const fullName =
-                            doctor.userFirstName && doctor.userLastName
-                              ? `${doctor.userFirstName} ${doctor.userLastName}`
-                              : doctor.userEmail || "N/A";
-                          const location =
-                            [doctor.city, doctor.state, doctor.zipCode]
-                              .filter(Boolean)
-                              .join(", ") || "Not specified";
-
-                          return (
-                            <tr
-                              key={doctor.id}
-                              className="transition-colors hover:bg-gray-50"
-                            >
-                              <td className="whitespace-nowrap px-4 py-3">
-                                <div className="flex items-center gap-3">
-                                  {doctor.profilePictureUrl ? (
-                                    <img
-                                      src={doctor.profilePictureUrl}
-                                      alt={fullName}
-                                      className="h-10 w-10 rounded-full object-cover"
-                                    />
-                                  ) : (
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100 text-blue-600">
-                                      <span className="text-sm font-medium">
-                                        {fullName
-                                          .split(" ")
-                                          .map((n) => n[0])
-                                          .join("")
-                                          .toUpperCase()
-                                          .slice(0, 2)}
-                                      </span>
-                                    </div>
-                                  )}
-                                  <div>
-                                    <div className="text-sm font-medium text-gray-900">
-                                      {fullName}
-                                    </div>
-                                    <div className="text-xs text-gray-500">
-                                      {doctor.userEmail}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-3">
-                                <div className="text-sm text-gray-900">
-                                  {doctor.userPhoneNumber || (
-                                    <span className="text-gray-400">N/A</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                {doctor.specialization ? (
-                                  <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                                    {doctor.specialization}
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-gray-400">
-                                    Unspecified
-                                  </span>
-                                )}
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-3">
-                                <div className="text-sm text-gray-900">
-                                  {doctor.licenseNumber ? (
-                                    <span className="font-mono text-xs">
-                                      {doctor.licenseNumber}
-                                    </span>
-                                  ) : (
-                                    <span className="text-gray-400">N/A</span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="text-sm text-gray-900">
-                                  {location !== "Not specified" ? (
-                                    <div>
-                                      {doctor.address && (
-                                        <div className="text-xs">
-                                          {doctor.address}
-                                        </div>
-                                      )}
-                                      <div className="text-xs text-gray-500">
-                                        {location}
-                                      </div>
-                                    </div>
-                                  ) : (
-                                    <span className="text-gray-400">
-                                      {location}
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-3">
-                                {doctor.yearsOfExperience ? (
-                                  <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700">
-                                    {doctor.yearsOfExperience} years
-                                  </span>
-                                ) : (
-                                  <span className="text-xs text-gray-400">
-                                    N/A
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3">
-                                <div className="text-sm text-gray-900">
-                                  {doctor.education ? (
-                                    <span className="line-clamp-2 max-w-xs text-xs">
-                                      {doctor.education}
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs text-gray-400">
-                                      N/A
-                                    </span>
-                                  )}
-                                </div>
-                              </td>
-                              <td className="whitespace-nowrap px-4 py-3 text-right">
-                                <div className="flex items-center justify-end gap-1">
-                                  <button
-                                    onClick={() => handleEditDoctor(doctor)}
-                                    className="rounded p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700"
-                                    title="Edit doctor"
-                                  >
-                                    <svg
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                                      />
-                                    </svg>
-                                  </button>
-                                  <button
-                                    onClick={() =>
-                                      handleDeleteDoctor(doctor.id)
-                                    }
-                                    className="rounded p-1.5 text-red-500 hover:bg-red-50 hover:text-red-700"
-                                    title="Delete doctor"
-                                  >
-                                    <svg
-                                      className="h-4 w-4"
-                                      fill="none"
-                                      viewBox="0 0 24 24"
-                                      stroke="currentColor"
-                                    >
-                                      <path
-                                        strokeLinecap="round"
-                                        strokeLinejoin="round"
-                                        strokeWidth={2}
-                                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                                      />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-
-                  {/* Pagination */}
-                  {(() => {
-                    const totalDoctorPages = Math.ceil(
-                      doctorTotal / doctorPageSize
-                    );
-                    return (
-                      <div className="mt-4 flex flex-col items-center justify-between gap-4 sm:flex-row">
-                        <div className="flex items-center gap-2 text-sm text-gray-600">
-                          <span>Show</span>
-                          <select
-                            value={doctorPageSize}
-                            onChange={(e) =>
-                              setDoctorPageSize(Number(e.target.value))
-                            }
-                            className="rounded-md border border-gray-300 bg-white px-2 py-1 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                          >
-                            <option value={10}>10</option>
-                            <option value={25}>25</option>
-                            <option value={50}>50</option>
-                          </select>
-                          <span>per page</span>
-                          <span className="text-gray-400">|</span>
-                          <span>
-                            Showing {(doctorPage - 1) * doctorPageSize + 1} to{" "}
-                            {Math.min(doctorPage * doctorPageSize, doctorTotal)}{" "}
-                            of {doctorTotal}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <button
-                            onClick={() => setDoctorPage(1)}
-                            disabled={doctorPage === 1}
-                            className="rounded-md border border-gray-300 bg-white p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            title="First Page"
-                          >
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M11 19l-7-7 7-7m8 14l-7-7 7-7"
-                              />
-                            </svg>
-                          </button>
-                          <button
-                            onClick={() =>
-                              setDoctorPage((p) => Math.max(1, p - 1))
-                            }
-                            disabled={doctorPage === 1}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Previous
-                          </button>
-                          <div className="flex items-center gap-1 px-2">
-                            {Array.from(
-                              { length: Math.min(5, totalDoctorPages) },
-                              (_, i) => {
-                                let pageNum;
-                                if (totalDoctorPages <= 5) {
-                                  pageNum = i + 1;
-                                } else if (doctorPage <= 3) {
-                                  pageNum = i + 1;
-                                } else if (doctorPage >= totalDoctorPages - 2) {
-                                  pageNum = totalDoctorPages - 4 + i;
-                                } else {
-                                  pageNum = doctorPage - 2 + i;
-                                }
-                                return (
-                                  <button
-                                    key={pageNum}
-                                    onClick={() => setDoctorPage(pageNum)}
-                                    className={`h-8 w-8 rounded-md text-sm font-medium ${
-                                      doctorPage === pageNum
-                                        ? "bg-blue-600 text-white"
-                                        : "border border-gray-300 bg-white text-gray-600 hover:bg-gray-50"
-                                    }`}
-                                  >
-                                    {pageNum}
-                                  </button>
-                                );
-                              }
-                            )}
-                          </div>
-                          <button
-                            onClick={() =>
-                              setDoctorPage((p) =>
-                                Math.min(totalDoctorPages, p + 1)
-                              )
-                            }
-                            disabled={doctorPage >= totalDoctorPages}
-                            className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            Next
-                          </button>
-                          <button
-                            onClick={() => setDoctorPage(totalDoctorPages)}
-                            disabled={doctorPage >= totalDoctorPages}
-                            className="rounded-md border border-gray-300 bg-white p-2 text-gray-600 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
-                            title="Last Page"
-                          >
-                            <svg
-                              className="h-4 w-4"
-                              fill="none"
-                              viewBox="0 0 24 24"
-                              stroke="currentColor"
-                            >
-                              <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2}
-                                d="M13 5l7 7-7 7M5 5l7 7-7 7"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Schedule Management Tab */}
-      {activeTab === "schedule-management" && (
-        <div className="space-y-8">
-          {/* Schedule Management Section */}
-          <div className="rounded-lg bg-white shadow">
-            <div className="border-b border-gray-200 px-6 py-4">
-              <h2 className="text-xl font-semibold text-gray-900">
-                Doctor Schedule Management
-              </h2>
-            </div>
-
-            <div className="px-6 py-4">
-              {/* Doctor Selection - Autocomplete */}
-              <div className="mb-6" data-doctor-autocomplete>
-                <label
-                  htmlFor="doctor-schedule-select"
-                  className="block text-sm font-medium text-gray-700"
-                >
-                  Select Doctor <span className="text-red-500">*</span>
-                </label>
-                <div className="relative mt-1">
-                  <input
-                    id="doctor-schedule-select"
-                    type="text"
-                    value={doctorSearchQuery}
-                    onChange={handleDoctorSearchChange}
-                    onFocus={() => {
-                      setShowDoctorDropdown(true);
-                    }}
-                    onKeyDown={handleDoctorSearchKeyDown}
-                    placeholder={
-                      selectedDoctorForSchedule
-                        ? "Type to search for another doctor..."
-                        : "Search by email or specialization..."
-                    }
-                    className={`w-full rounded-md border px-3 py-2 pr-10 ${
-                      scheduleFormErrors.doctorId
-                        ? "border-red-500"
-                        : "border-gray-300"
-                    } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                  />
-                  {selectedDoctorForSchedule && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setSelectedDoctorForSchedule(null);
-                        setDoctorSearchQuery("");
-                        setShowScheduleForm(false);
-                        setEditingScheduleId(null);
-                        resetScheduleForm();
-                      }}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                      aria-label="Clear selection"
-                    >
-                      <svg
-                        className="h-5 w-5"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M6 18L18 6M6 6l12 12"
-                        />
-                      </svg>
-                    </button>
-                  )}
-                  {showDoctorDropdown &&
-                    filteredDoctorsForSelection.length > 0 && (
-                      <div className="absolute z-10 mt-1 max-h-60 w-full overflow-auto rounded-md border border-gray-300 bg-white shadow-lg">
-                        {filteredDoctorsForSelection.map((doctor, index) => (
-                          <div
-                            key={doctor.id}
-                            onClick={() => handleDoctorSelect(doctor)}
-                            className={`cursor-pointer px-4 py-2 ${
-                              index === highlightedIndex
-                                ? "bg-blue-50"
-                                : "hover:bg-gray-50"
-                            } ${
-                              selectedDoctorForSchedule?.id === doctor.id
-                                ? "bg-blue-100"
-                                : ""
-                            }`}
-                          >
-                            <div className="font-medium text-gray-900">
-                              {doctor.userEmail || "N/A"}
-                            </div>
-                            {doctor.specialization && (
-                              <div className="text-sm text-gray-500">
-                                {doctor.specialization}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  {showDoctorDropdown &&
-                    doctorSearchQuery &&
-                    filteredDoctorsForSelection.length === 0 && (
-                      <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-300 bg-white px-4 py-2 text-sm text-gray-500 shadow-lg">
-                        No doctors found matching &quot;{doctorSearchQuery}
-                        &quot;
-                      </div>
-                    )}
-                </div>
-                {scheduleFormErrors.doctorId && (
-                  <p className="mt-1 text-sm text-red-600">
-                    {scheduleFormErrors.doctorId}
-                  </p>
-                )}
-              </div>
-
-              {selectedDoctorForSchedule && (
-                <>
-                  {/* Slot Template Display */}
-                  {slotTemplate ? (
-                    <Card title="Slot Template Settings" className="mb-6">
-                      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Slot Duration
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.durationMinutes} minutes
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Buffer Between Slots
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.bufferMinutes} minutes
-                          </p>
-                        </div>
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700">
-                            Advance Booking Days
-                          </label>
-                          <p className="mt-1 text-sm text-gray-900">
-                            {slotTemplate.advanceBookingDays} days
-                          </p>
-                        </div>
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setShowSlotTemplateForm(true)}
-                        >
-                          Update Template
-                        </Button>
-                      </div>
-                    </Card>
-                  ) : (
-                    <Card title="Slot Template Settings" className="mb-6">
-                      <div className="rounded-md bg-blue-50 p-4">
-                        <p className="text-sm font-medium text-blue-900 mb-2">
-                          No custom template set. Using default values:
-                        </p>
-                        <ul className="text-sm text-blue-800 space-y-1">
-                          <li>• Slot Duration: 30 minutes</li>
-                          <li>• Buffer Between Slots: 0 minutes</li>
-                          <li>• Advance Booking Days: 30 days</li>
-                        </ul>
-                      </div>
-                      <div className="mt-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => {
-                            setSlotTemplateFormData({
-                              durationMinutes: 30,
-                              bufferMinutes: 0,
-                              advanceBookingDays: 30,
-                            });
-                            setShowSlotTemplateForm(true);
-                          }}
-                        >
-                          Create Custom Template
-                        </Button>
-                      </div>
-                    </Card>
-                  )}
-
-                  {/* Schedule Filters */}
-                  <Card title="Filter Schedules" className="mb-6">
-                    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-                      <Input
-                        label="Start Date"
-                        type="date"
-                        value={scheduleFilterStartDate}
-                        onChange={(e) =>
-                          setScheduleFilterStartDate(e.target.value)
-                        }
-                      />
-                      <Input
-                        label="End Date"
-                        type="date"
-                        value={scheduleFilterEndDate}
-                        onChange={(e) =>
-                          setScheduleFilterEndDate(e.target.value)
-                        }
-                      />
-                      <div className="flex items-end">
-                        <Button
-                          variant="outline"
-                          onClick={() => {
-                            setScheduleFilterStartDate("");
-                            setScheduleFilterEndDate("");
-                            // The useEffect will automatically refetch when filter dates change
-                          }}
-                          className="w-full"
-                        >
-                          Clear Filters
-                        </Button>
-                      </div>
-                    </div>
-                  </Card>
-
-                  {/* Create/Edit Schedule Form */}
-                  {showScheduleForm && (
-                    <Card
-                      title={
-                        editingScheduleId ? "Edit Schedule" : "Add New Schedule"
-                      }
-                      className="mb-6"
-                    >
-                      <form
-                        onSubmit={handleScheduleSubmit}
-                        noValidate
-                        className="space-y-4"
-                      >
-                        <div>
-                          <label className="mb-2 block text-sm font-medium text-gray-700">
-                            <input
-                              type="checkbox"
-                              name="isRecurring"
-                              checked={scheduleFormData.isRecurring}
-                              onChange={handleScheduleFormChange}
-                              className="mr-2"
-                            />
-                            Recurring Schedule
-                          </label>
-                        </div>
-
-                        {scheduleFormData.isRecurring ? (
-                          <>
-                            <div>
-                              <label
-                                htmlFor="dayOfWeek"
-                                className="block text-sm font-medium text-gray-700"
+                        {availabilities.map((availability) => (
+                          <tr key={availability.id}>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                              <span
+                                className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
+                                  availability.isRecurring
+                                    ? "bg-blue-100 text-blue-800"
+                                    : "bg-gray-100 text-gray-800"
+                                }`}
                               >
-                                Day of Week{" "}
-                                <span className="text-red-500">*</span>
-                              </label>
-                              <select
-                                id="dayOfWeek"
-                                name="dayOfWeek"
-                                value={scheduleFormData.dayOfWeek ?? ""}
-                                onChange={handleScheduleFormChange}
-                                required
-                                className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                  scheduleFormErrors.dayOfWeek
-                                    ? "border-red-500"
-                                    : "border-gray-300"
-                                } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                              >
-                                <option value="">Select day</option>
-                                {DAYS_OF_WEEK.map((day) => (
-                                  <option key={day.value} value={day.value}>
-                                    {day.label}
-                                  </option>
-                                ))}
-                              </select>
-                              {scheduleFormErrors.dayOfWeek && (
-                                <p className="mt-1 text-sm text-red-600">
-                                  {scheduleFormErrors.dayOfWeek}
-                                </p>
-                              )}
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                              <div>
-                                <TimePicker
-                                  id="recurring-start-time"
-                                  name="startTime"
-                                  label="Start Time"
-                                  required
-                                  value={
-                                    scheduleFormData.startTime
-                                      ? scheduleFormData.startTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
-                                  }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.startTime.split(
-                                        "T"
-                                      )[0] || formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      startTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  error={scheduleFormErrors.startTime}
-                                />
-                              </div>
-
-                              <div>
-                                <TimePicker
-                                  id="recurring-end-time"
-                                  name="endTime"
-                                  label="End Time"
-                                  required
-                                  value={
-                                    scheduleFormData.endTime
-                                      ? scheduleFormData.endTime.split(
-                                          "T"
-                                        )[1] || "00:00"
-                                      : "00:00"
-                                  }
-                                  onChange={(time) => {
-                                    const datePart =
-                                      scheduleFormData.endTime.split("T")[0] ||
-                                      formatDateLocal(new Date());
-                                    setScheduleFormData((prev) => ({
-                                      ...prev,
-                                      endTime: `${datePart}T${time}`,
-                                    }));
-                                  }}
-                                  error={scheduleFormErrors.endTime}
-                                />
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                              <div>
-                                <label
-                                  htmlFor="validFrom"
-                                  className="block text-sm font-medium text-gray-700"
-                                >
-                                  Valid From{" "}
-                                  <span className="text-red-500">*</span>
-                                </label>
-                                <input
-                                  type="date"
-                                  id="validFrom"
-                                  name="validFrom"
-                                  value={scheduleFormData.validFrom || ""}
-                                  onChange={handleScheduleFormChange}
-                                  required
-                                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                    scheduleFormErrors.validFrom
-                                      ? "border-red-500"
-                                      : "border-gray-300"
-                                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                />
-                                {scheduleFormErrors.validFrom && (
-                                  <p className="mt-1 text-sm text-red-600">
-                                    {scheduleFormErrors.validFrom}
-                                  </p>
-                                )}
-                              </div>
-
-                              <div>
-                                <label
-                                  htmlFor="validTo"
-                                  className="block text-sm font-medium text-gray-700"
-                                >
-                                  Valid To
-                                </label>
-                                <input
-                                  type="date"
-                                  id="validTo"
-                                  name="validTo"
-                                  value={scheduleFormData.validTo || ""}
-                                  onChange={handleScheduleFormChange}
-                                  className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                    scheduleFormErrors.validTo
-                                      ? "border-red-500"
-                                      : "border-gray-300"
-                                  } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                />
-                                {scheduleFormErrors.validTo && (
-                                  <p className="mt-1 text-sm text-red-600">
-                                    {scheduleFormErrors.validTo}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </>
-                        ) : (
-                          <>
-                            {/* Date Selection - Single or Range */}
-                            <div className="space-y-4">
-                              <div>
-                                <label className="mb-2 block text-sm font-medium text-gray-700">
-                                  <input
-                                    type="checkbox"
-                                    checked={useDateRange}
-                                    onChange={(e) => {
-                                      setUseDateRange(e.target.checked);
-                                      if (!e.target.checked) {
-                                        setDateRangeStart("");
-                                        setDateRangeEnd("");
-                                        setSelectedDates([]);
-                                        // Clear date range errors
-                                        setScheduleFormErrors((prev) => {
-                                          const newErrors = { ...prev };
-                                          delete newErrors.dateRangeStart;
-                                          delete newErrors.dateRangeEnd;
-                                          delete newErrors.dateRange;
-                                          return newErrors;
-                                        });
-                                      }
-                                    }}
-                                    className="mr-2"
-                                  />
-                                  Schedule for multiple dates (bulk scheduling)
-                                </label>
-                              </div>
-
-                              {useDateRange ? (
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                                {availability.isRecurring
+                                  ? "Recurring"
+                                  : "One-time"}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {availability.isRecurring ? (
+                                <div>
                                   <div>
-                                    <label
-                                      htmlFor="date-range-start"
-                                      className="block text-sm font-medium text-gray-700"
-                                    >
-                                      Start Date{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                      type="date"
-                                      id="date-range-start"
-                                      value={dateRangeStart}
-                                      onChange={(e) => {
-                                        const newStartDate = e.target.value;
-                                        // Ensure the date is in valid format (YYYY-MM-DD)
-                                        if (
-                                          newStartDate &&
-                                          !/^\d{4}-\d{2}-\d{2}$/.test(
-                                            newStartDate
-                                          )
-                                        ) {
-                                          return; // Invalid format, don't update
-                                        }
-                                        setDateRangeStart(newStartDate);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dateRangeStart: "",
-                                          dateRange: "",
-                                        }));
-                                        // Generate date list
-                                        if (newStartDate && dateRangeEnd) {
-                                          const dates = generateDateRange(
-                                            newStartDate,
-                                            dateRangeEnd
-                                          );
-                                          setSelectedDates(dates);
-                                          // Validate date range
-                                          if (
-                                            dates.length === 0 &&
-                                            dateRangeEnd < newStartDate
-                                          ) {
-                                            setScheduleFormErrors((prev) => ({
-                                              ...prev,
-                                              dateRange:
-                                                "End date must be after start date",
-                                            }));
-                                          }
-                                        } else {
-                                          setSelectedDates([]);
-                                        }
-                                      }}
-                                      onInvalid={(e) => {
-                                        e.preventDefault();
-                                        const target =
-                                          e.target as HTMLInputElement;
-                                        if (!target.value) {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeStart:
-                                              "Start date is required",
-                                          }));
-                                        } else {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeStart:
-                                              "Please select a valid start date",
-                                          }));
-                                        }
-                                      }}
-                                      min={formatDateLocal(new Date())}
-                                      required={useDateRange}
-                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                        scheduleFormErrors.dateRangeStart ||
-                                        scheduleFormErrors.dateRange
-                                          ? "border-red-500"
-                                          : "border-gray-300"
-                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                    />
-                                    {scheduleFormErrors.dateRangeStart && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRangeStart}
-                                      </p>
-                                    )}
+                                    <strong>
+                                      {
+                                        DAYS_OF_WEEK.find(
+                                          (d) =>
+                                            d.value === availability.dayOfWeek
+                                        )?.label
+                                      }
+                                    </strong>
+                                    : {formatTimeLocal(availability.startTime)}{" "}
+                                    - {formatTimeLocal(availability.endTime)}
                                   </div>
-                                  <div>
-                                    <label
-                                      htmlFor="date-range-end"
-                                      className="block text-sm font-medium text-gray-700"
-                                    >
-                                      End Date{" "}
-                                      <span className="text-red-500">*</span>
-                                    </label>
-                                    <input
-                                      type="date"
-                                      id="date-range-end"
-                                      value={dateRangeEnd}
-                                      onChange={(e) => {
-                                        const newEndDate = e.target.value;
-                                        // Ensure the date is in valid format (YYYY-MM-DD)
-                                        if (
-                                          newEndDate &&
-                                          !/^\d{4}-\d{2}-\d{2}$/.test(
-                                            newEndDate
-                                          )
-                                        ) {
-                                          return; // Invalid format, don't update
-                                        }
-                                        setDateRangeEnd(newEndDate);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dateRangeEnd: "",
-                                          dateRange: "",
-                                        }));
-                                        // Generate date list
-                                        if (dateRangeStart && newEndDate) {
-                                          const dates = generateDateRange(
-                                            dateRangeStart,
-                                            newEndDate
-                                          );
-                                          setSelectedDates(dates);
-                                          // Validate date range
-                                          if (dates.length === 0) {
-                                            setScheduleFormErrors((prev) => ({
-                                              ...prev,
-                                              dateRange:
-                                                "End date must be after start date",
-                                            }));
-                                          }
-                                        } else {
-                                          setSelectedDates([]);
-                                        }
-                                      }}
-                                      onInvalid={(e) => {
-                                        e.preventDefault();
-                                        const target =
-                                          e.target as HTMLInputElement;
-                                        if (!target.value) {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeEnd:
-                                              "End date is required",
-                                          }));
-                                        } else {
-                                          setScheduleFormErrors((prev) => ({
-                                            ...prev,
-                                            dateRangeEnd:
-                                              "Please select a valid end date",
-                                          }));
-                                        }
-                                      }}
-                                      min={
-                                        dateRangeStart ||
-                                        formatDateLocal(new Date())
-                                      }
-                                      required={useDateRange}
-                                      className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                        scheduleFormErrors.dateRangeEnd ||
-                                        scheduleFormErrors.dateRange
-                                          ? "border-red-500"
-                                          : "border-gray-300"
-                                      } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                    />
-                                    {scheduleFormErrors.dateRangeEnd && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRangeEnd}
-                                      </p>
-                                    )}
-                                    {scheduleFormErrors.dateRange && (
-                                      <p className="mt-1 text-sm text-red-600">
-                                        {scheduleFormErrors.dateRange}
-                                      </p>
-                                    )}
+                                  <div className="text-xs text-gray-500">
+                                    Valid:{" "}
+                                    {availability.validFrom
+                                      ? formatDateLocal(availability.validFrom)
+                                      : "N/A"}{" "}
+                                    -{" "}
+                                    {availability.validTo
+                                      ? formatDateLocal(availability.validTo)
+                                      : "Ongoing"}
                                   </div>
                                 </div>
                               ) : (
                                 <div>
-                                  <label
-                                    htmlFor="single-date"
-                                    className="block text-sm font-medium text-gray-700"
-                                  >
-                                    Select Date{" "}
-                                    <span className="text-red-500">*</span>
-                                  </label>
-                                  <input
-                                    type="date"
-                                    id="single-date"
-                                    value={selectedDates[0] || ""}
-                                    onChange={(e) => {
-                                      const newDate = e.target.value;
-                                      // HTML date inputs always return YYYY-MM-DD format
-                                      // Update state if date is valid or empty
-                                      if (newDate) {
-                                        // Validate format (YYYY-MM-DD)
-                                        if (
-                                          /^\d{4}-\d{2}-\d{2}$/.test(newDate)
-                                        ) {
-                                          setSelectedDates([newDate]);
-                                          // Clear errors for this field
-                                          setScheduleFormErrors((prev) => {
-                                            const newErrors = { ...prev };
-                                            delete newErrors.dates;
-                                            return newErrors;
-                                          });
-                                        }
-                                      } else {
-                                        // Empty value - clear selection
-                                        setSelectedDates([]);
-                                        // Clear errors for this field
-                                        setScheduleFormErrors((prev) => {
-                                          const newErrors = { ...prev };
-                                          delete newErrors.dates;
-                                          return newErrors;
-                                        });
-                                      }
-                                    }}
-                                    onInvalid={(e) => {
-                                      e.preventDefault();
-                                      const target =
-                                        e.target as HTMLInputElement;
-                                      if (!target.value) {
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dates: "Please select a date",
-                                        }));
-                                      } else {
-                                        setScheduleFormErrors((prev) => ({
-                                          ...prev,
-                                          dates: "Please select a valid date",
-                                        }));
-                                      }
-                                    }}
-                                    min={formatDateLocal(new Date())}
-                                    required
-                                    className={`mt-1 w-full rounded-md border px-3 py-2 ${
-                                      scheduleFormErrors.dates
-                                        ? "border-red-500"
-                                        : "border-gray-300"
-                                    } focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500`}
-                                  />
-                                  {scheduleFormErrors.dates && (
-                                    <p className="mt-1 text-sm text-red-600">
-                                      {scheduleFormErrors.dates}
-                                    </p>
-                                  )}
+                                  {formatDateTime(availability.startTime)} -{" "}
+                                  {formatDateTime(availability.endTime)}
                                 </div>
                               )}
-
-                              {selectedDates.length > 0 && (
-                                <div className="rounded-md bg-blue-50 p-3">
-                                  <p className="text-sm font-medium text-blue-900">
-                                    {selectedDates.length} date
-                                    {selectedDates.length > 1 ? "s" : ""}{" "}
-                                    selected
-                                  </p>
-                                  <p className="mt-1 text-xs text-blue-700">
-                                    {selectedDates.slice(0, 5).join(", ")}
-                                    {selectedDates.length > 5 &&
-                                      ` ... and ${selectedDates.length - 5} more`}
-                                  </p>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Scheduling Mode Selection */}
-                            <div className="space-y-4">
-                              <label className="block text-sm font-medium text-gray-700">
-                                Scheduling Mode
-                              </label>
-                              <div className="flex gap-4">
-                                <label className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    name="schedulingMode"
-                                    value="timeRange"
-                                    checked={schedulingMode === "timeRange"}
-                                    onChange={(e) =>
-                                      setSchedulingMode(
-                                        e.target.value as
-                                          | "timeRange"
-                                          | "individual"
-                                      )
-                                    }
-                                    className="mr-2"
-                                  />
-                                  Time Range (auto-generate slots)
-                                </label>
-                                <label className="flex items-center">
-                                  <input
-                                    type="radio"
-                                    name="schedulingMode"
-                                    value="individual"
-                                    checked={schedulingMode === "individual"}
-                                    onChange={(e) =>
-                                      setSchedulingMode(
-                                        e.target.value as
-                                          | "timeRange"
-                                          | "individual"
-                                      )
-                                    }
-                                    className="mr-2"
-                                  />
-                                  Individual Slots
-                                </label>
-                              </div>
-                            </div>
-
-                            {/* Time Range Mode */}
-                            {schedulingMode === "timeRange" && (
-                              <div className="space-y-4">
-                                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                                  <div>
-                                    <TimePicker
-                                      id="time-range-start"
-                                      label="Start Time"
-                                      value={timeRangeStart}
-                                      onChange={setTimeRangeStart}
-                                      required
-                                    />
-                                  </div>
-                                  <div>
-                                    <TimePicker
-                                      id="time-range-end"
-                                      label="End Time"
-                                      value={timeRangeEnd}
-                                      onChange={setTimeRangeEnd}
-                                      required
-                                    />
-                                  </div>
-                                </div>
-
-                                {/* Slot Preview */}
-                                {previewSlots.length > 0 && (
-                                  <div className="rounded-md border border-gray-200 bg-gray-50 p-4">
-                                    <p className="mb-2 text-sm font-medium text-gray-700">
-                                      Preview: {previewSlots.length} slot
-                                      {previewSlots.length > 1 ? "s" : ""} will
-                                      be generated
-                                    </p>
-                                    <div className="max-h-40 overflow-y-auto">
-                                      <div className="grid grid-cols-2 gap-2 text-xs">
-                                        {previewSlots
-                                          .slice(0, 10)
-                                          .map((slot, idx) => (
-                                            <div
-                                              key={idx}
-                                              className="rounded bg-white px-2 py-1"
-                                            >
-                                              {formatTimeDisplay(slot.start)} -{" "}
-                                              {formatTimeDisplay(slot.end)}
-                                            </div>
-                                          ))}
-                                        {previewSlots.length > 10 && (
-                                          <div className="col-span-2 text-center text-gray-500">
-                                            ... and {previewSlots.length - 10}{" "}
-                                            more
-                                          </div>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            )}
-
-                            {/* Individual Slots Mode */}
-                            {schedulingMode === "individual" && (
-                              <div className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                  Select individual time slots to schedule
-                                  (based on slot template:{" "}
-                                  {slotTemplate?.durationMinutes || 30} min
-                                  duration)
-                                </p>
-                                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
-                                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                                    {individualSlots.map((slot) => (
-                                      <label
-                                        key={slot.key}
-                                        className="flex items-center rounded border p-2 hover:bg-gray-50"
+                            </td>
+                            <td className="whitespace-nowrap px-6 py-4 text-sm">
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleEditSchedule(availability)
+                                  }
+                                  disabled={
+                                    deletingScheduleId === availability.id
+                                  }
+                                >
+                                  Edit
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() =>
+                                    handleDeleteSchedule(availability.id)
+                                  }
+                                  disabled={
+                                    deletingScheduleId === availability.id
+                                  }
+                                  className={
+                                    deletingScheduleId === availability.id
+                                      ? "opacity-50 cursor-not-allowed"
+                                      : ""
+                                  }
+                                >
+                                  {deletingScheduleId === availability.id ? (
+                                    <span className="flex items-center gap-1">
+                                      <svg
+                                        className="h-4 w-4 animate-spin"
+                                        xmlns="http://www.w3.org/2000/svg"
+                                        fill="none"
+                                        viewBox="0 0 24 24"
                                       >
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedIndividualSlots.has(
-                                            slot.key
-                                          )}
-                                          onChange={(e) => {
-                                            const newSet = new Set(
-                                              selectedIndividualSlots
-                                            );
-                                            if (e.target.checked) {
-                                              newSet.add(slot.key);
-                                            } else {
-                                              newSet.delete(slot.key);
-                                            }
-                                            setSelectedIndividualSlots(newSet);
-                                          }}
-                                          className="mr-2"
-                                        />
-                                        <span className="text-sm">
-                                          {formatTimeDisplay(slot.start)}
-                                        </span>
-                                      </label>
-                                    ))}
-                                  </div>
-                                </div>
-                                {selectedIndividualSlots.size > 0 && (
-                                  <p className="text-sm text-gray-600">
-                                    {selectedIndividualSlots.size} slot
-                                    {selectedIndividualSlots.size > 1
-                                      ? "s"
-                                      : ""}{" "}
-                                    selected
-                                  </p>
-                                )}
-                              </div>
-                            )}
-                          </>
-                        )}
-
-                        <div className="flex gap-2">
-                          <Button
-                            type="submit"
-                            variant="primary"
-                            disabled={scheduleSubmitting}
-                          >
-                            {scheduleSubmitting
-                              ? "Saving..."
-                              : editingScheduleId
-                                ? "Update Schedule"
-                                : "Create Schedule"}
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            onClick={handleCancelSchedule}
-                            disabled={scheduleSubmitting}
-                          >
-                            Cancel
-                          </Button>
-                        </div>
-                      </form>
-                    </Card>
-                  )}
-
-                  {/* Add Schedule Button - Show when form is hidden */}
-                  {!showScheduleForm && (
-                    <div className="mb-6">
-                      <Button
-                        variant="primary"
-                        onClick={() => {
-                          resetScheduleForm();
-                          setScheduleFormData((prev) => ({
-                            ...prev,
-                            doctorId: selectedDoctorForSchedule.id,
-                          }));
-                          setShowScheduleForm(true);
-                          setEditingScheduleId(null);
-                        }}
-                      >
-                        Add New Schedule
-                      </Button>
-                    </div>
-                  )}
-
-                  {/* Schedule List */}
-                  <Card
-                    title={`Schedules for ${selectedDoctorForSchedule.userEmail}`}
-                  >
-                    {/* Delete Error Banner - shown when trying to delete schedule with appointments */}
-                    {deleteError && (
-                      <div className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4">
-                        <div className="flex items-start gap-3">
-                          <div className="flex-shrink-0">
-                            <svg
-                              className="h-5 w-5 text-red-600"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-medium text-red-800">
-                              Cannot Delete Schedule
-                            </h4>
-                            <p className="mt-1 text-sm text-red-700">
-                              {deleteError}
-                            </p>
-                          </div>
-                          <button
-                            onClick={() => setDeleteError(null)}
-                            className="flex-shrink-0 rounded-md p-1 hover:bg-red-100"
-                          >
-                            <svg
-                              className="h-4 w-4 text-red-600"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 20 20"
-                              fill="currentColor"
-                            >
-                              <path
-                                fillRule="evenodd"
-                                d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                                clipRule="evenodd"
-                              />
-                            </svg>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-
-                    {availabilitiesLoading ? (
-                      <div className="flex items-center justify-center py-12">
-                        <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-                      </div>
-                    ) : availabilities.length === 0 ? (
-                      <div className="py-12 text-center text-gray-500">
-                        No schedules found. Click &quot;Add New Schedule&quot;
-                        to create one.
-                      </div>
-                    ) : (
-                      <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Type
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Schedule
-                              </th>
-                              <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-500">
-                                Actions
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-gray-200 bg-white">
-                            {availabilities.map((availability) => (
-                              <tr key={availability.id}>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                  <span
-                                    className={`inline-flex rounded-full px-2 py-1 text-xs font-medium ${
-                                      availability.isRecurring
-                                        ? "bg-blue-100 text-blue-800"
-                                        : "bg-gray-100 text-gray-800"
-                                    }`}
-                                  >
-                                    {availability.isRecurring
-                                      ? "Recurring"
-                                      : "One-time"}
-                                  </span>
-                                </td>
-                                <td className="px-6 py-4 text-sm text-gray-900">
-                                  {availability.isRecurring ? (
-                                    <div>
-                                      <div>
-                                        <strong>
-                                          {
-                                            DAYS_OF_WEEK.find(
-                                              (d) =>
-                                                d.value ===
-                                                availability.dayOfWeek
-                                            )?.label
-                                          }
-                                        </strong>
-                                        :{" "}
-                                        {formatTimeLocal(
-                                          availability.startTime
-                                        )}{" "}
-                                        -{" "}
-                                        {formatTimeLocal(availability.endTime)}
-                                      </div>
-                                      <div className="text-xs text-gray-500">
-                                        Valid:{" "}
-                                        {availability.validFrom
-                                          ? formatDateLocal(
-                                              availability.validFrom
-                                            )
-                                          : "N/A"}{" "}
-                                        -{" "}
-                                        {availability.validTo
-                                          ? formatDateLocal(
-                                              availability.validTo
-                                            )
-                                          : "Ongoing"}
-                                      </div>
-                                    </div>
+                                        <circle
+                                          className="opacity-25"
+                                          cx="12"
+                                          cy="12"
+                                          r="10"
+                                          stroke="currentColor"
+                                          strokeWidth="4"
+                                        ></circle>
+                                        <path
+                                          className="opacity-75"
+                                          fill="currentColor"
+                                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+                                        ></path>
+                                      </svg>
+                                      Deleting…
+                                    </span>
                                   ) : (
-                                    <div>
-                                      {formatDateTime(availability.startTime)} -{" "}
-                                      {formatDateTime(availability.endTime)}
-                                    </div>
+                                    "Delete"
                                   )}
-                                </td>
-                                <td className="whitespace-nowrap px-6 py-4 text-sm">
-                                  <div className="flex gap-2">
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleEditSchedule(availability)
-                                      }
-                                      disabled={
-                                        deletingScheduleId === availability.id
-                                      }
-                                    >
-                                      Edit
-                                    </Button>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() =>
-                                        handleDeleteSchedule(availability.id)
-                                      }
-                                      disabled={
-                                        deletingScheduleId === availability.id
-                                      }
-                                      className={
-                                        deletingScheduleId === availability.id
-                                          ? "opacity-50 cursor-not-allowed"
-                                          : ""
-                                      }
-                                    >
-                                      {deletingScheduleId ===
-                                      availability.id ? (
-                                        <span className="flex items-center gap-1">
-                                          <svg
-                                            className="h-4 w-4 animate-spin"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                            fill="none"
-                                            viewBox="0 0 24 24"
-                                          >
-                                            <circle
-                                              className="opacity-25"
-                                              cx="12"
-                                              cy="12"
-                                              r="10"
-                                              stroke="currentColor"
-                                              strokeWidth="4"
-                                            ></circle>
-                                            <path
-                                              className="opacity-75"
-                                              fill="currentColor"
-                                              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                                            ></path>
-                                          </svg>
-                                          Deleting…
-                                        </span>
-                                      ) : (
-                                        "Delete"
-                                      )}
-                                    </Button>
-                                  </div>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </Card>
-                </>
-              )}
-            </div>
-          </div>
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            </>
+          )}
         </div>
-      )}
-
-      {/* Role Change Modal */}
-      {selectedUser && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
-            <h3 className="mb-4 text-lg font-semibold">Change User Role</h3>
-            <p className="mb-4 text-sm text-gray-600">
-              User: {selectedUser.email}
-            </p>
-            <div className="mb-4">
-              <label className="mb-2 block text-sm font-medium text-gray-700">
-                New Role
-              </label>
-              <select
-                value={newRole}
-                onChange={(e) => setNewRole(e.target.value as UserRole)}
-                className="w-full rounded-md border border-gray-300 px-3 py-2"
-              >
-                <option value={UserRole.PATIENT}>PATIENT</option>
-                <option value={UserRole.DOCTOR}>DOCTOR</option>
-                <option value={UserRole.ADMIN}>ADMIN</option>
-              </select>
-            </div>
-            <div className="flex gap-2">
-              <Button
-                variant="primary"
-                onClick={() => handleRoleChange(selectedUser.id, newRole)}
-              >
-                Save
-              </Button>
-              <Button variant="outline" onClick={() => setSelectedUser(null)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+      </div>
 
       {/* Edit Doctor Modal */}
       {selectedDoctor && (

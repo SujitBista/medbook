@@ -102,7 +102,9 @@ export async function PUT(
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    console.log("[Availability] Updating availability:", id, body);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Availability] Updating availability:", id, body);
+    }
 
     // Call backend API
     const response = await fetch(`${env.apiUrl}/availability/${id}`, {
@@ -161,7 +163,9 @@ export async function DELETE(
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    console.log("[Availability] Deleting availability:", id);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Availability] Deleting availability:", id);
+    }
 
     // Call backend API
     const response = await fetch(`${env.apiUrl}/availability/${id}`, {

@@ -46,7 +46,9 @@ export async function GET(req: NextRequest) {
       queryString ? `?${queryString}` : ""
     }`;
 
-    console.log("[Availability] Fetching availabilities:", url);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Availability] Fetching availabilities:", url);
+    }
 
     const response = await fetch(url, {
       headers: {
@@ -107,7 +109,9 @@ export async function POST(req: NextRequest) {
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    console.log("[Availability] Creating availability:", body);
+    if (process.env.NODE_ENV === "development") {
+      console.log("[Availability] Creating availability:", body);
+    }
 
     // Call backend API
     const response = await fetch(`${env.apiUrl}/availability`, {
