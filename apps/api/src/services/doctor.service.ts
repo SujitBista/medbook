@@ -15,7 +15,7 @@ import { logger } from "../utils/logger";
 /**
  * Gets doctor by ID
  * @param doctorId Doctor ID
- * @returns Doctor data
+ * @returns Doctor data with user information
  * @throws AppError if doctor not found
  */
 export async function getDoctorById(doctorId: string): Promise<Doctor> {
@@ -26,6 +26,9 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
           id: true;
           email: true;
           role: true;
+          firstName: true;
+          lastName: true;
+          phoneNumber: true;
         };
       };
     };
@@ -38,6 +41,9 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
             id: true,
             email: true,
             role: true,
+            firstName: true,
+            lastName: true,
+            phoneNumber: true,
           },
         },
       },
@@ -53,8 +59,21 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
     userId: doctor.userId,
     specialization: doctor.specialization ?? undefined,
     bio: doctor.bio ?? undefined,
+    licenseNumber: doctor.licenseNumber ?? undefined,
+    address: doctor.address ?? undefined,
+    city: doctor.city ?? undefined,
+    state: doctor.state ?? undefined,
+    zipCode: doctor.zipCode ?? undefined,
+    yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+    education: doctor.education ?? undefined,
+    profilePictureUrl: doctor.profilePictureUrl ?? undefined,
     createdAt: doctor.createdAt,
     updatedAt: doctor.updatedAt,
+    // Include user fields for display purposes
+    userEmail: doctor.user?.email,
+    userFirstName: doctor.user?.firstName ?? undefined,
+    userLastName: doctor.user?.lastName ?? undefined,
+    userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
   };
 }
 
