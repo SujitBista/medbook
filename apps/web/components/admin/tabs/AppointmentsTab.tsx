@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import type { AppointmentStatus, Appointment } from "@medbook/types";
+import { AppointmentStatus } from "@medbook/types";
+import type { Appointment } from "@medbook/types";
 import type { Doctor } from "@/app/admin/types";
 import { Button, Card } from "@medbook/ui";
 import { useAppointments } from "@/hooks/useAppointments";
