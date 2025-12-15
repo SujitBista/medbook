@@ -107,6 +107,14 @@ export function useAppointmentPagination(
   const canGoToPrevious = page > 1;
   const canGoToNext = page < totalPages;
 
+  // Wrapper for setPageSize that resets to page 1 when page size changes
+  const setPageSize = (newPageSize: number) => {
+    setPageSizeState(newPageSize);
+    if (page !== 1) {
+      setPage(1);
+    }
+  };
+
   return {
     page,
     pageSize,
