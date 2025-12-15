@@ -106,8 +106,8 @@ describe("DoctorsPage", () => {
       specialization: "Cardiology",
       bio: "Experienced cardiologist",
       userEmail: "doctor1@medbook.com",
-      createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-01-01T00:00:00Z"),
+      updatedAt: new Date("2024-01-01T00:00:00Z"),
     },
     {
       id: "doctor-2",
@@ -115,8 +115,8 @@ describe("DoctorsPage", () => {
       specialization: "Dermatology",
       bio: "Skin specialist",
       userEmail: "doctor2@medbook.com",
-      createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-01-01T00:00:00Z"),
+      updatedAt: new Date("2024-01-01T00:00:00Z"),
     },
     {
       id: "doctor-3",
@@ -124,8 +124,8 @@ describe("DoctorsPage", () => {
       specialization: "Cardiology",
       bio: "Another cardiologist",
       userEmail: "doctor3@medbook.com",
-      createdAt: new Date("2024-01-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-01-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-01-01T00:00:00Z"),
+      updatedAt: new Date("2024-01-01T00:00:00Z"),
     },
   ];
 

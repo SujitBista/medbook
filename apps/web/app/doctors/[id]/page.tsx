@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
@@ -28,17 +28,14 @@ function DoctorAvatar({
   size?: "small" | "large";
 }) {
   const [imageError, setImageError] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const sizeClasses =
     size === "large" ? "h-32 w-32 text-3xl" : "h-20 w-20 text-xl";
 
-  // Only set mounted after client-side hydration
-  useEffect(() => {
-    setMounted(true);
-  }, []);
+  // Check if we're on the client side
+  const isClient = typeof window !== "undefined";
 
-  // Show initials if no profile picture, or if image error occurred after mount
-  if (!profilePictureUrl || (mounted && imageError)) {
+  // Show initials if no profile picture, or if image error occurred (client-side only)
+  if (!profilePictureUrl || (isClient && imageError)) {
     return (
       <div
         className={`${sizeClasses} rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold border-4 border-primary-100 shadow-lg`}
@@ -54,7 +51,7 @@ function DoctorAvatar({
       alt={name}
       className={`${sizeClasses} rounded-full object-cover border-4 border-primary-100 shadow-lg`}
       onError={() => {
-        if (mounted) {
+        if (typeof window !== "undefined") {
           setImageError(true);
         }
       }}
@@ -287,17 +284,6 @@ export default function DoctorDetailPage() {
     setSelectedSlot(null);
     setError(null);
   };
-
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading doctor information...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (loading) {
     return (
