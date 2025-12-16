@@ -37,11 +37,23 @@ export async function cleanupTestData(): Promise<void> {
                 },
               },
               {
+                patient: {
+                  email: "test@example.com",
+                },
+              },
+              {
                 doctor: {
                   user: {
                     email: {
                       startsWith: "test-",
                     },
+                  },
+                },
+              },
+              {
+                doctor: {
+                  user: {
+                    email: "test@example.com",
                   },
                 },
               },
@@ -58,13 +70,24 @@ export async function cleanupTestData(): Promise<void> {
         // Delete slots (has foreign keys to doctors, availabilities)
         await prisma.slot.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: "test@example.com",
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -75,13 +98,24 @@ export async function cleanupTestData(): Promise<void> {
         // Delete slot templates (has foreign key to doctors)
         await prisma.slotTemplate.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: "test@example.com",
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -95,13 +129,24 @@ export async function cleanupTestData(): Promise<void> {
         // Delete availabilities (has foreign key to doctors)
         await prisma.availability.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: "test@example.com",
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -115,11 +160,20 @@ export async function cleanupTestData(): Promise<void> {
         // Delete doctors (has foreign key to users)
         await prisma.doctor.deleteMany({
           where: {
-            user: {
-              email: {
-                startsWith: "test-",
+            OR: [
+              {
+                user: {
+                  email: {
+                    startsWith: "test-",
+                  },
+                },
               },
-            },
+              {
+                user: {
+                  email: "test@example.com",
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -128,11 +182,20 @@ export async function cleanupTestData(): Promise<void> {
 
       try {
         // Finally delete users
+        // Delete users with emails starting with "test-" OR exact match "test@example.com"
+        // This covers both unique test emails and hardcoded test emails used in some tests
         await prisma.user.deleteMany({
           where: {
-            email: {
-              startsWith: "test-",
-            },
+            OR: [
+              {
+                email: {
+                  startsWith: "test-",
+                },
+              },
+              {
+                email: "test@example.com",
+              },
+            ],
           },
         });
       } catch (error) {
@@ -175,6 +238,16 @@ export async function createTestUser(overrides?: {
   const hashedPassword = await hashPassword(password);
 
   try {
+    // If a specific email was provided, try to delete any existing user with that email first
+    // This helps with test isolation when tests use hardcoded emails
+    if (overrides?.email) {
+      await query(async (prisma) => {
+        await prisma.user.deleteMany({
+          where: { email },
+        });
+      });
+    }
+
     const user = await query(async (prisma) => {
       return prisma.user.create({
         data: {
