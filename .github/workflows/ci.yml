@@ -7,11 +7,11 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches:
-      - 'feature/**'
-      - 'fix/**'
-      - 'chore/**'
-      - 'docs/**'
-      - 'test/**'
+      - "feature/**"
+      - "fix/**"
+      - "chore/**"
+      - "docs/**"
+      - "test/**"
 
 jobs:
   # Prevent direct pushes to main
@@ -47,8 +47,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -57,7 +57,7 @@ jobs:
         run: pnpm lint
 
       - name: Type check (via build)
-        run: pnpm build  # Build includes type checking via tsc
+        run: pnpm build # Build includes type checking via tsc
 
   test:
     name: Test
@@ -95,8 +95,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -152,14 +152,39 @@ jobs:
           DOTENV_CONFIG_OVERRIDE: true
         run: pnpm test
 
-      - name: Test coverage
+      - name: Generate test coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/medbook_test
           NODE_ENV: test
           PGUSER: postgres
           PGPASSWORD: postgres
+          # Prevent dotenv from overriding with .env file values
+          DOTENV_CONFIG_OVERRIDE: true
         run: pnpm test:coverage || true
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-reports
+          path: |
+            apps/api/coverage/
+            packages/db/coverage/
+          retention-days: 7
+
+      # Uncomment and configure Codecov token in repository secrets to enable coverage reporting
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v4
+      #   if: always()
+      #   with:
+      #     token: ${{ secrets.CODECOV_TOKEN }}
+      #     files: |
+      #       apps/api/coverage/coverage-final.json
+      #       packages/db/coverage/coverage-final.json
+      #     flags: unittests
+      #     name: codecov-umbrella
+      #     fail_ci_if_error: false
 
   build:
     name: Build
@@ -177,8 +202,8 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'pnpm'
+          node-version: "20"
+          cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
