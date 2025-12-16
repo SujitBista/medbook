@@ -29,7 +29,5 @@ export interface PaginationParams {
 
 export interface SortParams {
   sortBy?: string;
-  sortOrder?: 'asc' | 'desc';
+  sortOrder?: "asc" | "desc";
 }
-
-

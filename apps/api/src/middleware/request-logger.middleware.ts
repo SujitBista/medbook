@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { logger } from '../utils/logger';
+import { Request, Response, NextFunction } from "express";
+import { logger } from "../utils/logger";
 
 /**
  * Request logging middleware
@@ -17,7 +17,7 @@ export function requestLogger(
   logger.info(`${method} ${originalUrl} - ${ip}`);
 
   // Listen for response finish event to log response details
-  res.on('finish', () => {
+  res.on("finish", () => {
     const duration = Date.now() - startTime;
     const statusCode = res.statusCode;
 
@@ -39,5 +39,3 @@ export function requestLogger(
 
   next();
 }
-
-

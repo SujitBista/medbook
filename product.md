@@ -63,5 +63,3 @@ To create a scalable and reliable digital healthcare ecosystem where patients ca
 ## 📄 License
 
 This project is currently under MIT License — feel free to use and modify with attribution.
-
-

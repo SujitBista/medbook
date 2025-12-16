@@ -13,14 +13,14 @@ export interface AppError {
  */
 export function isAppError(error: unknown): error is AppError {
   return (
-    typeof error === 'object' &&
+    typeof error === "object" &&
     error !== null &&
-    'code' in error &&
-    'message' in error &&
-    'statusCode' in error &&
-    typeof (error as AppError).code === 'string' &&
-    typeof (error as AppError).message === 'string' &&
-    typeof (error as AppError).statusCode === 'number'
+    "code" in error &&
+    "message" in error &&
+    "statusCode" in error &&
+    typeof (error as AppError).code === "string" &&
+    typeof (error as AppError).message === "string" &&
+    typeof (error as AppError).statusCode === "number"
   );
 }
 
@@ -32,7 +32,7 @@ export function createValidationError(
   details?: unknown
 ): AppError {
   return {
-    code: 'VALIDATION_ERROR',
+    code: "VALIDATION_ERROR",
     message,
     statusCode: 400,
     details,
@@ -43,11 +43,11 @@ export function createValidationError(
  * Creates an authentication error (401)
  */
 export function createAuthenticationError(
-  message: string = 'Authentication required',
+  message: string = "Authentication required",
   details?: unknown
 ): AppError {
   return {
-    code: 'AUTHENTICATION_ERROR',
+    code: "AUTHENTICATION_ERROR",
     message,
     statusCode: 401,
     details,
@@ -58,11 +58,11 @@ export function createAuthenticationError(
  * Creates an authorization error (403)
  */
 export function createAuthorizationError(
-  message: string = 'Insufficient permissions',
+  message: string = "Insufficient permissions",
   details?: unknown
 ): AppError {
   return {
-    code: 'AUTHORIZATION_ERROR',
+    code: "AUTHORIZATION_ERROR",
     message,
     statusCode: 403,
     details,
@@ -73,11 +73,11 @@ export function createAuthorizationError(
  * Creates a not found error (404)
  */
 export function createNotFoundError(
-  resource: string = 'Resource',
+  resource: string = "Resource",
   details?: unknown
 ): AppError {
   return {
-    code: 'NOT_FOUND',
+    code: "NOT_FOUND",
     message: `${resource} not found`,
     statusCode: 404,
     details,
@@ -92,7 +92,7 @@ export function createConflictError(
   details?: unknown
 ): AppError {
   return {
-    code: 'CONFLICT_ERROR',
+    code: "CONFLICT_ERROR",
     message,
     statusCode: 409,
     details,
@@ -103,11 +103,11 @@ export function createConflictError(
  * Creates a rate limit error (429)
  */
 export function createRateLimitError(
-  message: string = 'Too many requests',
+  message: string = "Too many requests",
   details?: unknown
 ): AppError {
   return {
-    code: 'RATE_LIMIT_ERROR',
+    code: "RATE_LIMIT_ERROR",
     message,
     statusCode: 429,
     details,
@@ -130,4 +130,3 @@ export function createAppError(
     details,
   };
 }
-

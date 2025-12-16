@@ -67,3 +67,4 @@ ALTER TABLE "appointments" ADD CONSTRAINT "appointments_slotId_fkey" FOREIGN KEY
 
 
 
+

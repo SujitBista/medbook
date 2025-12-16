@@ -1,4 +1,4 @@
-import React from 'react';
+import React from "react";
 
 export interface CardProps {
   children: React.ReactNode;
@@ -10,9 +10,11 @@ export interface CardProps {
 /**
  * Shared Card component
  */
-export function Card({ children, className = '', title, footer }: CardProps) {
+export function Card({ children, className = "", title, footer }: CardProps) {
   return (
-    <div className={`bg-white rounded-lg shadow-md border border-gray-200 ${className}`}>
+    <div
+      className={`bg-white rounded-lg shadow-md border border-gray-200 ${className}`}
+    >
       {title && (
         <div className="px-6 py-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
@@ -27,5 +29,3 @@ export function Card({ children, className = '', title, footer }: CardProps) {
     </div>
   );
 }
-
-
