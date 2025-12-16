@@ -502,12 +502,31 @@ describe("DoctorDashboardPage", () => {
 
       render(<DoctorDashboardPage />);
 
-      await waitFor(() => {
-        expect(
-          screen.getByText("Failed to fetch appointments")
-        ).toBeInTheDocument();
-        expect(screen.getByText("Retry")).toBeInTheDocument();
-      });
+      // Wait for loading to complete first
+      await waitFor(
+        () => {
+          expect(
+            screen.queryByText("Loading dashboard...")
+          ).not.toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
+
+      // Then wait for error message to appear (use findByText which auto-waits)
+      const errorMessage = await screen.findByText(
+        /Failed to fetch appointments/i,
+        {},
+        { timeout: 5000 }
+      );
+      expect(errorMessage).toBeInTheDocument();
+
+      // Wait for Retry button (it should be in the document after error appears)
+      await waitFor(
+        () => {
+          expect(screen.getByText("Retry")).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
     });
 
     it("should retry fetching when retry button is clicked", async () => {
