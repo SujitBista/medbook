@@ -117,9 +117,9 @@ jobs:
             sleep 1
           done
           echo "✅ PostgreSQL is ready"
-          # Create test database
-          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'medbook_test'" | grep -q 1 || \
-            PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE medbook_test;"
+          # Create test database (drop if exists to ensure clean state)
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "DROP DATABASE IF EXISTS medbook_test;" || true
+          PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE medbook_test OWNER postgres;"
           echo "✅ Test database created"
           # Ensure root role exists to avoid unexpected role lookups (avoid $$ shell expansion)
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='root'" | grep -q 1 || \
@@ -127,18 +127,26 @@ jobs:
           # Create root database to silence any accidental root@root connections
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -tc "SELECT 1 FROM pg_database WHERE datname = 'root'" | grep -q 1 || \
             PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "CREATE DATABASE root OWNER postgres;"
+          # Ensure postgres user owns the public schema
+          PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "ALTER SCHEMA public OWNER TO postgres;" || true
+          # Set default search path for postgres user
+          PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "ALTER DATABASE medbook_test SET search_path TO public;"
           # Grant all privileges to postgres user on the test database
           PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c "GRANT ALL PRIVILEGES ON DATABASE medbook_test TO postgres;"
           # Run migrations on test database
           cd packages/db
           DATABASE_URL=postgresql://postgres:postgres@localhost:5432/medbook_test pnpm db:migrate:deploy
           echo "✅ Test database migrations completed"
-          # Grant schema permissions after migrations
+          # Grant schema permissions after migrations (ensure postgres owns everything)
+          PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "ALTER SCHEMA public OWNER TO postgres;"
           PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "GRANT ALL ON SCHEMA public TO postgres;"
           PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;"
           PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;"
           PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres;"
           PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres;"
+          # Ensure postgres owns all existing tables and sequences
+          PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "DO \$\$ DECLARE r RECORD; BEGIN FOR r IN (SELECT tablename FROM pg_tables WHERE schemaname = 'public') LOOP EXECUTE 'ALTER TABLE public.' || quote_ident(r.tablename) || ' OWNER TO postgres'; END LOOP; END \$\$;"
+          PGPASSWORD=postgres psql -h localhost -U postgres -d medbook_test -c "DO \$\$ DECLARE r RECORD; BEGIN FOR r IN (SELECT sequence_name FROM information_schema.sequences WHERE sequence_schema = 'public') LOOP EXECUTE 'ALTER SEQUENCE public.' || quote_ident(r.sequence_name) || ' OWNER TO postgres'; END LOOP; END \$\$;"
           echo "✅ Test database permissions configured"
 
       - name: Run tests
