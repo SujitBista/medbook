@@ -296,17 +296,6 @@ export default function DoctorDetailPage() {
     );
   }
 
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading doctor information...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (fetchError && !doctor) {
     return (
       <div className="container mx-auto px-4 py-8">
