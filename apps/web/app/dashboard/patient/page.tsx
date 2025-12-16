@@ -4,7 +4,10 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Appointment, AppointmentStatus } from "@medbook/types";
-import { AppointmentList } from "@/components/features/appointment";
+import {
+  AppointmentList,
+  AppointmentStatistics,
+} from "@/components/features/appointment";
 import { Button, Card } from "@medbook/ui";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import Link from "next/link";
@@ -267,6 +270,13 @@ export default function PatientDashboardPage() {
             </Card>
           </Link>
         </div>
+
+        {/* Appointment Statistics */}
+        {appointments.length > 0 && (
+          <div className="mb-8">
+            <AppointmentStatistics appointments={appointments} role="PATIENT" />
+          </div>
+        )}
 
         {/* Upcoming Appointments */}
         <div className="mb-8">
