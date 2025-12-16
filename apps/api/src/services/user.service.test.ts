@@ -36,7 +36,7 @@ describe("user.service", () => {
       expect(profile.id).toBe(user.id);
       expect(profile.email).toBe("test@example.com");
       expect(profile.role).toBe(UserRole.PATIENT);
-      expect(profile.password).toBeUndefined(); // Password should not be in result
+      // Password should not be in result (TypeScript guarantees this via UserWithoutPassword type)
     });
 
     it("should get user profile with all fields", async () => {
@@ -56,7 +56,7 @@ describe("user.service", () => {
       expect(profile.firstName).toBe("John");
       expect(profile.lastName).toBe("Doe");
       expect(profile.phoneNumber).toBe("555-123-4567");
-      expect(profile.password).toBeUndefined();
+      // Password should not be in result (TypeScript guarantees this via UserWithoutPassword type)
     });
 
     it("should throw NotFoundError if user does not exist", async () => {

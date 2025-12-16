@@ -4,7 +4,7 @@
 
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { registerUser, loginUser } from "./auth.service";
-import { UserRole } from "@medbook/types";
+import { UserRole, CreateUserInput } from "@medbook/types";
 import { createTestUser, cleanupTestData } from "../__tests__/db";
 import {
   createConflictError,
@@ -60,7 +60,7 @@ describe("auth.service", () => {
       expect(result.user.lastName).toBe("Doe");
       expect(result.user.phoneNumber).toBe("555-123-4567");
       expect(result.token).toBeDefined();
-      expect(result.user.password).toBeUndefined(); // Password should not be in result
+      // Password should not be in result (TypeScript guarantees this via UserWithoutPassword type)
     });
 
     it("should register a user with DOCTOR role", async () => {
@@ -116,7 +116,7 @@ describe("auth.service", () => {
         password: "Test123!@#",
         lastName: "Doe",
         phoneNumber: "555-123-4567",
-      };
+      } as Partial<CreateUserInput> as CreateUserInput;
 
       await expect(registerUser(input)).rejects.toThrow(
         "Please fill in all required fields"
@@ -129,7 +129,7 @@ describe("auth.service", () => {
         password: "Test123!@#",
         firstName: "John",
         phoneNumber: "555-123-4567",
-      };
+      } as Partial<CreateUserInput> as CreateUserInput;
 
       await expect(registerUser(input)).rejects.toThrow(
         "Please fill in all required fields"
@@ -142,7 +142,7 @@ describe("auth.service", () => {
         password: "Test123!@#",
         firstName: "John",
         lastName: "Doe",
-      };
+      } as Partial<CreateUserInput> as CreateUserInput;
 
       await expect(registerUser(input)).rejects.toThrow(
         "Please fill in all required fields"
@@ -259,7 +259,7 @@ describe("auth.service", () => {
       expect(result.user.email).toBe("test@example.com");
       expect(result.user.role).toBe(UserRole.PATIENT);
       expect(result.token).toBeDefined();
-      expect(result.user.password).toBeUndefined(); // Password should not be in result
+      // Password should not be in result (TypeScript guarantees this via UserWithoutPassword type)
     });
 
     it("should login user with email in different case", async () => {

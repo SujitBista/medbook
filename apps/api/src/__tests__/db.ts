@@ -156,6 +156,7 @@ export async function createTestUser(overrides?: {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  mustResetPassword?: boolean;
 }) {
   const { hashPassword } = await import("../utils/auth");
 
@@ -169,6 +170,7 @@ export async function createTestUser(overrides?: {
   const firstName = overrides?.firstName || "Test";
   const lastName = overrides?.lastName || "User";
   const phoneNumber = overrides?.phoneNumber || "555-123-4567";
+  const mustResetPassword = overrides?.mustResetPassword ?? false;
 
   const hashedPassword = await hashPassword(password);
 
@@ -182,6 +184,7 @@ export async function createTestUser(overrides?: {
           firstName,
           lastName,
           phoneNumber,
+          mustResetPassword,
         },
         select: {
           id: true,
