@@ -85,17 +85,36 @@ export async function updateUserProfile(
   userId: string,
   input: UpdateUserProfileInput
 ): Promise<UserWithoutPassword> {
-  // Validate email format if provided
-  if (input.email) {
+  // Normalize email if provided (trim and lowercase)
+  const normalizedEmail = input.email
+    ? input.email.toLowerCase().trim()
+    : undefined;
+
+  // Validate email format if provided (after normalization)
+  if (normalizedEmail) {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(input.email)) {
+    if (!emailRegex.test(normalizedEmail)) {
       throw createValidationError("Invalid email format");
     }
   }
 
-  // Check if email is already taken by another user
-  if (input.email) {
-    const existingUser = await query<{
+  // Check if user exists first (before checking email uniqueness)
+  const existingUserForId = await query<{
+    id: string;
+  } | null>((prisma) =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true },
+    })
+  );
+
+  if (!existingUserForId) {
+    throw createNotFoundError("User");
+  }
+
+  // Check if email is already taken by another user (only if email is being changed)
+  if (normalizedEmail) {
+    const existingUserWithEmail = await query<{
       id: string;
       email: string;
       password: string;
@@ -108,11 +127,11 @@ export async function updateUserProfile(
       updatedAt: Date;
     } | null>((prisma) =>
       prisma.user.findUnique({
-        where: { email: input.email!.toLowerCase().trim() },
+        where: { email: normalizedEmail },
       })
     );
 
-    if (existingUser && existingUser.id !== userId) {
+    if (existingUserWithEmail && existingUserWithEmail.id !== userId) {
       throw createValidationError("Email is already taken");
     }
   }
@@ -134,7 +153,7 @@ export async function updateUserProfile(
       prisma.user.update({
         where: { id: userId },
         data: {
-          ...(input.email && { email: input.email.toLowerCase().trim() }),
+          ...(normalizedEmail && { email: normalizedEmail }),
         },
       })
     );

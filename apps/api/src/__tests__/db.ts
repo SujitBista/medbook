@@ -38,7 +38,9 @@ export async function cleanupTestData(): Promise<void> {
               },
               {
                 patient: {
-                  email: "test@example.com",
+                  email: {
+                    endsWith: "@example.com",
+                  },
                 },
               },
               {
@@ -53,7 +55,9 @@ export async function cleanupTestData(): Promise<void> {
               {
                 doctor: {
                   user: {
-                    email: "test@example.com",
+                    email: {
+                      endsWith: "@example.com",
+                    },
                   },
                 },
               },
@@ -83,7 +87,9 @@ export async function cleanupTestData(): Promise<void> {
               {
                 doctor: {
                   user: {
-                    email: "test@example.com",
+                    email: {
+                      endsWith: "@example.com",
+                    },
                   },
                 },
               },
@@ -111,7 +117,9 @@ export async function cleanupTestData(): Promise<void> {
               {
                 doctor: {
                   user: {
-                    email: "test@example.com",
+                    email: {
+                      endsWith: "@example.com",
+                    },
                   },
                 },
               },
@@ -142,7 +150,9 @@ export async function cleanupTestData(): Promise<void> {
               {
                 doctor: {
                   user: {
-                    email: "test@example.com",
+                    email: {
+                      endsWith: "@example.com",
+                    },
                   },
                 },
               },
@@ -170,7 +180,9 @@ export async function cleanupTestData(): Promise<void> {
               },
               {
                 user: {
-                  email: "test@example.com",
+                  email: {
+                    endsWith: "@example.com",
+                  },
                 },
               },
             ],
@@ -182,8 +194,8 @@ export async function cleanupTestData(): Promise<void> {
 
       try {
         // Finally delete users
-        // Delete users with emails starting with "test-" OR exact match "test@example.com"
-        // This covers both unique test emails and hardcoded test emails used in some tests
+        // Delete users with emails starting with "test-" OR emails ending with "@example.com"
+        // This covers both unique test emails and hardcoded test emails used in tests
         await prisma.user.deleteMany({
           where: {
             OR: [
@@ -193,7 +205,9 @@ export async function cleanupTestData(): Promise<void> {
                 },
               },
               {
-                email: "test@example.com",
+                email: {
+                  endsWith: "@example.com",
+                },
               },
             ],
           },
