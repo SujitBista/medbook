@@ -9,6 +9,7 @@ import { useAppointments } from "@/hooks/useAppointments";
 import { useAppointmentFilters } from "@/hooks/useAppointmentFilters";
 import { useAppointmentPagination } from "@/hooks/useAppointmentPagination";
 import { getPaymentInfo, getVisitType } from "@/utils/appointments";
+import jsPDF from "jspdf";
 
 interface AppointmentsTabProps {
   doctors: Doctor[];
@@ -25,6 +26,7 @@ export function AppointmentsTab({
   const [selectedDoctorForModal, setSelectedDoctorForModal] =
     useState<Doctor | null>(null);
   const [showDoctorModal, setShowDoctorModal] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
 
   // Fetch appointments
   const {
@@ -98,6 +100,164 @@ export function AppointmentsTab({
       filters.upcomingOnly,
     ].filter(Boolean).length;
   }, [filters]);
+
+  // Export to CSV
+  const handleExportCSV = () => {
+    setExportLoading(true);
+    try {
+      const headers = [
+        "ID",
+        "Date",
+        "Time",
+        "Status",
+        "Patient",
+        "Doctor",
+        "Duration (minutes)",
+        "Visit Type",
+        "Payment Status",
+        "Payment Amount",
+        "Notes",
+      ];
+
+      const rows = filteredAppointments.map((apt) => {
+        const startDate = new Date(apt.startTime);
+        const endDate = new Date(apt.endTime);
+        const duration = Math.round(
+          (endDate.getTime() - startDate.getTime()) / 60000
+        );
+        const doctor = doctorLookup[apt.doctorId];
+        const payment = getPaymentInfo(apt.id);
+        const visitType = getVisitType(apt.id);
+
+        return [
+          apt.id,
+          startDate.toLocaleDateString(),
+          startDate.toLocaleTimeString(),
+          apt.status,
+          apt.patientEmail || "N/A",
+          doctor?.userEmail || doctor?.specialization || apt.doctorId,
+          duration.toString(),
+          visitType,
+          payment.status,
+          `$${payment.amount}`,
+          apt.notes || "",
+        ];
+      });
+
+      const csvContent = [headers, ...rows]
+        .map((row) =>
+          row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(",")
+        )
+        .join("\n");
+
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `appointments-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("[AppointmentsTab] Error exporting CSV:", err);
+      onError("Failed to export appointments. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
+
+  // Export to PDF
+  const handleExportPDF = () => {
+    setExportLoading(true);
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 10;
+      const startY = 20;
+      let y = startY;
+
+      // Title
+      doc.setFontSize(18);
+      doc.text("Appointments Report", margin, y);
+      y += 10;
+
+      // Date
+      doc.setFontSize(10);
+      doc.text(`Generated: ${new Date().toLocaleString()}`, margin, y);
+      y += 5;
+
+      // Summary
+      doc.setFontSize(12);
+      doc.text(
+        `Total: ${filteredAppointments.length} appointment(s)`,
+        margin,
+        y
+      );
+      y += 10;
+
+      // Table headers
+      doc.setFontSize(10);
+      const headers = ["ID", "Date", "Time", "Status", "Patient", "Doctor"];
+      const colWidths = [25, 30, 25, 25, 40, 35];
+      let x = margin;
+
+      doc.setFillColor(240, 240, 240);
+      doc.rect(x, y, pageWidth - 2 * margin, 8, "F");
+      doc.setFont("helvetica", "bold");
+
+      headers.forEach((header, i) => {
+        doc.text(header, x + 2, y + 6);
+        x += colWidths[i];
+      });
+
+      y += 10;
+      doc.setFont("helvetica", "normal");
+
+      // Table rows
+      filteredAppointments.forEach((apt, index) => {
+        if (y > pageHeight - 20) {
+          doc.addPage();
+          y = startY;
+        }
+
+        const startDate = new Date(apt.startTime);
+        const doctor = doctorLookup[apt.doctorId];
+        const rowData = [
+          apt.id.slice(0, 8),
+          startDate.toLocaleDateString(),
+          startDate.toLocaleTimeString([], {
+            hour: "2-digit",
+            minute: "2-digit",
+          }),
+          apt.status,
+          (apt.patientEmail || "N/A").substring(0, 20),
+          (
+            doctor?.userEmail ||
+            doctor?.specialization ||
+            apt.doctorId.slice(0, 8)
+          ).substring(0, 20),
+        ];
+
+        x = margin;
+        rowData.forEach((cell, i) => {
+          doc.text(String(cell), x + 2, y + 6);
+          x += colWidths[i];
+        });
+
+        y += 8;
+      });
+
+      // Save PDF
+      doc.save(`appointments-${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      console.error("[AppointmentsTab] Error exporting PDF:", err);
+      onError("Failed to export appointments. Please try again.");
+    } finally {
+      setExportLoading(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -220,6 +380,48 @@ export function AppointmentsTab({
               </p>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportCSV}
+                disabled={exportLoading || filteredAppointments.length === 0}
+              >
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+                {exportLoading ? "Exporting..." : "Export CSV"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportPDF}
+                disabled={exportLoading || filteredAppointments.length === 0}
+              >
+                <svg
+                  className="mr-2 h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"
+                  />
+                </svg>
+                {exportLoading ? "Exporting..." : "Export PDF"}
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
