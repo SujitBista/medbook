@@ -1,12 +1,12 @@
-import express, { Express } from 'express';
-import { env } from './config/env';
-import routes from './routes';
+import express, { Express } from "express";
+import { env } from "./config/env";
+import routes from "./routes";
 import {
   corsMiddleware,
   errorHandler,
   notFoundHandler,
   requestLogger,
-} from './middleware';
+} from "./middleware";
 
 /**
  * Creates and configures the Express application
@@ -26,16 +26,16 @@ export function createApp(): Express {
   app.use(express.urlencoded({ extended: true }));
 
   // Root route
-  app.get('/', (req, res) => {
+  app.get("/", (req, res) => {
     res.json({
-      message: 'MedBook API Server',
-      version: '1.0.0',
+      message: "MedBook API Server",
+      version: "1.0.0",
       environment: env.nodeEnv,
     });
   });
 
   // API routes
-  app.use('/api/v1', routes);
+  app.use("/api/v1", routes);
 
   // 404 handler - must be after all routes
   app.use(notFoundHandler);
@@ -45,4 +45,3 @@ export function createApp(): Express {
 
   return app;
 }
-

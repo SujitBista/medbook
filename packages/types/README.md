@@ -5,9 +5,9 @@ This package contains shared TypeScript types used across the MedBook applicatio
 ## Usage
 
 ```typescript
-import { User, UserRole, CreateUserInput } from '@medbook/types';
-import { Appointment, AppointmentStatus } from '@medbook/types';
-import { ApiResponse, PaginatedResponse } from '@medbook/types';
+import { User, UserRole, CreateUserInput } from "@medbook/types";
+import { Appointment, AppointmentStatus } from "@medbook/types";
+import { ApiResponse, PaginatedResponse } from "@medbook/types";
 ```
 
 ## Structure
@@ -26,5 +26,3 @@ pnpm build
 ## Development
 
 Types are automatically compiled to `dist/` directory when built. The package exports both JavaScript and TypeScript declaration files.
-
-

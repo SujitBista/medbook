@@ -12,3 +12,4 @@ ADD COLUMN "zipCode" TEXT,
 ADD COLUMN "yearsOfExperience" INTEGER,
 ADD COLUMN "education" TEXT,
 ADD COLUMN "profilePictureUrl" TEXT;
+
