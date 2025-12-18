@@ -51,7 +51,10 @@ export function createRateLimiter(options: RateLimitOptions): RequestHandler {
       if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
         return forwardedFor.split(",")[0].trim();
       }
-      return req.ip;
+      // Express Request.ip can be string | undefined in typings,
+      // but for rate limiting we always need a stable string key.
+      // Fall back to a placeholder if IP is not available.
+      return req.ip ?? "unknown";
     });
 
   // In-memory store of request counts per key
@@ -97,7 +100,7 @@ const DEFAULT_MAX_REQUESTS = Number.parseInt(
   10
 );
 
-export const basicRateLimiter = createRateLimiter({
+export const basicRateLimiter: RequestHandler = createRateLimiter({
   windowMs:
     Number.isFinite(DEFAULT_WINDOW_MS) && DEFAULT_WINDOW_MS > 0
       ? DEFAULT_WINDOW_MS
