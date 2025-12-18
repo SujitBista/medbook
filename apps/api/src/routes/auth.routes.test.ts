@@ -2,9 +2,9 @@
  * Integration tests for authentication routes
  */
 
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, afterEach } from "vitest";
 import { createTestApp, createTestAgent } from "../__tests__/helpers";
-import { cleanupTestData, createTestUser } from "../__tests__/db";
+import { createTestUser } from "../__tests__/db";
 import { UserRole } from "@medbook/types";
 
 describe("POST /api/v1/auth/register", () => {

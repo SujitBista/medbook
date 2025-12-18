@@ -9,13 +9,7 @@ import {
   withTransaction,
   checkDatabaseHealth,
 } from "@app/db";
-import {
-  UserRole,
-  UserWithoutPassword,
-  Doctor,
-  AppointmentStatus,
-} from "@medbook/types";
-import { CreateUserInput } from "@medbook/types";
+import { UserRole, UserWithoutPassword, Doctor } from "@medbook/types";
 import {
   createNotFoundError,
   createValidationError,

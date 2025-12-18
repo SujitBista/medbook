@@ -8,7 +8,7 @@ import {
   createTestAgent,
   createAuthHeaders,
 } from "../__tests__/helpers";
-import { cleanupTestData, createTestUser } from "../__tests__/db";
+import { createTestUser } from "../__tests__/db";
 import { UserRole } from "@medbook/types";
 
 describe("GET /api/v1/users/profile", () => {
