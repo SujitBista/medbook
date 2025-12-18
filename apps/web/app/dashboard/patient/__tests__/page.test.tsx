@@ -58,33 +58,33 @@ describe("PatientDashboardPage", () => {
       id: "apt-1",
       patientId: "patient-123",
       doctorId: "doctor-1",
-      startTime: new Date("2024-12-20T10:00:00Z").toISOString(), // Future
-      endTime: new Date("2024-12-20T10:30:00Z").toISOString(),
+      startTime: new Date("2024-12-20T10:00:00Z"), // Future
+      endTime: new Date("2024-12-20T10:30:00Z"),
       status: AppointmentStatus.PENDING,
-      createdAt: new Date("2024-11-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-11-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-11-01T00:00:00Z"),
+      updatedAt: new Date("2024-11-01T00:00:00Z"),
       patientEmail: "patient@medbook.com",
     },
     {
       id: "apt-2",
       patientId: "patient-123",
       doctorId: "doctor-1",
-      startTime: new Date("2024-12-18T14:00:00Z").toISOString(), // Future
-      endTime: new Date("2024-12-18T14:30:00Z").toISOString(),
+      startTime: new Date("2024-12-18T14:00:00Z"), // Future
+      endTime: new Date("2024-12-18T14:30:00Z"),
       status: AppointmentStatus.CONFIRMED,
-      createdAt: new Date("2024-11-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-11-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-11-01T00:00:00Z"),
+      updatedAt: new Date("2024-11-01T00:00:00Z"),
       patientEmail: "patient@medbook.com",
     },
     {
       id: "apt-3",
       patientId: "patient-123",
       doctorId: "doctor-1",
-      startTime: new Date("2024-11-01T09:00:00Z").toISOString(), // Past
-      endTime: new Date("2024-11-01T09:30:00Z").toISOString(),
+      startTime: new Date("2024-11-01T09:00:00Z"), // Past
+      endTime: new Date("2024-11-01T09:30:00Z"),
       status: AppointmentStatus.COMPLETED,
-      createdAt: new Date("2024-10-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-10-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-10-01T00:00:00Z"),
+      updatedAt: new Date("2024-10-01T00:00:00Z"),
       patientEmail: "patient@medbook.com",
     },
   ];
