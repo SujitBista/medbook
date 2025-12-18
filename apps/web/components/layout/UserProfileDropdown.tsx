@@ -19,6 +19,7 @@ export function UserProfileDropdown({
   const { data: session } = useSession();
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [imageError, setImageError] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Check if user is on dashboard page (patient or doctor)
@@ -55,6 +56,7 @@ export function UserProfileDropdown({
     await signOut({ callbackUrl: "/" });
   };
 
+  const profilePictureUrl = session.user.profilePictureUrl ?? null;
   const userInitial = session.user.email
     ? session.user.email.charAt(0).toUpperCase()
     : "U";
@@ -68,8 +70,18 @@ export function UserProfileDropdown({
         aria-label="User menu"
         aria-expanded={isOpen}
       >
-        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-sm font-medium text-white">
-          {userInitial}
+        <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary-600 text-sm font-medium text-white overflow-hidden">
+          {!profilePictureUrl || imageError ? (
+            userInitial
+          ) : (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={profilePictureUrl}
+              alt="Profile"
+              className="h-full w-full object-cover"
+              onError={() => setImageError(true)}
+            />
+          )}
         </div>
         <div className="hidden md:block text-left">
           <p className="text-sm font-medium text-gray-900">
