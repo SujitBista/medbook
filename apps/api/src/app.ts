@@ -6,6 +6,7 @@ import {
   errorHandler,
   notFoundHandler,
   requestLogger,
+  basicRateLimiter,
 } from "./middleware";
 
 /**
@@ -20,6 +21,9 @@ export function createApp(): Express {
 
   // Request logging - should be early but after CORS
   app.use(requestLogger);
+
+  // Global rate limiting for API requests
+  app.use(basicRateLimiter);
 
   // Basic middleware
   app.use(express.json());
