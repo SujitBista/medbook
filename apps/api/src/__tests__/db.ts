@@ -37,10 +37,26 @@ export async function cleanupTestData(): Promise<void> {
                 },
               },
               {
+                patient: {
+                  email: {
+                    endsWith: "@example.com",
+                  },
+                },
+              },
+              {
                 doctor: {
                   user: {
                     email: {
                       startsWith: "test-",
+                    },
+                  },
+                },
+              },
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      endsWith: "@example.com",
                     },
                   },
                 },
@@ -58,13 +74,26 @@ export async function cleanupTestData(): Promise<void> {
         // Delete slots (has foreign keys to doctors, availabilities)
         await prisma.slot.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      endsWith: "@example.com",
+                    },
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -75,13 +104,26 @@ export async function cleanupTestData(): Promise<void> {
         // Delete slot templates (has foreign key to doctors)
         await prisma.slotTemplate.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      endsWith: "@example.com",
+                    },
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -95,13 +137,26 @@ export async function cleanupTestData(): Promise<void> {
         // Delete availabilities (has foreign key to doctors)
         await prisma.availability.deleteMany({
           where: {
-            doctor: {
-              user: {
-                email: {
-                  startsWith: "test-",
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      startsWith: "test-",
+                    },
+                  },
                 },
               },
-            },
+              {
+                doctor: {
+                  user: {
+                    email: {
+                      endsWith: "@example.com",
+                    },
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -115,11 +170,22 @@ export async function cleanupTestData(): Promise<void> {
         // Delete doctors (has foreign key to users)
         await prisma.doctor.deleteMany({
           where: {
-            user: {
-              email: {
-                startsWith: "test-",
+            OR: [
+              {
+                user: {
+                  email: {
+                    startsWith: "test-",
+                  },
+                },
               },
-            },
+              {
+                user: {
+                  email: {
+                    endsWith: "@example.com",
+                  },
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -128,11 +194,22 @@ export async function cleanupTestData(): Promise<void> {
 
       try {
         // Finally delete users
+        // Delete users with emails starting with "test-" OR emails ending with "@example.com"
+        // This covers both unique test emails and hardcoded test emails used in tests
         await prisma.user.deleteMany({
           where: {
-            email: {
-              startsWith: "test-",
-            },
+            OR: [
+              {
+                email: {
+                  startsWith: "test-",
+                },
+              },
+              {
+                email: {
+                  endsWith: "@example.com",
+                },
+              },
+            ],
           },
         });
       } catch (error) {
@@ -156,6 +233,7 @@ export async function createTestUser(overrides?: {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  mustResetPassword?: boolean;
 }) {
   const { hashPassword } = await import("../utils/auth");
 
@@ -169,10 +247,21 @@ export async function createTestUser(overrides?: {
   const firstName = overrides?.firstName || "Test";
   const lastName = overrides?.lastName || "User";
   const phoneNumber = overrides?.phoneNumber || "555-123-4567";
+  const mustResetPassword = overrides?.mustResetPassword ?? false;
 
   const hashedPassword = await hashPassword(password);
 
   try {
+    // If a specific email was provided, try to delete any existing user with that email first
+    // This helps with test isolation when tests use hardcoded emails
+    if (overrides?.email) {
+      await query(async (prisma) => {
+        await prisma.user.deleteMany({
+          where: { email },
+        });
+      });
+    }
+
     const user = await query(async (prisma) => {
       return prisma.user.create({
         data: {
@@ -182,6 +271,7 @@ export async function createTestUser(overrides?: {
           firstName,
           lastName,
           phoneNumber,
+          mustResetPassword,
         },
         select: {
           id: true,
