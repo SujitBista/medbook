@@ -17,6 +17,11 @@ export interface User {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  /**
+   * Optional URL to the user's profile picture.
+   * May be null/undefined if the user has not uploaded one.
+   */
+  profilePictureUrl?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -30,6 +35,7 @@ export interface CreateUserInput {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  profilePictureUrl?: string | null;
 }
 
 export interface UpdateUserInput {
@@ -39,4 +45,5 @@ export interface UpdateUserInput {
   firstName?: string;
   lastName?: string;
   phoneNumber?: string;
+  profilePictureUrl?: string | null;
 }

@@ -46,6 +46,7 @@ describe("user.service", () => {
         firstName: "John",
         lastName: "Doe",
         phoneNumber: "555-123-4567",
+        // Users can optionally have a profile picture URL (nullable in DB, optional in type)
       });
 
       const profile = await getUserProfile(user.id);
@@ -56,6 +57,7 @@ describe("user.service", () => {
       expect(profile.firstName).toBe("John");
       expect(profile.lastName).toBe("Doe");
       expect(profile.phoneNumber).toBe("555-123-4567");
+      // profilePictureUrl is optional and may be undefined if not set
       // Password should not be in result (TypeScript guarantees this via UserWithoutPassword type)
     });
 
@@ -156,6 +158,43 @@ describe("user.service", () => {
 
       expect(updated.email).toBe("test@example.com");
       expect(updated.id).toBe(user.id);
+    });
+
+    it("should update profile picture URL when provided", async () => {
+      const user = await createTestUser({
+        email: "test@example.com",
+        role: "PATIENT",
+      });
+
+      const updated = await updateUserProfile(user.id, {
+        email: "test@example.com",
+        profilePictureUrl: "/uploads/users/test-avatar.png",
+      });
+
+      expect(updated.id).toBe(user.id);
+      expect(updated.email).toBe("test@example.com");
+      expect(updated.profilePictureUrl).toBe("/uploads/users/test-avatar.png");
+    });
+
+    it("should clear profile picture URL when explicitly set to null", async () => {
+      const user = await createTestUser({
+        email: "test@example.com",
+        role: "PATIENT",
+      });
+
+      // First, set a profile picture URL
+      await updateUserProfile(user.id, {
+        email: "test@example.com",
+        profilePictureUrl: "/uploads/users/test-avatar.png",
+      });
+
+      const cleared = await updateUserProfile(user.id, {
+        email: "test@example.com",
+        profilePictureUrl: null,
+      });
+
+      expect(cleared.id).toBe(user.id);
+      expect(cleared.profilePictureUrl).toBeUndefined();
     });
 
     it("should throw NotFoundError if user does not exist", async () => {
