@@ -43,9 +43,9 @@ export function createRateLimiter(options: RateLimitOptions): RequestHandler {
     options.windowMs && options.windowMs > 0 ? options.windowMs : 60_000;
   const maxRequests =
     options.maxRequests && options.maxRequests > 0 ? options.maxRequests : 100;
-  const keyGenerator =
+  const keyGenerator: (req: Request) => string =
     options.keyGenerator ??
-    ((req: Request) => {
+    ((req: Request): string => {
       // Prefer X-Forwarded-For when behind proxies, fall back to req.ip
       const forwardedFor = req.headers["x-forwarded-for"];
       if (typeof forwardedFor === "string" && forwardedFor.length > 0) {
