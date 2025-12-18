@@ -7,6 +7,7 @@ import { Request, Response, NextFunction } from "express";
 import { registerUser, loginUser } from "../services/auth.service";
 import { CreateUserInput } from "@medbook/types";
 import { createValidationError } from "../utils";
+import { AuthenticatedRequest } from "../middleware/auth.middleware";
 
 /**
  * Request body for registration
@@ -139,6 +140,31 @@ export async function login(
       success: true,
       user: result.user,
       token: result.token,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Logout user
+ * POST /api/v1/auth/logout
+ *
+ * Note: Authentication is stateless and uses JWT tokens. Logging out on the
+ * server simply means acknowledging the logout request so clients can clear
+ * their stored tokens/session. No server-side session state is persisted.
+ */
+export async function logout(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    // At this point, authenticate middleware has already verified the token
+    // and attached user information to the request.
+    res.status(200).json({
+      success: true,
+      message: "Logged out successfully",
     });
   } catch (error) {
     next(error);

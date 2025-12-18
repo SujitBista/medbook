@@ -3,7 +3,11 @@
  */
 
 import { describe, it, expect, afterEach } from "vitest";
-import { createTestApp, createTestAgent } from "../__tests__/helpers";
+import {
+  createTestApp,
+  createTestAgent,
+  createAuthHeaders,
+} from "../__tests__/helpers";
 import { createTestUser } from "../__tests__/db";
 import { UserRole } from "@medbook/types";
 
@@ -357,5 +361,59 @@ describe("POST /api/v1/auth/login", () => {
       .expect(200);
 
     expect(response.body.user.email).toBe(emailLower);
+  });
+});
+
+describe("POST /api/v1/auth/logout", () => {
+  const app = createTestApp();
+  const agent = createTestAgent(app);
+  const createdUserIds: string[] = [];
+
+  afterEach(async () => {
+    // Clean up only users created in this test suite
+    if (createdUserIds.length > 0) {
+      const { query } = await import("@app/db");
+      await query(async (prisma) => {
+        await prisma.user.deleteMany({
+          where: {
+            id: {
+              in: createdUserIds,
+            },
+          },
+        });
+      });
+      createdUserIds.length = 0;
+    }
+  });
+
+  it("should logout successfully with valid token", async () => {
+    const user = await createTestUser();
+    createdUserIds.push(user.id);
+    const headers = createAuthHeaders(user.id, user.role as UserRole);
+
+    const response = await agent
+      .post("/api/v1/auth/logout")
+      .set(headers)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.message).toContain("Logged out");
+  });
+
+  it("should return 401 if token is missing", async () => {
+    const response = await agent.post("/api/v1/auth/logout").expect(401);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+  });
+
+  it("should return 401 if token is invalid", async () => {
+    const response = await agent
+      .post("/api/v1/auth/logout")
+      .set({ Authorization: "Bearer invalid-token" })
+      .expect(401);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
   });
 });

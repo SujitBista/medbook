@@ -4,7 +4,8 @@
  */
 
 import { Router, type IRouter } from "express";
-import { register, login } from "../controllers/auth.controller";
+import { register, login, logout } from "../controllers/auth.controller";
+import { authenticate } from "../middleware/auth.middleware";
 
 const router: IRouter = Router();
 
@@ -19,5 +20,12 @@ router.post("/register", register);
  * Login user
  */
 router.post("/login", login);
+
+/**
+ * POST /api/v1/auth/logout
+ * Logout user (client should clear stored tokens/session)
+ * Requires a valid authentication token
+ */
+router.post("/logout", authenticate, logout);
 
 export default router;

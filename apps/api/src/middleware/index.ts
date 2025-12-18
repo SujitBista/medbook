@@ -8,6 +8,6 @@ export { errorHandler, notFoundHandler } from "./error.middleware";
 export { requestLogger } from "./request-logger.middleware";
 export { authenticate, requireRole } from "./auth.middleware";
 export type { AuthenticatedRequest } from "./auth.middleware";
+export { basicRateLimiter, createRateLimiter } from "./rate-limit.middleware";
 // TODO: Add middleware exports as they are created
 // export { validateRequest } from './validation.middleware';
-// export { rateLimiter } from './rateLimit.middleware';
