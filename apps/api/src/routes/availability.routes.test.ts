@@ -182,9 +182,7 @@ describe("GET /api/v1/availability/doctor/:doctorId", () => {
   });
 
   it("should return 400 if doctor ID is missing", async () => {
-    const response = await agent
-      .get("/api/v1/availability/doctor/")
-      .expect(404);
+    await agent.get("/api/v1/availability/doctor/").expect(404);
   });
 });
 
@@ -611,9 +609,7 @@ describe("DELETE /api/v1/availability/:id", () => {
     expect(response.body.message).toContain("deleted successfully");
 
     // Verify availability is deleted
-    const deletedAvailability = await agent
-      .get(`/api/v1/availability/${availability.id}`)
-      .expect(404);
+    await agent.get(`/api/v1/availability/${availability.id}`).expect(404);
   });
 
   it("should return 401 if not authenticated", async () => {

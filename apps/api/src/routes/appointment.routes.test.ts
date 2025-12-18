@@ -15,7 +15,7 @@ import {
   createTestAvailability,
   createTestAppointment,
 } from "../__tests__/db";
-import { UserRole, AppointmentStatus } from "@medbook/types";
+import { UserRole } from "@medbook/types";
 
 describe("GET /api/v1/appointments/:id", () => {
   const app = createTestApp();

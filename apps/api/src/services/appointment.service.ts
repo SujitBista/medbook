@@ -21,7 +21,7 @@ import {
 } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { getAvailabilityById } from "./availability.service";
-import { getSlotById, updateSlotStatus } from "./slot.service";
+import { updateSlotStatus } from "./slot.service";
 import {
   sendAppointmentConfirmationEmail,
   sendAppointmentCancellationEmail,

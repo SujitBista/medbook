@@ -28,12 +28,23 @@ vi.mock("next/link", () => ({
   }) => <a href={href}>{children}</a>,
 }));
 
+type MockedUseSession = {
+  mockReturnValue: (value: unknown) => void;
+};
+
+type MockedUsePathname = {
+  mockReturnValue: (value: string) => void;
+};
+
 describe("UserProfileDropdown", () => {
+  const mockedUseSession = useSession as unknown as MockedUseSession;
+  const mockedUsePathname = usePathname as unknown as MockedUsePathname;
+
   beforeEach(() => {
     vi.clearAllMocks();
 
-    (usePathname as any).mockReturnValue("/");
-    (useSession as any).mockReturnValue({
+    mockedUsePathname.mockReturnValue("/");
+    mockedUseSession.mockReturnValue({
       data: {
         user: {
           email: "user@medbook.com",
@@ -46,7 +57,7 @@ describe("UserProfileDropdown", () => {
   });
 
   it("returns null when there is no authenticated user", () => {
-    (useSession as any).mockReturnValue({
+    mockedUseSession.mockReturnValue({
       data: null,
       status: "unauthenticated",
     });
@@ -81,7 +92,7 @@ describe("UserProfileDropdown", () => {
   it("renders patient-specific navigation links when role is PATIENT", async () => {
     const user = userEvent.setup();
 
-    (usePathname as any).mockReturnValue("/doctors");
+    mockedUsePathname.mockReturnValue("/doctors");
 
     render(<UserProfileDropdown />);
 
@@ -98,7 +109,7 @@ describe("UserProfileDropdown", () => {
   it("renders doctor-specific navigation links when role is DOCTOR", async () => {
     const user = userEvent.setup();
 
-    (useSession as any).mockReturnValue({
+    mockedUseSession.mockReturnValue({
       data: {
         user: {
           email: "doctor@medbook.com",
@@ -109,7 +120,7 @@ describe("UserProfileDropdown", () => {
       status: "authenticated",
     });
 
-    (usePathname as any).mockReturnValue("/doctors");
+    mockedUsePathname.mockReturnValue("/doctors");
 
     render(<UserProfileDropdown />);
 

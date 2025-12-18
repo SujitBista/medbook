@@ -227,11 +227,14 @@ export async function processReminders(): Promise<number> {
 if (require.main === module) {
   processReminders()
     .then((count) => {
-      console.log(`Processed ${count} reminders`);
+      logger.info("Reminder processing job completed", { processed: count });
       process.exit(0);
     })
     .catch((error) => {
-      console.error("Job failed:", error);
+      logger.error("Reminder processing job failed", {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       process.exit(1);
     });
 }
