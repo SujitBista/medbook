@@ -26,11 +26,11 @@ describe("AppointmentList", () => {
       id: "apt-1",
       patientId: "patient-1",
       doctorId: "doctor-1",
-      startTime: new Date("2024-12-15T10:00:00Z").toISOString(),
-      endTime: new Date("2024-12-15T10:30:00Z").toISOString(),
+      startTime: new Date("2024-12-15T10:00:00Z"),
+      endTime: new Date("2024-12-15T10:30:00Z"),
       status: AppointmentStatus.PENDING,
-      createdAt: new Date("2024-11-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-11-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-11-01T00:00:00Z"),
+      updatedAt: new Date("2024-11-01T00:00:00Z"),
       patientEmail: "patient@example.com",
       notes: "Regular checkup",
     },
@@ -38,22 +38,22 @@ describe("AppointmentList", () => {
       id: "apt-2",
       patientId: "patient-2",
       doctorId: "doctor-1",
-      startTime: new Date("2024-12-16T14:00:00Z").toISOString(),
-      endTime: new Date("2024-12-16T14:30:00Z").toISOString(),
+      startTime: new Date("2024-12-16T14:00:00Z"),
+      endTime: new Date("2024-12-16T14:30:00Z"),
       status: AppointmentStatus.CONFIRMED,
-      createdAt: new Date("2024-11-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-11-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-11-01T00:00:00Z"),
+      updatedAt: new Date("2024-11-01T00:00:00Z"),
       patientEmail: "patient2@example.com",
     },
     {
       id: "apt-3",
       patientId: "patient-3",
       doctorId: "doctor-2",
-      startTime: new Date("2024-12-10T09:00:00Z").toISOString(),
-      endTime: new Date("2024-12-10T09:30:00Z").toISOString(),
+      startTime: new Date("2024-12-10T09:00:00Z"),
+      endTime: new Date("2024-12-10T09:30:00Z"),
       status: AppointmentStatus.CANCELLED,
-      createdAt: new Date("2024-11-01T00:00:00Z").toISOString(),
-      updatedAt: new Date("2024-11-01T00:00:00Z").toISOString(),
+      createdAt: new Date("2024-11-01T00:00:00Z"),
+      updatedAt: new Date("2024-11-01T00:00:00Z"),
       patientEmail: "patient3@example.com",
     },
   ];
@@ -206,12 +206,12 @@ describe("AppointmentList", () => {
 
       const upcomingAppointment: Appointment = {
         ...mockAppointments[0],
-        startTime: futureDate.toISOString(),
+        startTime: futureDate,
       };
 
       const pastAppointment: Appointment = {
         ...mockAppointments[2],
-        startTime: new Date("2024-01-01T09:00:00Z").toISOString(),
+        startTime: new Date("2024-01-01T09:00:00Z"),
       };
 
       render(
@@ -232,15 +232,15 @@ describe("AppointmentList", () => {
       const unsortedAppointments: Appointment[] = [
         {
           ...mockAppointments[1], // Dec 16
-          startTime: new Date("2024-12-16T14:00:00Z").toISOString(),
+          startTime: new Date("2024-12-16T14:00:00Z"),
         },
         {
           ...mockAppointments[0], // Dec 15
-          startTime: new Date("2024-12-15T10:00:00Z").toISOString(),
+          startTime: new Date("2024-12-15T10:00:00Z"),
         },
         {
           ...mockAppointments[2], // Dec 10
-          startTime: new Date("2024-12-10T09:00:00Z").toISOString(),
+          startTime: new Date("2024-12-10T09:00:00Z"),
         },
       ];
 
