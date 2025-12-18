@@ -13,10 +13,92 @@ function generateBackendToken(userId: string, role: string): string {
 }
 
 /**
+ * Calls the backend users/profile endpoint and returns the parsed response.
+ * Centralizes logging and network / parse error handling.
+ */
+async function callBackendProfileApi(
+  method: "GET" | "PUT",
+  token: string,
+  body?: unknown
+) {
+  const url = `${env.apiUrl}/users/profile`;
+
+  console.log("[Profile API] Calling backend:", {
+    url,
+    method,
+    hasToken: !!token,
+  });
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      ...(method === "PUT" && { body: JSON.stringify(body ?? {}) }),
+    });
+  } catch (fetchError) {
+    console.error(
+      "[Profile API] Fetch error (network/server connectivity issue):",
+      fetchError
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "NETWORK_ERROR",
+          message:
+            "Unable to reach profile service. Please ensure the API server is running.",
+        },
+      },
+      { status: 502 }
+    );
+  }
+
+  console.log("[Profile API] Backend response:", {
+    status: response.status,
+    statusText: response.statusText,
+    ok: response.ok,
+  });
+
+  let data: unknown;
+  try {
+    const text = await response.text();
+    console.log("[Profile API] Response text:", text);
+    data = text ? JSON.parse(text) : {};
+  } catch (parseError) {
+    console.error(
+      "[Profile API] Failed to parse backend response:",
+      parseError
+    );
+    return NextResponse.json(
+      {
+        success: false,
+        error: {
+          code: "PARSE_ERROR",
+          message: "Invalid response from profile service",
+        },
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!response.ok) {
+    console.error("[Profile API] Backend returned error:", data);
+    return NextResponse.json(data, { status: response.status });
+  }
+
+  console.log("[Profile API] Success:", data);
+  return NextResponse.json(data);
+}
+
+/**
  * GET /api/users/profile
  * Get current user profile
  */
-export async function GET(req: NextRequest) {
+export async function GET(_req: NextRequest) {
   try {
     const session = await auth();
 
@@ -30,24 +112,9 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    // Call backend API
-    const response = await fetch(`${env.apiUrl}/users/profile`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data);
+    return await callBackendProfileApi("GET", token);
   } catch (error) {
     console.error("Error fetching profile:", error);
     return NextResponse.json(
@@ -80,26 +147,9 @@ export async function PUT(req: NextRequest) {
 
     const body = await req.json();
 
-    // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    // Call backend API
-    const response = await fetch(`${env.apiUrl}/users/profile`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
-    }
-
-    return NextResponse.json(data);
+    return await callBackendProfileApi("PUT", token, body);
   } catch (error) {
     console.error("Error updating profile:", error);
     return NextResponse.json(

@@ -182,7 +182,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signOut: "/",
   },
   callbacks: {
-    async jwt({ token, user, trigger }) {
+    async jwt({ token, user, trigger, session }) {
       // Initial sign in - add user data to token
       if (user) {
         token.id = user.id;
@@ -190,6 +190,33 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // Type assertion needed because NextAuth user type doesn't include mustResetPassword
         token.mustResetPassword =
           (user as { mustResetPassword?: boolean }).mustResetPassword ?? false;
+        // Optional profile picture URL (may be undefined/null if not set)
+        token.profilePictureUrl = (
+          user as { profilePictureUrl?: string | null }
+        ).profilePictureUrl;
+      }
+
+      // When session is updated (e.g., after profile change), we may receive
+      // partial session data from the client. Use it to keep lightweight fields
+      // like profilePictureUrl in sync without requiring a backend round-trip.
+      if (trigger === "update" && session?.user) {
+        const sessionUser = session.user as {
+          profilePictureUrl?: string | null;
+          mustResetPassword?: boolean;
+          role?: string;
+        };
+
+        if (typeof sessionUser.profilePictureUrl !== "undefined") {
+          token.profilePictureUrl = sessionUser.profilePictureUrl ?? null;
+        }
+
+        if (typeof sessionUser.mustResetPassword !== "undefined") {
+          token.mustResetPassword = sessionUser.mustResetPassword;
+        }
+
+        if (typeof sessionUser.role === "string") {
+          token.role = sessionUser.role;
+        }
       }
 
       // When session is updated (e.g., after password change), fetch fresh user data
@@ -236,9 +263,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
                 userId: user.id,
                 mustResetPassword: user.mustResetPassword,
                 role: user.role,
+                hasProfilePictureUrl: !!user.profilePictureUrl,
               });
               token.mustResetPassword = user.mustResetPassword ?? false;
               token.role = user.role;
+              // Sync profile picture URL from backend profile response.
+              // If not present or null, clear it on the token so UI can fall back.
+              token.profilePictureUrl =
+                (user as { profilePictureUrl?: string | null })
+                  .profilePictureUrl ?? null;
             } else {
               console.warn("[Auth] User data not found in response:", userData);
             }
@@ -268,6 +301,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.role = token.role as string;
         session.user.mustResetPassword =
           (token.mustResetPassword as boolean) ?? false;
+        session.user.profilePictureUrl =
+          (token.profilePictureUrl as string | null | undefined) ?? null;
       }
       return session;
     },

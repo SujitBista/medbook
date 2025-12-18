@@ -9,6 +9,11 @@ declare module "next-auth" {
       name?: string | null;
       role: string;
       mustResetPassword?: boolean;
+      /**
+       * Optional URL to the user's profile picture.
+       * May be null/undefined if the user has not uploaded one.
+       */
+      profilePictureUrl?: string | null;
     };
   }
 
@@ -18,6 +23,11 @@ declare module "next-auth" {
     name?: string | null;
     role: string;
     mustResetPassword?: boolean;
+    /**
+     * Optional URL to the user's profile picture.
+     * May be null/undefined if the user has not uploaded one.
+     */
+    profilePictureUrl?: string | null;
   }
 }
 
@@ -26,5 +36,10 @@ declare module "next-auth/jwt" {
     id: string;
     role: string;
     mustResetPassword?: boolean;
+    /**
+     * Optional URL to the user's profile picture.
+     * May be null/undefined if the user has not uploaded one.
+     */
+    profilePictureUrl?: string | null;
   }
 }

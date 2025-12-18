@@ -9,8 +9,8 @@ import { existsSync } from "fs";
 export const runtime = "nodejs";
 
 /**
- * POST /api/upload
- * Upload an image file (admin only for doctor profile pictures)
+ * POST /api/users/profile/upload
+ * Upload an image file for the current user's profile picture
  */
 export async function POST(req: NextRequest) {
   try {
@@ -23,17 +23,6 @@ export async function POST(req: NextRequest) {
           error: { code: "UNAUTHORIZED", message: "Not authenticated" },
         },
         { status: 401 }
-      );
-    }
-
-    // Check if user is admin
-    if (session.user.role !== "ADMIN") {
-      return NextResponse.json(
-        {
-          success: false,
-          error: { code: "FORBIDDEN", message: "Admin access required" },
-        },
-        { status: 403 }
       );
     }
 
@@ -81,14 +70,14 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Generate unique filename
+    // Generate unique filename scoped to the user
     const timestamp = Date.now();
     const randomString = Math.random().toString(36).substring(2, 15);
     const fileExtension = file.name.split(".").pop() || "jpg";
-    const fileName = `doctor-${timestamp}-${randomString}.${fileExtension}`;
+    const fileName = `user-${session.user.id}-${timestamp}-${randomString}.${fileExtension}`;
 
     // Create uploads directory if it doesn't exist
-    const uploadsDir = join(process.cwd(), "public", "uploads", "doctors");
+    const uploadsDir = join(process.cwd(), "public", "uploads", "users");
     if (!existsSync(uploadsDir)) {
       await mkdir(uploadsDir, { recursive: true });
     }
@@ -101,21 +90,24 @@ export async function POST(req: NextRequest) {
     await writeFile(filePath, buffer);
 
     // Return the public URL
-    const fileUrl = `/uploads/doctors/${fileName}`;
+    const fileUrl = `/uploads/users/${fileName}`;
 
-    console.log("[Upload] File uploaded successfully:", fileUrl);
+    console.log("[UserProfileUpload] File uploaded successfully:", {
+      userId: session.user.id,
+      fileUrl,
+    });
 
     return NextResponse.json({
       success: true,
       data: {
         url: fileUrl,
-        fileName: fileName,
+        fileName,
         size: file.size,
         type: file.type,
       },
     });
   } catch (error) {
-    console.error("[Upload] Error uploading file:", error);
+    console.error("[UserProfileUpload] Error uploading file:", error);
     return NextResponse.json(
       {
         success: false,
