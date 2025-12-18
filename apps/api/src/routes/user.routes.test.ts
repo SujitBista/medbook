@@ -129,6 +129,27 @@ describe("PUT /api/v1/users/profile", () => {
     expect(response.body.user.id).toBe(testUser.id);
   });
 
+  it("should update profile picture URL when provided", async () => {
+    const testUser = await createTestUser();
+    createdUserIds.push(testUser.id);
+    const headers = createAuthHeaders(testUser.id, testUser.role as UserRole);
+
+    const response = await agent
+      .put("/api/v1/users/profile")
+      .set(headers)
+      .send({
+        email: testUser.email,
+        profilePictureUrl: "/uploads/users/avatar.png",
+      })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.user).toBeDefined();
+    expect(response.body.user.profilePictureUrl).toBe(
+      "/uploads/users/avatar.png"
+    );
+  });
+
   it("should return 400 if email is missing", async () => {
     const testUser = await createTestUser();
     createdUserIds.push(testUser.id);

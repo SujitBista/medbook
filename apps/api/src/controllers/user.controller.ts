@@ -57,10 +57,10 @@ export async function updateProfile(
       return;
     }
 
-    const { email } = req.body;
+    const { email, profilePictureUrl } = req.body;
 
     // Validate that at least one field is provided
-    if (!email) {
+    if (!email && typeof profilePictureUrl === "undefined") {
       const error = createValidationError(
         "At least one field must be provided"
       );
@@ -70,6 +70,10 @@ export async function updateProfile(
 
     const input: UpdateUserProfileInput = {
       email,
+      // Allow explicitly clearing the profile picture by sending null or an empty string.
+      ...(typeof profilePictureUrl !== "undefined" && {
+        profilePictureUrl,
+      }),
     };
 
     const user = await updateUserProfile(req.user.id, input);

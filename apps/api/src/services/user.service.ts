@@ -24,6 +24,11 @@ function convertUserRole(role: PrismaUserRole): UserRole {
  */
 export interface UpdateUserProfileInput {
   email?: string;
+  /**
+   * Optional URL to the user's profile picture.
+   * If explicitly set to null or an empty string, the profile picture will be cleared.
+   */
+  profilePictureUrl?: string | null;
 }
 
 /**
@@ -52,6 +57,7 @@ export async function getUserProfile(
     firstName: string;
     lastName: string;
     phoneNumber: string;
+    profilePictureUrl: string | null;
     createdAt: Date;
     updatedAt: Date;
   } | null>((prisma) =>
@@ -66,12 +72,15 @@ export async function getUserProfile(
 
   // Exclude password and return user data
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { password: _password, ...userWithoutPassword } = user;
+  const { password: _password, profilePictureUrl, ...rest } = user;
 
-  return {
-    ...userWithoutPassword,
+  const result: UserWithoutPassword = {
+    ...rest,
     role: convertUserRole(user.role),
-  } as UserWithoutPassword;
+    ...(profilePictureUrl ? { profilePictureUrl } : {}),
+  };
+
+  return result;
 }
 
 /**
@@ -97,6 +106,17 @@ export async function updateUserProfile(
       throw createValidationError("Invalid email format");
     }
   }
+
+  // Normalize profile picture URL if provided
+  const hasProfilePictureUrlField = Object.prototype.hasOwnProperty.call(
+    input,
+    "profilePictureUrl"
+  );
+  const rawProfilePictureUrl = input.profilePictureUrl ?? undefined;
+  const normalizedProfilePictureUrl =
+    typeof rawProfilePictureUrl === "string"
+      ? rawProfilePictureUrl.trim()
+      : rawProfilePictureUrl;
 
   // Check if user exists first (before checking email uniqueness)
   const existingUserForId = await query<{
@@ -147,6 +167,7 @@ export async function updateUserProfile(
       firstName: string;
       lastName: string;
       phoneNumber: string;
+      profilePictureUrl: string | null;
       createdAt: Date;
       updatedAt: Date;
     }>((prisma) =>
@@ -154,18 +175,30 @@ export async function updateUserProfile(
         where: { id: userId },
         data: {
           ...(normalizedEmail && { email: normalizedEmail }),
+          ...(hasProfilePictureUrlField && {
+            // If explicitly provided, update the profile picture URL.
+            // Empty string or null clears the profile picture.
+            profilePictureUrl:
+              normalizedProfilePictureUrl &&
+              normalizedProfilePictureUrl.length > 0
+                ? normalizedProfilePictureUrl
+                : null,
+          }),
         },
       })
     );
 
     // Exclude password and return user data
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { password: _password, ...userWithoutPassword } = user;
+    const { password: _password, profilePictureUrl, ...rest } = user;
 
-    return {
-      ...userWithoutPassword,
+    const result: UserWithoutPassword = {
+      ...rest,
       role: convertUserRole(user.role),
-    } as UserWithoutPassword;
+      ...(profilePictureUrl ? { profilePictureUrl } : {}),
+    };
+
+    return result;
   } catch (error: unknown) {
     // Handle Prisma unique constraint violation (race condition)
     if (

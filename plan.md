@@ -134,7 +134,7 @@ After each task typecheck, lint, build and commit
 - [x] Implement profile update API endpoint
 - [x] Add profile update form
 - [x] Implement password change functionality
-- [ ] Add profile picture upload (optional)
+- [x] Add profile picture upload (optional)
 
 #### 2.6 Role-Based Access Control
 
@@ -169,8 +169,8 @@ After each task typecheck, lint, build and commit
 
 - [x] Install and configure Vitest for unit/integration tests
 - [x] Set up Supertest for API endpoint testing
-- [ ] Configure MSW (Mock Service Worker) for API mocking (pending - not needed yet)
-- [ ] Install @testing-library/react for component testing (pending - will be needed for Phase 4+)
+- [x] Configure MSW (Mock Service Worker) for API mocking (MSW dev dependency and base server/handler setup added for web app tests)
+- [x] Install @testing-library/react for component testing (library installed and wired via `vitest.setup.ts` in `apps/web`)
 - [x] Configure test scripts in all packages (api, web, db, types)
 - [x] Set up test coverage reporting (vitest coverage with v8 provider)
 - [x] Configure Turborepo test pipeline
