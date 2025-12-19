@@ -272,8 +272,13 @@ describe("Auth State Persistence", () => {
 
   describe("Session Expiration", () => {
     it("should handle expired session", async () => {
+      const expiredSession = {
+        ...mockSession,
+        expires: new Date(Date.now() - 1000).toISOString(), // Expired
+      };
+
       (useSession as any).mockReturnValue({
-        data: null, // Expired sessions should have null data
+        data: expiredSession,
         status: "unauthenticated",
         update: vi.fn(),
       });
