@@ -166,6 +166,9 @@ describe("GET /api/v1/doctors", () => {
     const doctorWithAvailability = await createTestDoctor({
       specialization: "Cardiology",
     });
+    createdDoctorIds.push(doctorWithAvailability.id);
+    createdUserIds.push(doctorWithAvailability.userId);
+
     await createTestAvailability({
       doctorId: doctorWithAvailability.id,
       startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
@@ -173,7 +176,11 @@ describe("GET /api/v1/doctors", () => {
     });
 
     // Create doctor without availability
-    await createTestDoctor({ specialization: "Neurology" });
+    const doctorWithoutAvailability = await createTestDoctor({
+      specialization: "Neurology",
+    });
+    createdDoctorIds.push(doctorWithoutAvailability.id);
+    createdUserIds.push(doctorWithoutAvailability.userId);
 
     // Public endpoint should default to filtering by availability
     const response = await agent.get("/api/v1/doctors").expect(200);

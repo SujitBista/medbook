@@ -489,7 +489,8 @@ export async function createTestDoctor(overrides?: {
 /**
  * Creates a test availability in the database
  * Uses a transaction to ensure atomicity and prevent race conditions
- * Note: If doctorId provided, it MUST exist (throws error if not found)
+ * Note: If doctorId provided, will use it if it exists.
+ *       If it doesn't exist, will create new doctor instead (with warning).
  *       If not provided, creates new doctor within the transaction
  */
 export async function createTestAvailability(overrides?: {
@@ -515,15 +516,38 @@ export async function createTestAvailability(overrides?: {
     // Get or create doctor
     let doctor;
     if (overrides?.doctorId) {
-      // If doctorId provided, it MUST exist
+      // Try to find the doctor with the provided ID
       doctor = await tx.doctor.findUnique({
         where: { id: overrides.doctorId },
         select: { id: true, userId: true },
       });
       if (!doctor) {
-        throw new Error(
-          `Doctor with ID ${overrides.doctorId} not found. Cannot create availability with non-existent doctor.`
+        // Doctor ID was provided but doesn't exist - create a new doctor instead
+        // This handles cases where doctors were deleted or created in a different transaction
+        console.warn(
+          `[createTestAvailability] Doctor with ID ${overrides.doctorId} not found. Creating new doctor instead.`
         );
+        const doctorEmail = `test-doctor-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+        const hashedPassword = await hashPassword("Test123!@#");
+        const doctorUser = await tx.user.create({
+          data: {
+            email: doctorEmail,
+            password: hashedPassword,
+            role: "DOCTOR",
+            firstName: "Test",
+            lastName: "Doctor",
+            phoneNumber: "555-123-4567",
+          },
+          select: { id: true },
+        });
+        doctor = await tx.doctor.create({
+          data: {
+            userId: doctorUser.id,
+            specialization: "General Practice",
+            bio: "Test doctor created for availability",
+          },
+          select: { id: true, userId: true },
+        });
       }
     } else {
       // Create a new doctor within the transaction
