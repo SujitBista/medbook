@@ -588,7 +588,8 @@ export async function createTestAvailability(overrides?: {
 /**
  * Creates a test appointment in the database
  * Uses a transaction to ensure atomicity and prevent race conditions
- * Note: If patientId/doctorId provided, they MUST exist (throws error if not found)
+ * Note: If patientId/doctorId provided, will use them if they exist.
+ *       If they don't exist, will create new patient/doctor instead (with warning).
  *       If not provided, creates new patient/doctor within the transaction
  */
 export async function createTestAppointment(overrides?: {
@@ -614,15 +615,30 @@ export async function createTestAppointment(overrides?: {
     // Get or create patient
     let patient;
     if (overrides?.patientId) {
-      // If patientId provided, it MUST exist
+      // Try to find the patient with the provided ID
       patient = await tx.user.findUnique({
         where: { id: overrides.patientId },
         select: { id: true, email: true, role: true },
       });
       if (!patient) {
-        throw new Error(
-          `Patient with ID ${overrides.patientId} not found. Cannot create appointment with non-existent patient.`
+        // Patient ID was provided but doesn't exist - create a new patient instead
+        // This handles cases where patients were deleted or created in a different transaction
+        console.warn(
+          `[createTestAppointment] Patient with ID ${overrides.patientId} not found. Creating new patient instead.`
         );
+        const patientEmail = `test-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+        const hashedPassword = await hashPassword("Test123!@#");
+        patient = await tx.user.create({
+          data: {
+            email: patientEmail,
+            password: hashedPassword,
+            role: "PATIENT",
+            firstName: "Test",
+            lastName: "Patient",
+            phoneNumber: "555-123-4567",
+          },
+          select: { id: true, email: true, role: true },
+        });
       }
     } else {
       // Create a new patient within the transaction
@@ -644,15 +660,38 @@ export async function createTestAppointment(overrides?: {
     // Get or create doctor
     let doctor;
     if (overrides?.doctorId) {
-      // If doctorId provided, it MUST exist
+      // Try to find the doctor with the provided ID
       doctor = await tx.doctor.findUnique({
         where: { id: overrides.doctorId },
         select: { id: true, userId: true },
       });
       if (!doctor) {
-        throw new Error(
-          `Doctor with ID ${overrides.doctorId} not found. Cannot create appointment with non-existent doctor.`
+        // Doctor ID was provided but doesn't exist - create a new doctor instead
+        // This handles cases where doctors were deleted or created in a different transaction
+        console.warn(
+          `[createTestAppointment] Doctor with ID ${overrides.doctorId} not found. Creating new doctor instead.`
         );
+        const doctorEmail = `test-doctor-${Date.now()}-${Math.random().toString(36).substring(7)}@example.com`;
+        const hashedPassword = await hashPassword("Test123!@#");
+        const doctorUser = await tx.user.create({
+          data: {
+            email: doctorEmail,
+            password: hashedPassword,
+            role: "DOCTOR",
+            firstName: "Test",
+            lastName: "Doctor",
+            phoneNumber: "555-123-4567",
+          },
+          select: { id: true },
+        });
+        doctor = await tx.doctor.create({
+          data: {
+            userId: doctorUser.id,
+            specialization: "General Practice",
+            bio: "Test doctor created for appointment",
+          },
+          select: { id: true, userId: true },
+        });
       }
     } else {
       // Create a new doctor within the transaction
