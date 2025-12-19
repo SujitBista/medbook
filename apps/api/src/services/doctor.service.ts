@@ -213,7 +213,8 @@ export async function getAllDoctors(options?: {
     where.availabilities = {
       some: {
         OR: [
-          // One-time slots: endTime >= now
+          // One-time slots: endTime >= now (slot hasn't expired yet)
+          // This includes both current and future availability
           {
             AND: [{ isRecurring: false }, { endTime: { gte: now } }],
           },
