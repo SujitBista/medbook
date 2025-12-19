@@ -390,13 +390,25 @@ describe("POST /api/v1/appointments", () => {
     createdDoctorIds.push(doctor.id);
     createdUserIds.push(doctor.userId);
 
-    const startTime = new Date(Date.now() + 60 * 60 * 1000); // 1 hour from now
-    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000); // 1 hour later
+    // Create availability that fully contains the appointment time
+    // For non-recurring availability, appointment must be: startTime >= availability.startTime && endTime <= availability.endTime
+    const appointmentStartTime = new Date(Date.now() + 2 * 60 * 60 * 1000); // 2 hours from now
+    const appointmentEndTime = new Date(
+      appointmentStartTime.getTime() + 60 * 60 * 1000
+    ); // 1 hour later
+
+    // Availability must start before or at appointment start, and end after or at appointment end
+    const availabilityStartTime = new Date(
+      appointmentStartTime.getTime() - 30 * 60 * 1000
+    ); // 30 min before appointment
+    const availabilityEndTime = new Date(
+      appointmentEndTime.getTime() + 30 * 60 * 1000
+    ); // 30 min after appointment
 
     const availability = await createTestAvailability({
       doctorId: doctor.id,
-      startTime,
-      endTime,
+      startTime: availabilityStartTime,
+      endTime: availabilityEndTime,
     });
     createdAvailabilityIds.push(availability.id);
 
@@ -409,8 +421,8 @@ describe("POST /api/v1/appointments", () => {
         patientId: patient.id,
         doctorId: doctor.id,
         availabilityId: availability.id,
-        startTime: startTime.toISOString(),
-        endTime: endTime.toISOString(),
+        startTime: appointmentStartTime.toISOString(),
+        endTime: appointmentEndTime.toISOString(),
         notes: "Test appointment",
       })
       .expect(201);

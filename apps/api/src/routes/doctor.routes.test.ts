@@ -66,22 +66,27 @@ describe("GET /api/v1/doctors", () => {
 
   it("should paginate doctors correctly", async () => {
     // Create multiple doctors with availability
+    // Use a consistent future time to ensure all availabilities are valid
+    const futureTime = new Date(Date.now() + 48 * 60 * 60 * 1000); // 48 hours from now
+
     for (let i = 0; i < 5; i++) {
       const doctor = await createTestDoctor({
         specialization: `Specialty${i}`,
       });
+      // Create availability with explicit future times
       await createTestAvailability({
         doctorId: doctor.id,
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
+        startTime: new Date(futureTime.getTime() + i * 60 * 60 * 1000), // Stagger times slightly
+        endTime: new Date(futureTime.getTime() + (i + 1) * 60 * 60 * 1000),
       });
       createdDoctorIds.push(doctor.id);
       createdUserIds.push(doctor.userId);
     }
 
+    // Disable availability filter to get all doctors for pagination test
     const response = await agent
       .get("/api/v1/doctors")
-      .query({ page: 1, limit: 2 })
+      .query({ page: 1, limit: 2, hasAvailability: "false" })
       .expect(200);
 
     expect(response.body.success).toBe(true);
