@@ -48,13 +48,35 @@ psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg
 echo "✅ Test database '$DB_NAME' is ready"
 echo ""
 
-# Set DATABASE_URL for migrations
-export DATABASE_URL="postgresql://$DB_USER@$DB_HOST:$DB_PORT/$DB_NAME"
+# Create postgres user if it doesn't exist (for tests that use postgres:postgres)
+echo "👤 Setting up postgres user for tests..."
+psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -tc "SELECT 1 FROM pg_roles WHERE rolname='postgres'" | grep -q 1 || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d postgres -c "CREATE ROLE postgres WITH LOGIN SUPERUSER PASSWORD 'postgres';" || {
+    echo "⚠️  Could not create postgres user (might already exist or need different permissions)"
+}
+
+# Set DATABASE_URL for migrations (using postgres user for consistency with test setup)
+export DATABASE_URL="postgresql://postgres:postgres@$DB_HOST:$DB_PORT/$DB_NAME"
 
 # Run migrations
 echo "🔄 Running migrations on test database..."
 cd packages/db
-pnpm db:migrate:deploy
+DATABASE_URL="$DATABASE_URL" pnpm db:migrate:deploy
+
+# Grant permissions to postgres user (if it exists)
+echo "🔐 Granting permissions to postgres user..."
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER SCHEMA public OWNER TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "ALTER SCHEMA public OWNER TO postgres;" || true
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "GRANT ALL ON SCHEMA public TO postgres;" || true
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO postgres;" || true
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO postgres;" || true
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres;" || true
+PGPASSWORD=postgres psql -h "$DB_HOST" -p "$DB_PORT" -U postgres -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres;" 2>/dev/null || \
+    psql -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USER" -d "$DB_NAME" -c "ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres;" || true
 
 echo ""
 echo "✅ Test database setup complete!"

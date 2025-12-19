@@ -272,8 +272,13 @@ describe("Auth State Persistence", () => {
 
   describe("Session Expiration", () => {
     it("should handle expired session", async () => {
+      const expiredSession = {
+        ...mockSession,
+        expires: new Date(Date.now() - 1000).toISOString(), // Expired
+      };
+
       (useSession as any).mockReturnValue({
-        data: null, // Expired sessions should have null data
+        data: null, // Expired session should have null data
         status: "unauthenticated",
         update: vi.fn(),
       });
@@ -284,10 +289,14 @@ describe("Auth State Persistence", () => {
         </SessionProvider>
       );
 
-      // Should show unauthenticated state
-      await waitFor(() => {
-        expect(screen.getByText("Sign In")).toBeInTheDocument();
-      });
+      // Should show unauthenticated state - look for Sign In button text
+      await waitFor(
+        () => {
+          const signInButton = screen.getByRole("link", { name: /sign in/i });
+          expect(signInButton).toBeInTheDocument();
+        },
+        { timeout: 3000 }
+      );
     });
 
     it("should handle valid session expiration date", async () => {

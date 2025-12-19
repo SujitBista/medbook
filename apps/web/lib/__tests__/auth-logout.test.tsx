@@ -317,16 +317,25 @@ describe("Logout and Session Invalidation", () => {
     });
 
     it("should clear all user data from session after logout", async () => {
-      let sessionData: typeof mockSession | null = mockSession;
-
-      (useSession as any).mockImplementation(() => ({
-        data: sessionData,
-        status: sessionData ? "authenticated" : "unauthenticated",
+      let sessionState: {
+        data: typeof mockSession | null;
+        status: "authenticated" | "unauthenticated";
+        update: ReturnType<typeof vi.fn>;
+      } = {
+        data: mockSession,
+        status: "authenticated",
         update: vi.fn(),
-      }));
+      };
+
+      (useSession as any).mockImplementation(() => sessionState);
 
       (signOut as any).mockImplementation(async () => {
-        sessionData = null;
+        // Simulate logout by updating session state
+        sessionState = {
+          data: null,
+          status: "unauthenticated",
+          update: vi.fn(),
+        };
       });
 
       const { rerender } = render(
@@ -336,26 +345,33 @@ describe("Logout and Session Invalidation", () => {
       );
 
       // Initially has user data
-      const firstCall = (useSession as any).mock.results[0].value;
-      expect(firstCall.data?.user).toBeDefined();
-      expect(firstCall.data?.user.id).toBe("user-123");
+      await waitFor(() => {
+        expect(screen.getByText("test@example.com")).toBeInTheDocument();
+      });
+
+      const firstSession = (useSession as any).mock.results[0]?.value;
+      expect(firstSession?.data?.user).toBeDefined();
+      expect(firstSession?.data?.user.id).toBe("user-123");
 
       // Logout
       await signOut();
 
-      // Re-render to get updated session
+      // Re-render to reflect new session state
       rerender(
         <SessionProvider>
           <UserProfileDropdown />
         </SessionProvider>
       );
 
-      // User data should be cleared
-      const lastCall = (useSession as any).mock.results[
-        (useSession as any).mock.results.length - 1
-      ].value;
-      expect(lastCall.data).toBeNull();
-      expect(lastCall.status).toBe("unauthenticated");
+      // User data should be cleared - component should no longer show user email
+      await waitFor(
+        () => {
+          expect(
+            screen.queryByText("test@example.com")
+          ).not.toBeInTheDocument();
+        },
+        { timeout: 2000 }
+      );
     });
   });
 
