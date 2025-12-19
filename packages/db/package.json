@@ -7,16 +7,17 @@
   "scripts": {
     "build": "prisma generate && tsc",
     "clean": "rm -rf dist",
-    "test": "vitest run --passWithNoTests",
-    "test:watch": "vitest",
-    "test:ui": "vitest --ui",
-    "test:coverage": "vitest run --coverage",
+    "test": "prisma generate && vitest run --passWithNoTests",
+    "test:watch": "prisma generate && vitest",
+    "test:ui": "prisma generate && vitest --ui",
+    "test:coverage": "prisma generate && vitest run --coverage",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
     "db:migrate:reset": "prisma migrate reset",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",

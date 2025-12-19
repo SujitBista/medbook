@@ -4,6 +4,8 @@
  */
 
 import { beforeAll, afterAll } from "vitest";
+import { execSync } from "child_process";
+import { resolve } from "path";
 
 // Set test environment variables
 process.env.NODE_ENV = "test";
@@ -23,7 +25,24 @@ process.env.PGPORT = process.env.PGPORT || "5432";
 process.env.PGDATABASE = process.env.PGDATABASE || "medbook_test";
 
 beforeAll(async () => {
-  // Setup before all tests
+  // Ensure Prisma client is generated before tests run
+  try {
+    const dbPackagePath = resolve(__dirname, "../..");
+    execSync("npx prisma generate", {
+      cwd: dbPackagePath,
+      stdio: "ignore", // Suppress output during test setup
+      env: {
+        ...process.env,
+        DATABASE_URL: process.env.DATABASE_URL || process.env.TEST_DATABASE_URL,
+      },
+    });
+  } catch (error) {
+    // If generation fails, log but don't fail tests
+    // The test scripts should handle this via package.json scripts
+    console.warn(
+      "[Test Setup] Prisma client generation failed, but continuing. Ensure 'prisma generate' runs before tests."
+    );
+  }
 });
 
 afterAll(async () => {
