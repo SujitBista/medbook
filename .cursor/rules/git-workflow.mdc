@@ -83,14 +83,54 @@ fix: add Tailwind color definitions to make buttons visible
 - If stashes exist, either apply and commit them, or ask the user how to handle them
 - Do not leave uncommitted changes or stashes when finishing a task
 
+### Pre-Push Validation
+
+**ALWAYS run lint and typecheck before pushing code for PR.**
+
+Before pushing any code, you MUST:
+
+1. **Run lint checks** for the affected files/apps:
+   ```bash
+   # For web app
+   cd apps/web && npm run lint
+   
+   # For API app
+   cd apps/api && npm run lint
+   
+   # Or run for specific files
+   npm run lint -- path/to/files
+   ```
+
+2. **Run TypeScript typecheck**:
+   ```bash
+   # For web app
+   npx tsc --noEmit --project apps/web/tsconfig.json
+   
+   # For API app
+   npx tsc --noEmit --project apps/api/tsconfig.json
+   ```
+
+3. **Fix all errors** before pushing:
+   - Lint errors must be fixed (warnings are acceptable but should be addressed if possible)
+   - TypeScript errors must be fixed
+   - Do NOT push code with lint or typecheck errors
+
+4. **Verify tests pass** (if applicable):
+   ```bash
+   npm test
+   ```
+
+**Important:** If lint or typecheck errors are found, fix them immediately and commit the fixes before pushing.
+
 ### When Assisting with Git Operations
 
 When the user asks to commit and push changes:
 
 1. Create a feature branch (never commit directly to main)
 2. Stage only the relevant files
-3. Create a descriptive commit message using conventional commits
-4. Push to the feature branch
-5. **Create a PR** using GitHub CLI or remind user to create one
-6. Do NOT merge directly to main/master
-7. **Verify no stashes remain** before completing the task
+3. **Run lint and typecheck** - fix any errors found
+4. Create a descriptive commit message using conventional commits
+5. Push to the feature branch
+6. **Create a PR** using GitHub CLI or remind user to create one
+7. Do NOT merge directly to main/master
+8. **Verify no stashes remain** before completing the task
