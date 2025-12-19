@@ -3,6 +3,7 @@
  * Tests that signOut properly clears session and invalidates tokens
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -316,7 +317,7 @@ describe("Logout and Session Invalidation", () => {
     });
 
     it("should clear all user data from session after logout", async () => {
-      let sessionData = mockSession;
+      let sessionData: typeof mockSession | null = mockSession;
 
       (useSession as any).mockImplementation(() => ({
         data: sessionData,

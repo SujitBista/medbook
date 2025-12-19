@@ -34,7 +34,7 @@ vi.mock("../env", () => ({
 // Mock jsonwebtoken
 vi.mock("jsonwebtoken", () => ({
   default: {
-    sign: vi.fn((payload, secret, options) => {
+    sign: vi.fn((payload: { id: string }) => {
       return `mock-jwt-token-${payload.id}`;
     }),
     verify: vi.fn(),

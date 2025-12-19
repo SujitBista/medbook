@@ -3,6 +3,7 @@
  * Tests that session persists across page reloads, navigation, and browser restarts
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import { useSession, SessionProvider } from "next-auth/react";
@@ -271,11 +272,6 @@ describe("Auth State Persistence", () => {
 
   describe("Session Expiration", () => {
     it("should handle expired session", async () => {
-      const expiredSession = {
-        ...mockSession,
-        expires: new Date(Date.now() - 1000).toISOString(), // Expired
-      };
-
       (useSession as any).mockReturnValue({
         data: null, // Expired sessions should have null data
         status: "unauthenticated",
