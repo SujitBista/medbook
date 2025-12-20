@@ -45,7 +45,7 @@ test.describe("Profile Management", () => {
     // Should show user email or profile information
     await expect(
       page
-        .locator(`text=${userEmail}`, { exact: false })
+        .getByText(userEmail, { exact: false })
         .or(page.locator("text=/email|profile/i"))
     ).toBeVisible({ timeout: 5000 });
   });

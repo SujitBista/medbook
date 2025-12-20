@@ -127,6 +127,7 @@ export async function registerUser(
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      emailVerified: boolean;
       firstName: string;
       lastName: string;
       phoneNumber: string;
@@ -147,6 +148,7 @@ export async function registerUser(
           email: true,
           role: true,
           mustResetPassword: true,
+          emailVerified: true,
           firstName: true,
           lastName: true,
           phoneNumber: true,
@@ -222,6 +224,7 @@ export async function loginUser(
     password: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    emailVerified: boolean;
     firstName: string;
     lastName: string;
     phoneNumber: string;

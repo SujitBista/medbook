@@ -37,6 +37,7 @@ export async function getAllUsers(): Promise<UserWithoutPassword[]> {
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      emailVerified: boolean;
       firstName: string;
       lastName: string;
       phoneNumber: string;
@@ -50,6 +51,7 @@ export async function getAllUsers(): Promise<UserWithoutPassword[]> {
         email: true,
         role: true,
         mustResetPassword: true,
+        emailVerified: true,
         firstName: true,
         lastName: true,
         phoneNumber: true,
@@ -82,6 +84,7 @@ export async function getUserById(
     email: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    emailVerified: boolean;
     firstName: string;
     lastName: string;
     phoneNumber: string;
@@ -95,6 +98,7 @@ export async function getUserById(
         email: true,
         role: true,
         mustResetPassword: true,
+        emailVerified: true,
         firstName: true,
         lastName: true,
         phoneNumber: true,
@@ -149,6 +153,7 @@ export async function updateUserRole(
       email: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      emailVerified: boolean;
       firstName: string;
       lastName: string;
       phoneNumber: string;
@@ -165,6 +170,7 @@ export async function updateUserRole(
           email: true,
           role: true,
           mustResetPassword: true,
+          emailVerified: true,
           firstName: true,
           lastName: true,
           phoneNumber: true,
@@ -363,6 +369,7 @@ export async function createDoctorUser(
           email: true,
           role: true,
           mustResetPassword: true,
+          emailVerified: true,
           firstName: true,
           lastName: true,
           phoneNumber: true,

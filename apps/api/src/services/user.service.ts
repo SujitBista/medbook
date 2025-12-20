@@ -54,6 +54,7 @@ export async function getUserProfile(
     password: string;
     role: PrismaUserRole;
     mustResetPassword: boolean;
+    emailVerified: boolean;
     firstName: string;
     lastName: string;
     phoneNumber: string;
@@ -164,6 +165,7 @@ export async function updateUserProfile(
       password: string;
       role: PrismaUserRole;
       mustResetPassword: boolean;
+      emailVerified: boolean;
       firstName: string;
       lastName: string;
       phoneNumber: string;
