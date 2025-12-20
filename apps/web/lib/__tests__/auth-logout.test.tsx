@@ -330,7 +330,7 @@ describe("Logout and Session Invalidation", () => {
 
       (signOut as any).mockResolvedValue(undefined);
 
-      render(
+      const { rerender } = render(
         <SessionProvider>
           <UserProfileDropdown />
         </SessionProvider>
@@ -343,6 +343,13 @@ describe("Logout and Session Invalidation", () => {
 
       // Logout
       await signOut();
+
+      // Re-render to reflect new session state
+      rerender(
+        <SessionProvider>
+          <UserProfileDropdown />
+        </SessionProvider>
+      );
 
       // User data should be cleared
       const secondSession = (useSession as any).mock.results[1].value;
