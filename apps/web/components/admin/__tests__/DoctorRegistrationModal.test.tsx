@@ -54,7 +54,7 @@ describe("DoctorRegistrationModal", () => {
 
     // Required fields
     expect(screen.getByLabelText(/Email/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/Password/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Password$/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Confirm Password/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/First Name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Last Name/i)).toBeInTheDocument();
@@ -132,7 +132,7 @@ describe("DoctorRegistrationModal", () => {
       />
     );
 
-    const passwordInput = screen.getByLabelText(/Password/i);
+    const passwordInput = screen.getByLabelText(/^Password$/i);
     const confirmPasswordInput = screen.getByLabelText(/Confirm Password/i);
 
     await user.type(passwordInput, "password123");
@@ -198,7 +198,7 @@ describe("DoctorRegistrationModal", () => {
     );
 
     const emailInput = screen.getByLabelText(/Email/i);
-    const passwordInput = screen.getByLabelText(/Password/i);
+    const passwordInput = screen.getByLabelText(/^Password$/i);
     const confirmPasswordInput = screen.getByLabelText(/Confirm Password/i);
 
     await user.type(emailInput, "doctor@example.com");
@@ -228,7 +228,7 @@ describe("DoctorRegistrationModal", () => {
     );
 
     const passwordInput = screen.getByLabelText(
-      /Password/i
+      /^Password$/i
     ) as HTMLInputElement;
     await user.type(passwordInput, "password123");
 

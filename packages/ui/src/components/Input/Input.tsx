@@ -86,7 +86,8 @@ export function Input({
                 ? "text-gray-400 cursor-not-allowed"
                 : "text-gray-500 hover:text-gray-700 cursor-pointer"
             }`}
-            aria-label={showPassword ? "Hide password" : "Show password"}
+            aria-label="Toggle password visibility"
+            aria-pressed={showPassword}
             tabIndex={-1}
           >
             {showPassword ? (

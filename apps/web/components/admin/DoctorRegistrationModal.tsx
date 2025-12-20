@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { FormEvent, useEffect, useId, useState } from "react";
 import { Button, Input } from "@medbook/ui";
 
 interface DoctorRegistrationModalProps {
@@ -37,6 +37,9 @@ export function DoctorRegistrationModal({
   onClose,
   onSuccess,
 }: DoctorRegistrationModalProps) {
+  const experienceId = useId();
+  const educationId = useId();
+  const bioId = useId();
   const [formData, setFormData] = useState<DoctorFormData>({
     email: "",
     password: "",
@@ -61,6 +64,36 @@ export function DoctorRegistrationModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+
+  const resetForm = () => {
+    setFormData({
+      email: "",
+      password: "",
+      confirmPassword: "",
+      firstName: "",
+      lastName: "",
+      phoneNumber: "",
+      specialization: "",
+      bio: "",
+      licenseNumber: "",
+      address: "",
+      city: "",
+      state: "",
+      zipCode: "",
+      yearsOfExperience: "",
+      education: "",
+      profilePictureUrl: "",
+    });
+    setSelectedFile(null);
+    setImagePreview(null);
+    setErrors({});
+  };
+
+  useEffect(() => {
+    if (!isOpen) {
+      resetForm();
+    }
+  }, [isOpen]);
 
   const handleChange = (
     e: React.ChangeEvent<
@@ -174,7 +207,7 @@ export function DoctorRegistrationModal({
     if (!formData.email.trim()) {
       newErrors.email = "Email is required";
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Please enter a valid email address";
+      newErrors.email = "Invalid email format";
     }
 
     if (!formData.password) {
@@ -266,28 +299,7 @@ export function DoctorRegistrationModal({
         throw new Error(data.error?.message || "Failed to register doctor");
       }
 
-      // Reset form
-      setFormData({
-        email: "",
-        password: "",
-        confirmPassword: "",
-        firstName: "",
-        lastName: "",
-        phoneNumber: "",
-        specialization: "",
-        bio: "",
-        licenseNumber: "",
-        address: "",
-        city: "",
-        state: "",
-        zipCode: "",
-        yearsOfExperience: "",
-        education: "",
-        profilePictureUrl: "",
-      });
-      setSelectedFile(null);
-      setImagePreview(null);
-
+      resetForm();
       onSuccess();
       onClose();
     } catch (err) {
@@ -301,6 +313,11 @@ export function DoctorRegistrationModal({
     }
   };
 
+  const handleClose = () => {
+    resetForm();
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -311,9 +328,10 @@ export function DoctorRegistrationModal({
             Register New Doctor
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-600 transition-colors"
             disabled={isLoading}
+            aria-label="Close"
           >
             <svg
               className="w-6 h-6"
@@ -331,7 +349,7 @@ export function DoctorRegistrationModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+        <form onSubmit={handleSubmit} className="p-6 space-y-6" noValidate>
           {errors.submit && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               <p>{errors.submit}</p>
@@ -467,11 +485,15 @@ export function DoctorRegistrationModal({
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label
+                  htmlFor={experienceId}
+                  className="block text-sm font-medium text-gray-700 mb-1"
+                >
                   Years of Experience
                 </label>
                 <input
                   type="number"
+                  id={experienceId}
                   name="yearsOfExperience"
                   value={formData.yearsOfExperience}
                   onChange={handleChange}
@@ -576,10 +598,14 @@ export function DoctorRegistrationModal({
               </div>
             </div>
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={educationId}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Education / Qualifications
               </label>
               <textarea
+                id={educationId}
                 name="education"
                 value={formData.education}
                 onChange={handleChange}
@@ -590,10 +616,14 @@ export function DoctorRegistrationModal({
               />
             </div>
             <div className="mt-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor={bioId}
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Bio
               </label>
               <textarea
+                id={bioId}
                 name="bio"
                 value={formData.bio}
                 onChange={handleChange}
@@ -665,7 +695,7 @@ export function DoctorRegistrationModal({
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={handleClose}
               disabled={isLoading}
             >
               Cancel
