@@ -1,10 +1,9 @@
+import { test, expect } from "@playwright/test";
+
 /**
  * E2E tests for authentication flows
  * Tests user registration and login
  */
-
-import { test, expect } from "@playwright/test";
-
 test.describe("Authentication", () => {
   test.beforeEach(async ({ page }) => {
     // Navigate to home page before each test
@@ -13,7 +12,9 @@ test.describe("Authentication", () => {
 
   test("should navigate to registration page", async ({ page }) => {
     // Find and click the register link (adjust selector based on actual UI)
-    const registerLink = page.getByRole("link", { name: /register|sign up/i });
+    const registerLink = page.getByRole("link", {
+      name: /create account|sign up|register/i,
+    });
     if (await registerLink.isVisible()) {
       await registerLink.click();
       await expect(page).toHaveURL(/.*register/);
@@ -30,20 +31,19 @@ test.describe("Authentication", () => {
 
     // Fill in registration form
     const email = `test-${Date.now()}@example.com`;
-    const password = "TestPassword123";
+    const password = "TestPassword123!";
 
-    await page.fill('input[name="email"], input[type="email"]', email);
-    await page.fill('input[name="password"], input[type="password"]', password);
-    await page.fill(
-      'input[name="confirmPassword"], input[name="confirm"]',
-      password
-    );
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/^password$/i).fill(password);
+    await page.getByLabel(/confirm password/i).fill(password);
 
     // Submit the form
-    await page.click('button[type="submit"], button:has-text("Register")');
+    await page.getByRole("button", { name: /create account/i }).click();
 
-    // Should redirect to login or dashboard after successful registration
-    await page.waitForURL(/\/(login|dashboard)/, { timeout: 10000 });
+    // Wait for "Sign in" link to appear after successful registration
+    const signInLink = page.getByRole("link", { name: /sign in/i });
+    await expect(signInLink).toBeVisible({ timeout: 10000 });
+    await signInLink.click();
   });
 
   test("should show validation errors for invalid registration", async ({
@@ -52,7 +52,7 @@ test.describe("Authentication", () => {
     await page.goto("/register");
 
     // Try to submit empty form
-    await page.click('button[type="submit"], button:has-text("Register")');
+    await page.getByRole("button", { name: /create account/i }).click();
 
     // Should show validation errors
     await expect(page.locator("text=/required|invalid/i").first()).toBeVisible({
@@ -77,46 +77,34 @@ test.describe("Authentication", () => {
     // First, register a user (or use existing test user)
     await page.goto("/register");
     const email = `test-${Date.now()}@example.com`;
-    const password = "TestPassword123";
+    const password = "TestPassword123!";
 
-    await page.fill('input[name="email"], input[type="email"]', email);
-    await page.fill('input[name="password"], input[type="password"]', password);
-    await page.fill(
-      'input[name="confirmPassword"], input[name="confirm"]',
-      password
-    );
-    await page.click('button[type="submit"], button:has-text("Register")');
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/^password$/i).fill(password);
+    await page.getByLabel(/confirm password/i).fill(password);
+    await page.getByRole("button", { name: /create account/i }).click();
 
-    // Wait for redirect to login
-    await page.waitForURL(/\/(login|dashboard)/, { timeout: 10000 });
+    // Wait for "Sign in" link to appear after successful registration
+    const signInLink = page.getByRole("link", { name: /sign in/i });
+    await expect(signInLink).toBeVisible({ timeout: 10000 });
+    await signInLink.click();
 
-    // If redirected to login, login with the same credentials
-    if (page.url().includes("/login")) {
-      await page.fill('input[name="email"], input[type="email"]', email);
-      await page.fill(
-        'input[name="password"], input[type="password"]',
-        password
-      );
-      await page.click('button[type="submit"], button:has-text("Login")');
+    // Login with the same credentials
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/^password$/i).fill(password);
+    await page.getByRole("button", { name: /sign in/i }).click();
 
-      // Should redirect to dashboard after login
-      await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
-    }
+    // Should redirect to dashboard after login
+    await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
   });
 
   test("should show error for invalid login credentials", async ({ page }) => {
     await page.goto("/login");
 
     // Try to login with invalid credentials
-    await page.fill(
-      'input[name="email"], input[type="email"]',
-      "invalid@example.com"
-    );
-    await page.fill(
-      'input[name="password"], input[type="password"]',
-      "wrongpassword"
-    );
-    await page.click('button[type="submit"], button:has-text("Login")');
+    await page.getByLabel(/email/i).fill("invalid@example.com");
+    await page.getByLabel(/^password$/i).fill("wrongpassword!");
+    await page.getByRole("button", { name: /sign in/i }).click();
 
     // Should show error message
     await expect(
@@ -128,26 +116,23 @@ test.describe("Authentication", () => {
     // First login
     await page.goto("/register");
     const email = `test-${Date.now()}@example.com`;
-    const password = "TestPassword123";
+    const password = "TestPassword123!";
 
-    await page.fill('input[name="email"], input[type="email"]', email);
-    await page.fill('input[name="password"], input[type="password"]', password);
-    await page.fill(
-      'input[name="confirmPassword"], input[name="confirm"]',
-      password
-    );
-    await page.click('button[type="submit"], button:has-text("Register")');
-    await page.waitForURL(/\/(login|dashboard)/, { timeout: 10000 });
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/^password$/i).fill(password);
+    await page.getByLabel(/confirm password/i).fill(password);
+    await page.getByRole("button", { name: /create account/i }).click();
 
-    if (page.url().includes("/login")) {
-      await page.fill('input[name="email"], input[type="email"]', email);
-      await page.fill(
-        'input[name="password"], input[type="password"]',
-        password
-      );
-      await page.click('button[type="submit"], button:has-text("Login")');
-      await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
-    }
+    // Wait for "Sign in" link to appear after successful registration
+    const signInLink = page.getByRole("link", { name: /sign in/i });
+    await expect(signInLink).toBeVisible({ timeout: 10000 });
+    await signInLink.click();
+
+    // Login with the same credentials
+    await page.getByLabel(/email/i).fill(email);
+    await page.getByLabel(/^password$/i).fill(password);
+    await page.getByRole("button", { name: /sign in/i }).click();
+    await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
 
     // Find and click logout button (could be in dropdown menu)
     const logoutButton = page.getByRole("button", { name: /logout|sign out/i });

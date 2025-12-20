@@ -12,30 +12,24 @@ test.describe("Profile Management", () => {
   test.beforeEach(async ({ page }) => {
     // Register and login a test user
     userEmail = `user-${Date.now()}@example.com`;
-    userPassword = "TestPassword123";
+    userPassword = "TestPassword123!";
 
     await page.goto("/register");
-    await page.fill('input[name="email"], input[type="email"]', userEmail);
-    await page.fill(
-      'input[name="password"], input[type="password"]',
-      userPassword
-    );
-    await page.fill(
-      'input[name="confirmPassword"], input[name="confirm"]',
-      userPassword
-    );
-    await page.click('button[type="submit"], button:has-text("Register")');
+    await page.getByLabel(/email/i).fill(userEmail);
+    await page.getByLabel(/^password$/i).fill(userPassword);
+    await page.getByLabel(/confirm password/i).fill(userPassword);
+    await page.getByRole("button", { name: /create account/i }).click();
 
-    await page.waitForURL(/\/(login|dashboard)/, { timeout: 10000 });
-    if (page.url().includes("/login")) {
-      await page.fill('input[name="email"], input[type="email"]', userEmail);
-      await page.fill(
-        'input[name="password"], input[type="password"]',
-        userPassword
-      );
-      await page.click('button[type="submit"], button:has-text("Login")');
-      await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
-    }
+    // Wait for "Sign in" link to appear after successful registration
+    const signInLink = page.getByRole("link", { name: /sign in/i });
+    await expect(signInLink).toBeVisible({ timeout: 10000 });
+    await signInLink.click();
+
+    // Login with the same credentials
+    await page.getByLabel(/email/i).fill(userEmail);
+    await page.getByLabel(/^password$/i).fill(userPassword);
+    await page.getByRole("button", { name: /sign in/i }).click();
+    await page.waitForURL(/\/(dashboard|profile)/, { timeout: 10000 });
   });
 
   test("should navigate to profile page", async ({ page }) => {
@@ -104,9 +98,9 @@ test.describe("Profile Management", () => {
 
     if (await currentPasswordField.isVisible()) {
       await currentPasswordField.fill(userPassword);
-      await newPasswordField.fill("NewPassword123");
+      await newPasswordField.fill("NewPassword123!");
       if (await confirmPasswordField.isVisible()) {
-        await confirmPasswordField.fill("NewPassword123");
+        await confirmPasswordField.fill("NewPassword123!");
       }
 
       // Submit password change

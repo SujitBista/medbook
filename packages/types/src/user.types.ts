@@ -14,6 +14,7 @@ export interface User {
   password: string;
   role: UserRole;
   mustResetPassword: boolean;
+  emailVerified: boolean;
   firstName: string;
   lastName: string;
   phoneNumber: string;
