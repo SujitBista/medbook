@@ -83,7 +83,7 @@ describe("Shared UI components from @medbook/ui", () => {
 
       const input = screen.getByLabelText("Password") as HTMLInputElement;
       const toggleButton = screen.getByRole("button", {
-        name: "Show password",
+        name: /toggle password visibility/i,
       });
 
       expect(input.type).toBe("password");
@@ -91,10 +91,8 @@ describe("Shared UI components from @medbook/ui", () => {
       await user.click(toggleButton);
       expect(input.type).toBe("text");
 
-      // After toggling, aria-label should change as well
-      expect(
-        screen.getByRole("button", { name: "Hide password" })
-      ).toBeInTheDocument();
+      // Toggle button should reflect pressed state via aria-pressed
+      expect(toggleButton).toHaveAttribute("aria-pressed", "true");
     });
 
     it("does not toggle password visibility when disabled", async () => {
@@ -104,13 +102,14 @@ describe("Shared UI components from @medbook/ui", () => {
 
       const input = screen.getByLabelText("Password") as HTMLInputElement;
       const toggleButton = screen.getByRole("button", {
-        name: "Show password",
+        name: /toggle password visibility/i,
       });
 
       expect(input.type).toBe("password");
 
       await user.click(toggleButton);
       expect(input.type).toBe("password");
+      expect(toggleButton).toHaveAttribute("aria-pressed", "false");
     });
   });
 
