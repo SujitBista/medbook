@@ -14,7 +14,8 @@ export function HeroSearch() {
     const params = new URLSearchParams();
     if (searchTerm) params.append("search", searchTerm);
     if (location) params.append("location", location);
-    router.push(`/doctors?${params.toString()}`);
+    const query = params.toString();
+    router.push(query ? `/doctors?${query}` : "/doctors");
   };
 
   return (
