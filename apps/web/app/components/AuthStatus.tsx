@@ -4,9 +4,24 @@ import { useSession } from "next-auth/react";
 import { signOut } from "next-auth/react";
 import { Button } from "@medbook/ui";
 import Link from "next/link";
+import { useState, useEffect, useMemo } from "react";
 
 export function AuthStatus() {
   const { data: session, status } = useSession();
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const isExpired = useMemo(
+    () => session?.expires && new Date(session.expires).getTime() <= now,
+    [session?.expires, now]
+  );
 
   if (status === "loading") {
     return (
@@ -17,7 +32,7 @@ export function AuthStatus() {
     );
   }
 
-  if (!session) {
+  if (status !== "authenticated" || !session || isExpired) {
     return (
       <div className="flex items-center gap-4">
         <Link href="/login">
@@ -45,7 +60,11 @@ export function AuthStatus() {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => signOut({ callbackUrl: "/" })}
+        onClick={() =>
+          signOut({ callbackUrl: "/" }).catch((err) =>
+            console.error("[AuthStatus] Logout failed:", err)
+          )
+        }
       >
         Sign Out
       </Button>

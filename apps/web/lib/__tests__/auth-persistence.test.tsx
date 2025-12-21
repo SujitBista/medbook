@@ -19,6 +19,22 @@ vi.mock("next-auth/react", () => ({
   signOut: vi.fn(),
 }));
 
+const createStorageMock = () => {
+  let store: Record<string, string> = {};
+  return {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => {
+      store[key] = value;
+    },
+    removeItem: (key: string) => {
+      delete store[key];
+    },
+    clear: () => {
+      store = {};
+    },
+  };
+};
+
 // Mock next/navigation
 const mockPathname = "/dashboard";
 vi.mock("next/navigation", () => ({
@@ -51,6 +67,25 @@ describe("Auth State Persistence", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    // Ensure storage APIs exist in the test environment
+    if (
+      !("localStorage" in globalThis) ||
+      typeof localStorage.clear !== "function"
+    ) {
+      Object.defineProperty(globalThis, "localStorage", {
+        value: createStorageMock(),
+        writable: true,
+      });
+    }
+    if (
+      !("sessionStorage" in globalThis) ||
+      typeof sessionStorage.clear !== "function"
+    ) {
+      Object.defineProperty(globalThis, "sessionStorage", {
+        value: createStorageMock(),
+        writable: true,
+      });
+    }
     // Clear localStorage
     localStorage.clear();
     // Clear sessionStorage
@@ -272,8 +307,13 @@ describe("Auth State Persistence", () => {
 
   describe("Session Expiration", () => {
     it("should handle expired session", async () => {
+      const expiredSession = {
+        ...mockSession,
+        expires: new Date(Date.now() - 1000).toISOString(), // Expired
+      };
+
       (useSession as any).mockReturnValue({
-        data: null, // Expired sessions should have null data
+        data: expiredSession,
         status: "unauthenticated",
         update: vi.fn(),
       });

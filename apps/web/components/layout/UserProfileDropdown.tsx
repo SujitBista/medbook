@@ -53,7 +53,11 @@ export function UserProfileDropdown({
   }
 
   const handleLogout = async () => {
-    await signOut({ callbackUrl: "/" });
+    try {
+      await signOut({ callbackUrl: "/" });
+    } catch (err) {
+      console.error("[UserProfileDropdown] Logout failed:", err);
+    }
   };
 
   const profilePictureUrl = session.user.profilePictureUrl ?? null;

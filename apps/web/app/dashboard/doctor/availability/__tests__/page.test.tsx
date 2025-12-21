@@ -88,7 +88,7 @@ describe("AvailabilityManagementPage", () => {
   });
 
   describe("Authentication and Authorization", () => {
-    it("should redirect to login if not authenticated", () => {
+    it("should redirect to login if not authenticated", async () => {
       (useSession as any).mockReturnValue({
         data: null,
         status: "unauthenticated",
@@ -96,12 +96,14 @@ describe("AvailabilityManagementPage", () => {
 
       render(<AvailabilityManagementPage />);
 
-      expect(mockPush).toHaveBeenCalledWith(
-        "/login?callbackUrl=/dashboard/doctor/availability"
-      );
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          "/login?callbackUrl=/dashboard/doctor/availability"
+        );
+      });
     });
 
-    it("should redirect to dashboard if user is not a doctor", () => {
+    it("should redirect to dashboard if user is not a doctor", async () => {
       (useSession as any).mockReturnValue({
         data: {
           ...mockSession,
@@ -121,7 +123,9 @@ describe("AvailabilityManagementPage", () => {
 
       render(<AvailabilityManagementPage />);
 
-      expect(mockPush).toHaveBeenCalledWith("/dashboard");
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith("/dashboard");
+      });
     });
 
     it("should render page for authenticated doctor", async () => {

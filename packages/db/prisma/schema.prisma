@@ -16,6 +16,7 @@ model User {
   password         String
   role             UserRole @default(PATIENT)
   mustResetPassword Boolean @default(false)
+  emailVerified    Boolean  @default(true)
   firstName        String
   lastName         String
   phoneNumber      String
