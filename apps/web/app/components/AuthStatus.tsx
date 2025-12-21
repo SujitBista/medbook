@@ -47,7 +47,11 @@ export function AuthStatus() {
       <Button
         variant="outline"
         size="sm"
-        onClick={() => signOut({ callbackUrl: "/" })}
+        onClick={() =>
+          signOut({ callbackUrl: "/" }).catch((err) =>
+            console.error("[AuthStatus] Logout failed:", err)
+          )
+        }
       >
         Sign Out
       </Button>
