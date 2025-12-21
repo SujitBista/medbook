@@ -3,32 +3,28 @@
 import { useState, useEffect, Suspense } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, Input, Card } from "@medbook/ui";
+import { Button, Input, Card, useToast } from "@medbook/ui";
 import Link from "next/link";
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showSuccess, showError } = useToast();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errors, setErrors] = useState<{
     email?: string;
     password?: string;
-    general?: string;
   }>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
-      // Use setTimeout to avoid setState in effect
-      setTimeout(() => {
-        setSuccessMessage("Registration successful! Please sign in.");
-      }, 0);
+      showSuccess("Registration successful! Please sign in.");
       // Remove the query parameter from URL to prevent showing message on refresh
       router.replace("/login", { scroll: false });
     }
-  }, [searchParams, router]);
+  }, [searchParams, router, showSuccess]);
 
   const validateForm = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -53,11 +49,7 @@ function LoginForm() {
     e.preventDefault();
 
     if (!validateForm()) {
-      // Errors are already set by validateForm(), but add a general message
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        general: "Please fix the errors below to continue",
-      }));
+      showError("Please fix the errors below to continue");
       return;
     }
 
@@ -81,10 +73,11 @@ function LoginForm() {
           result.error === "CredentialsSignin"
             ? "Invalid email or password"
             : result.error || "Invalid email or password";
-        setErrors({ general: errorMessage });
+        showError(errorMessage);
         setIsLoading(false);
       } else if (result?.ok) {
         console.log("[Login] Sign in successful, redirecting...");
+        showSuccess("Sign in successful! Redirecting...");
         // Redirect to callbackUrl if provided, otherwise to dashboard
         // Validate callbackUrl to prevent open redirect vulnerability
         const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
@@ -92,11 +85,13 @@ function LoginForm() {
         const isValidCallback =
           callbackUrl.startsWith("/") && !callbackUrl.startsWith("//");
         const safeCallbackUrl = isValidCallback ? callbackUrl : "/dashboard";
-        router.push(safeCallbackUrl);
-        router.refresh();
+        setTimeout(() => {
+          router.push(safeCallbackUrl);
+          router.refresh();
+        }, 500);
       } else {
         console.warn("[Login] Unexpected sign in result:", result);
-        setErrors({ general: "Invalid email or password" });
+        showError("Invalid email or password");
         setIsLoading(false);
       }
     } catch (error) {
@@ -106,7 +101,7 @@ function LoginForm() {
         error instanceof Error
           ? `Connection error: ${error.message}. Please ensure the API server is running.`
           : "An error occurred. Please try again.";
-      setErrors({ general: errorMessage });
+      showError(errorMessage);
       setIsLoading(false);
     }
   };
@@ -115,43 +110,30 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
         <Card title="Sign In">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {successMessage && (
-              <div className="rounded-md bg-green-50 p-4">
-                <p className="text-sm text-green-800">{successMessage}</p>
-              </div>
-            )}
-            {errors.general && (
-              <div className="rounded-md bg-red-50 p-4">
-                <p className="text-sm text-red-800">{errors.general}</p>
-              </div>
-            )}
-
+          <form
+            onSubmit={handleSubmit}
+            className="space-y-4"
+            aria-label="Sign in form"
+            noValidate
+          >
             <Input
               label="Email"
               type="email"
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                // Clear success message when user starts typing
-                if (successMessage) {
-                  setSuccessMessage(null);
-                }
                 // Clear error when user starts typing
                 if (errors.email) {
                   setErrors((prev) => ({ ...prev, email: undefined }));
-                }
-                // Clear general error if it was a validation error
-                if (
-                  errors.general === "Please fix the errors below to continue"
-                ) {
-                  setErrors((prev) => ({ ...prev, general: undefined }));
                 }
               }}
               error={errors.email}
               disabled={isLoading}
               required
               autoComplete="email"
+              aria-required="true"
+              aria-invalid={errors.email ? "true" : "false"}
+              aria-describedby={errors.email ? "email-error" : undefined}
             />
 
             <Input
@@ -160,25 +142,18 @@ function LoginForm() {
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                // Clear success message when user starts typing
-                if (successMessage) {
-                  setSuccessMessage(null);
-                }
                 // Clear error when user starts typing
                 if (errors.password) {
                   setErrors((prev) => ({ ...prev, password: undefined }));
-                }
-                // Clear general error if it was a validation error
-                if (
-                  errors.general === "Please fix the errors below to continue"
-                ) {
-                  setErrors((prev) => ({ ...prev, general: undefined }));
                 }
               }}
               error={errors.password}
               disabled={isLoading}
               required
               autoComplete="current-password"
+              aria-required="true"
+              aria-invalid={errors.password ? "true" : "false"}
+              aria-describedby={errors.password ? "password-error" : undefined}
             />
 
             <Button
@@ -186,6 +161,7 @@ function LoginForm() {
               variant="primary"
               className="w-full"
               disabled={isLoading}
+              aria-busy={isLoading}
             >
               {isLoading ? "Signing in..." : "Sign In"}
             </Button>
