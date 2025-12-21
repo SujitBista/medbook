@@ -26,7 +26,8 @@ const createStorageMock = () => {
 
 if (
   !("localStorage" in globalThis) ||
-  typeof (globalThis as any).localStorage?.clear !== "function"
+  typeof (globalThis as unknown as { localStorage?: Storage }).localStorage
+    ?.clear !== "function"
 ) {
   Object.defineProperty(globalThis, "localStorage", {
     value: createStorageMock(),
@@ -36,7 +37,8 @@ if (
 
 if (
   !("sessionStorage" in globalThis) ||
-  typeof (globalThis as any).sessionStorage?.clear !== "function"
+  typeof (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
+    ?.clear !== "function"
 ) {
   Object.defineProperty(globalThis, "sessionStorage", {
     value: createStorageMock(),
