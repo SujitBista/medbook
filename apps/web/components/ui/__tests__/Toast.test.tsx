@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { ToastComponent, Toast } from "@medbook/ui";
 
@@ -68,7 +68,8 @@ describe("ToastComponent", () => {
   });
 
   it("calls onClose when close button is clicked", async () => {
-    const user = userEvent.setup({ delay: null });
+    vi.useRealTimers();
+    const user = userEvent.setup();
     render(<ToastComponent toast={mockToast} onClose={mockOnClose} />);
 
     const closeButton = screen.getByLabelText("Close notification");
@@ -88,9 +89,7 @@ describe("ToastComponent", () => {
 
     vi.advanceTimersByTime(5000);
 
-    await waitFor(() => {
-      expect(mockOnClose).toHaveBeenCalledWith("test-toast-1");
-    });
+    expect(mockOnClose).toHaveBeenCalledWith("test-toast-1");
   });
 
   it("does not auto-close when duration is 0", async () => {
@@ -103,11 +102,6 @@ describe("ToastComponent", () => {
 
     vi.advanceTimersByTime(10000);
 
-    await waitFor(
-      () => {
-        expect(mockOnClose).not.toHaveBeenCalled();
-      },
-      { timeout: 100 }
-    );
+    expect(mockOnClose).not.toHaveBeenCalled();
   });
 });
