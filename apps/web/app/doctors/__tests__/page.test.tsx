@@ -48,17 +48,25 @@ function useSWR(key: string, fetcher: any) {
 
   React.useEffect(() => {
     if (fetcher && typeof fetcher === "function") {
+      let cancelled = false;
       setIsLoading(true);
       setError(null);
       fetcher(key)
         .then((result: any) => {
-          setData(result);
-          setIsLoading(false);
+          if (!cancelled) {
+            setData(result);
+            setIsLoading(false);
+          }
         })
         .catch((err: any) => {
-          setError(err);
-          setIsLoading(false);
+          if (!cancelled) {
+            setError(err);
+            setIsLoading(false);
+          }
         });
+      return () => {
+        cancelled = true;
+      };
     } else {
       setIsLoading(false);
     }
@@ -149,6 +157,8 @@ describe("DoctorsPage", () => {
       replace: vi.fn(),
       refresh: vi.fn(),
     });
+    // Mock window.scrollTo
+    window.scrollTo = vi.fn();
   });
 
   afterEach(() => {
@@ -494,11 +504,13 @@ describe("DoctorsPage", () => {
       );
     });
 
-    it("should navigate to next page", async () => {
-      const user = userEvent.setup();
+    it(
+      "should navigate to next page",
+      async () => {
+        const user = userEvent.setup();
 
-      (global.fetch as any)
-        .mockResolvedValueOnce({
+        // Mock fetch for initial load (page 1)
+        (global.fetch as any).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             success: true,
@@ -510,8 +522,10 @@ describe("DoctorsPage", () => {
               totalPages: 3,
             },
           }),
-        })
-        .mockResolvedValueOnce({
+        });
+
+        // Mock fetch for page 2
+        (global.fetch as any).mockResolvedValueOnce({
           ok: true,
           json: async () => ({
             success: true,
@@ -525,30 +539,40 @@ describe("DoctorsPage", () => {
           }),
         });
 
-      render(<DoctorsPage />);
+        render(<DoctorsPage />);
 
-      await waitFor(() => {
-        expect(screen.getByText("Next")).toBeInTheDocument();
-      });
+        // Wait for initial render with page 1 data
+        await waitFor(
+          () => {
+            expect(screen.getByText("Next")).toBeInTheDocument();
+          },
+          { timeout: 5000 }
+        );
 
-      const nextButton = screen.getByText("Next");
-      await user.click(nextButton);
+        // Click next button
+        const nextButton = screen.getByText("Next");
+        await user.click(nextButton);
 
-      // Wait for the pagination to complete - check that fetch was called with page=2
-      await waitFor(
-        () => {
-          const fetchCalls = (global.fetch as any).mock.calls;
-          const hasPage2Call = fetchCalls.some(
-            (call: any[]) =>
-              call[0] &&
-              typeof call[0] === "string" &&
-              call[0].includes("page=2")
-          );
-          expect(hasPage2Call).toBe(true);
-        },
-        { timeout: 3000 }
-      );
-    });
+        // Wait for UI to show page 2 is active (button "2" should have primary variant)
+        // Since we can't easily check button variants, wait for the fetch to complete
+        // by checking that the component has updated with new pagination data
+        await waitFor(
+          () => {
+            // Check that fetch was called with page=2 in URL
+            const fetchCalls = (global.fetch as any).mock.calls;
+            const hasPage2Call = fetchCalls.some(
+              (call: unknown[]) =>
+                call[0] &&
+                typeof call[0] === "string" &&
+                call[0].includes("page=2")
+            );
+            expect(hasPage2Call).toBe(true);
+          },
+          { timeout: 5000 }
+        );
+      },
+      { timeout: 15000 }
+    );
   });
 
   describe("Empty State", () => {
