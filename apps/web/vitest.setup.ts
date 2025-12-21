@@ -24,25 +24,39 @@ const createStorageMock = () => {
   };
 };
 
-if (
-  !("localStorage" in globalThis) ||
-  typeof (globalThis as unknown as { localStorage?: Storage }).localStorage
-    ?.clear !== "function"
-) {
+const localStorageDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "localStorage"
+);
+const shouldShimLocalStorage =
+  !localStorageDescriptor ||
+  typeof localStorageDescriptor.get === "function" ||
+  typeof (localStorageDescriptor.value as Storage | undefined)?.clear !==
+    "function";
+
+if (shouldShimLocalStorage) {
   Object.defineProperty(globalThis, "localStorage", {
     value: createStorageMock(),
     writable: true,
+    configurable: true,
   });
 }
 
-if (
-  !("sessionStorage" in globalThis) ||
-  typeof (globalThis as unknown as { sessionStorage?: Storage }).sessionStorage
-    ?.clear !== "function"
-) {
+const sessionStorageDescriptor = Object.getOwnPropertyDescriptor(
+  globalThis,
+  "sessionStorage"
+);
+const shouldShimSessionStorage =
+  !sessionStorageDescriptor ||
+  typeof sessionStorageDescriptor.get === "function" ||
+  typeof (sessionStorageDescriptor.value as Storage | undefined)?.clear !==
+    "function";
+
+if (shouldShimSessionStorage) {
   Object.defineProperty(globalThis, "sessionStorage", {
     value: createStorageMock(),
     writable: true,
+    configurable: true,
   });
 }
 

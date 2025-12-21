@@ -504,75 +504,71 @@ describe("DoctorsPage", () => {
       );
     });
 
-    it(
-      "should navigate to next page",
-      async () => {
-        const user = userEvent.setup();
+    it("should navigate to next page", { timeout: 15000 }, async () => {
+      const user = userEvent.setup();
 
-        // Mock fetch for initial load (page 1)
-        (global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            success: true,
-            data: mockDoctors,
-            pagination: {
-              page: 1,
-              limit: 12,
-              total: 25,
-              totalPages: 3,
-            },
-          }),
-        });
-
-        // Mock fetch for page 2
-        (global.fetch as any).mockResolvedValueOnce({
-          ok: true,
-          json: async () => ({
-            success: true,
-            data: [],
-            pagination: {
-              page: 2,
-              limit: 12,
-              total: 25,
-              totalPages: 3,
-            },
-          }),
-        });
-
-        render(<DoctorsPage />);
-
-        // Wait for initial render with page 1 data
-        await waitFor(
-          () => {
-            expect(screen.getByText("Next")).toBeInTheDocument();
+      // Mock fetch for initial load (page 1)
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: mockDoctors,
+          pagination: {
+            page: 1,
+            limit: 12,
+            total: 25,
+            totalPages: 3,
           },
-          { timeout: 5000 }
-        );
+        }),
+      });
 
-        // Click next button
-        const nextButton = screen.getByText("Next");
-        await user.click(nextButton);
-
-        // Wait for UI to show page 2 is active (button "2" should have primary variant)
-        // Since we can't easily check button variants, wait for the fetch to complete
-        // by checking that the component has updated with new pagination data
-        await waitFor(
-          () => {
-            // Check that fetch was called with page=2 in URL
-            const fetchCalls = (global.fetch as any).mock.calls;
-            const hasPage2Call = fetchCalls.some(
-              (call: unknown[]) =>
-                call[0] &&
-                typeof call[0] === "string" &&
-                call[0].includes("page=2")
-            );
-            expect(hasPage2Call).toBe(true);
+      // Mock fetch for page 2
+      (global.fetch as any).mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: [],
+          pagination: {
+            page: 2,
+            limit: 12,
+            total: 25,
+            totalPages: 3,
           },
-          { timeout: 5000 }
-        );
-      },
-      { timeout: 15000 }
-    );
+        }),
+      });
+
+      render(<DoctorsPage />);
+
+      // Wait for initial render with page 1 data
+      await waitFor(
+        () => {
+          expect(screen.getByText("Next")).toBeInTheDocument();
+        },
+        { timeout: 5000 }
+      );
+
+      // Click next button
+      const nextButton = screen.getByText("Next");
+      await user.click(nextButton);
+
+      // Wait for UI to show page 2 is active (button "2" should have primary variant)
+      // Since we can't easily check button variants, wait for the fetch to complete
+      // by checking that the component has updated with new pagination data
+      await waitFor(
+        () => {
+          // Check that fetch was called with page=2 in URL
+          const fetchCalls = (global.fetch as any).mock.calls;
+          const hasPage2Call = fetchCalls.some(
+            (call: unknown[]) =>
+              call[0] &&
+              typeof call[0] === "string" &&
+              call[0].includes("page=2")
+          );
+          expect(hasPage2Call).toBe(true);
+        },
+        { timeout: 5000 }
+      );
+    });
   });
 
   describe("Empty State", () => {
