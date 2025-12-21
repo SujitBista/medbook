@@ -7,6 +7,8 @@ import Link from "next/link";
 
 export function AuthStatus() {
   const { data: session, status } = useSession();
+  const isExpired =
+    session?.expires && new Date(session.expires).getTime() <= Date.now();
 
   if (status === "loading") {
     return (
@@ -17,7 +19,7 @@ export function AuthStatus() {
     );
   }
 
-  if (!session) {
+  if (status !== "authenticated" || !session || isExpired) {
     return (
       <div className="flex items-center gap-4">
         <Link href="/login">
