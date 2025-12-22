@@ -7,6 +7,7 @@ import {
   notFoundHandler,
   requestLogger,
   basicRateLimiter,
+  securityHeaders,
 } from "./middleware";
 
 /**
@@ -15,6 +16,9 @@ import {
  */
 export function createApp(): Express {
   const app = express();
+
+  // Security headers - must be first to protect all responses
+  app.use(securityHeaders);
 
   // CORS middleware - must be before other middleware
   app.use(corsMiddleware);
