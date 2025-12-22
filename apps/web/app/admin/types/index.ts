@@ -96,6 +96,7 @@ export interface DoctorStats {
 }
 
 export type TabType =
+  | "dashboard"
   | "general"
   | "doctors"
   | "schedule-management"

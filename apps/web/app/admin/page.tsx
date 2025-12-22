@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useState, Suspense, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { ProtectedRoute } from "@/app/components/ProtectedRoute";
 import { UserRole } from "@medbook/types";
+import { AdminLayout } from "@/components/admin/layout/AdminLayout";
 import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationModal";
-import { TabNavigation } from "@/components/admin/TabNavigation";
+import { DashboardTab } from "@/components/admin/tabs/DashboardTab";
 import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
@@ -22,7 +24,10 @@ import type {
 export const dynamic = "force-dynamic";
 
 function AdminDashboardContent() {
-  const [activeTab, setActiveTab] = useState<TabType>("general");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  // Default to dashboard if no tab param, otherwise use the param or fallback to general
+  const activeTab: TabType = (tabParam as TabType) || "dashboard";
   const [users, setUsers] = useState<User[]>([]);
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [appointmentStats, setAppointmentStats] =
@@ -177,24 +182,19 @@ function AdminDashboardContent() {
 
   if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-          <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+      <AdminLayout>
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+          </div>
         </div>
-      </div>
+      </AdminLayout>
     );
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-        <p className="mt-2 text-gray-600">
-          Manage users, doctors, and system settings
-        </p>
-      </div>
-
+    <AdminLayout>
       {error && (
         <div className="mb-6 rounded-lg bg-red-50 p-4 text-red-800">
           <p className="font-medium">Error: {error}</p>
@@ -207,8 +207,14 @@ function AdminDashboardContent() {
         </div>
       )}
 
-      {/* Tab Navigation */}
-      <TabNavigation activeTab={activeTab} onTabChange={setActiveTab} />
+      {/* Dashboard Tab */}
+      {activeTab === "dashboard" && (
+        <DashboardTab
+          stats={stats}
+          appointmentStats={appointmentStats}
+          appointmentStatsLoading={appointmentStatsLoading}
+        />
+      )}
 
       {/* General Tab */}
       {activeTab === "general" && (
@@ -244,7 +250,9 @@ function AdminDashboardContent() {
             setTimeout(() => setSuccessMessage(null), 5000);
           }}
           onDoctorSelectForSchedule={() => {
-            setActiveTab("schedule-management");
+            // Navigate to schedule management via URL
+            window.history.pushState({}, "", "/admin?tab=schedule-management");
+            window.location.reload();
           }}
         />
       )}
@@ -291,25 +299,27 @@ function AdminDashboardContent() {
           }, 5000);
         }}
       />
-    </div>
+    </AdminLayout>
   );
 }
 
 export default function AdminDashboard() {
   return (
-    <Suspense
-      fallback={
-        <div className="flex min-h-screen items-center justify-center">
-          <div className="text-center">
-            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-            <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
-          </div>
-        </div>
-      }
-    >
-      <ProtectedRoute requiredRoles={[UserRole.ADMIN]}>
+    <ProtectedRoute requiredRoles={[UserRole.ADMIN]}>
+      <Suspense
+        fallback={
+          <AdminLayout>
+            <div className="flex min-h-[60vh] items-center justify-center">
+              <div className="text-center">
+                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+                <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
+              </div>
+            </div>
+          </AdminLayout>
+        }
+      >
         <AdminDashboardContent />
-      </ProtectedRoute>
-    </Suspense>
+      </Suspense>
+    </ProtectedRoute>
   );
 }
