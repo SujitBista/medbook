@@ -305,21 +305,21 @@ function AdminDashboardContent() {
 
 export default function AdminDashboard() {
   return (
-    <ProtectedRoute requiredRoles={[UserRole.ADMIN]}>
-      <Suspense
-        fallback={
-          <AdminLayout>
-            <div className="flex min-h-[60vh] items-center justify-center">
-              <div className="text-center">
-                <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
-                <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
-              </div>
+    <Suspense
+      fallback={
+        <AdminLayout>
+          <div className="flex min-h-[60vh] items-center justify-center">
+            <div className="text-center">
+              <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+              <p className="mt-4 text-gray-600">Loading admin dashboard...</p>
             </div>
-          </AdminLayout>
-        }
-      >
+          </div>
+        </AdminLayout>
+      }
+    >
+      <ProtectedRoute requiredRoles={[UserRole.ADMIN]}>
         <AdminDashboardContent />
-      </Suspense>
-    </ProtectedRoute>
+      </ProtectedRoute>
+    </Suspense>
   );
 }

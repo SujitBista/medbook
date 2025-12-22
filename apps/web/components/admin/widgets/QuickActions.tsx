@@ -12,7 +12,7 @@ interface QuickAction {
   id: string;
   label: string;
   description: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof UserPlusIcon;
   href: string;
   color: string;
 }

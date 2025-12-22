@@ -22,7 +22,7 @@ interface NavItem {
   id: string;
   label: string;
   href: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof HomeIcon;
 }
 
 const navItems: NavItem[] = [

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { AdminSidebar } from "./AdminSidebar";
 import { AdminHeader } from "./AdminHeader";
 import { AdminBreadcrumbs } from "./AdminBreadcrumbs";
@@ -49,7 +49,9 @@ export function AdminLayout({ children }: AdminLayoutProps) {
         {/* Page content */}
         <main className="flex-1 overflow-y-auto">
           <div className="container mx-auto px-4 py-6 lg:px-8">
-            <AdminBreadcrumbs />
+            <Suspense fallback={null}>
+              <AdminBreadcrumbs />
+            </Suspense>
             {children}
           </div>
         </main>

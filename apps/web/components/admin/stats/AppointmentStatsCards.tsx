@@ -22,7 +22,7 @@ interface AppointmentStatsCardsProps {
 function formatGrowthTrend(change: number): {
   text: string;
   color: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof ArrowTrendingUpIcon;
 } {
   if (change > 0) {
     return {

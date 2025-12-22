@@ -8,7 +8,7 @@ interface ActivityItem {
   action: string;
   description: string;
   timestamp: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: typeof ClockIcon;
   color: string;
 }
 
