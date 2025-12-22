@@ -1,0 +1,14 @@
+{
+  "buildCommand": "cd ../.. && pnpm install --frozen-lockfile && pnpm build --filter=web",
+  "outputDirectory": "apps/web/.next",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
+  "devCommand": "cd ../.. && pnpm dev --filter=web",
+  "rootDirectory": "apps/web",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
