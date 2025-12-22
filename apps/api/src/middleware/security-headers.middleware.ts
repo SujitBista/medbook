@@ -34,8 +34,6 @@ export const securityHeadersMiddleware: RequestHandler = helmet({
   crossOriginResourcePolicy: { policy: "same-origin" },
   // DNS Prefetch Control
   dnsPrefetchControl: true,
-  // Expect-CT header (deprecated but some browsers still use it)
-  expectCt: false,
   // Frameguard - prevent clickjacking
   frameguard: { action: "deny" },
   // Hide powered-by header
@@ -52,42 +50,8 @@ export const securityHeadersMiddleware: RequestHandler = helmet({
   noSniff: true,
   // Origin Agent Cluster
   originAgentCluster: true,
-  // Permissions Policy (formerly Feature Policy)
-  permissionsPolicy: {
-    features: {
-      accelerometer: ["'none'"],
-      ambientLightSensor: ["'none'"],
-      autoplay: ["'none'"],
-      battery: ["'none'"],
-      camera: ["'none'"],
-      crossOriginIsolated: ["'none'"],
-      displayCapture: ["'none'"],
-      documentDomain: ["'none'"],
-      encryptedMedia: ["'none'"],
-      executionWhileNotRendered: ["'none'"],
-      executionWhileRendered: ["'none'"],
-      fullscreen: ["'self'"],
-      geolocation: ["'none'"],
-      gyroscope: ["'none'"],
-      keyboardMap: ["'none'"],
-      magnetometer: ["'none'"],
-      microphone: ["'none'"],
-      midi: ["'none'"],
-      navigationOverride: ["'none'"],
-      payment: ["'none'"],
-      pictureInPicture: ["'none'"],
-      publickeyCredentials: ["'none'"],
-      screenWakeLock: ["'none'"],
-      syncXhr: ["'none'"],
-      usb: ["'none'"],
-      webShare: ["'none'"],
-      xrSpatialTracking: ["'none'"],
-    },
-  },
   // Referrer Policy
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
-  // XSS Filter (deprecated but harmless)
-  xssFilter: true,
 });
 
 /**
@@ -107,6 +71,41 @@ export function customSecurityHeadersMiddleware(
 
   // X-XSS-Protection (deprecated but still used by older browsers)
   res.setHeader("X-XSS-Protection", "1; mode=block");
+
+  // Permissions Policy (formerly Feature Policy)
+  // Set restrictive permissions policy to disable unnecessary browser features
+  res.setHeader(
+    "Permissions-Policy",
+    [
+      "accelerometer=()",
+      "ambient-light-sensor=()",
+      "autoplay=()",
+      "battery=()",
+      "camera=()",
+      "cross-origin-isolated=()",
+      "display-capture=()",
+      "document-domain=()",
+      "encrypted-media=()",
+      "execution-while-not-rendered=()",
+      "execution-while-rendered=()",
+      "fullscreen=(self)",
+      "geolocation=()",
+      "gyroscope=()",
+      "keyboard-map=()",
+      "magnetometer=()",
+      "microphone=()",
+      "midi=()",
+      "navigation-override=()",
+      "payment=()",
+      "picture-in-picture=()",
+      "publickey-credentials-get=()",
+      "screen-wake-lock=()",
+      "sync-xhr=()",
+      "usb=()",
+      "web-share=()",
+      "xr-spatial-tracking=()",
+    ].join(", ")
+  );
 
   // Don't expose server information
   res.removeHeader("X-Powered-By");
