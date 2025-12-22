@@ -272,6 +272,53 @@ See [infrastructure/n8n/env.template](./infrastructure/n8n/env.template) for all
 
 ---
 
+## Deployment
+
+MedBook can be deployed to production using the following platforms:
+
+- **Frontend**: Vercel (recommended for Next.js)
+- **Backend**: Railway or Render
+- **Database**: Railway PostgreSQL, Render PostgreSQL, Supabase, or Neon
+
+### Quick Start
+
+1. **Set up production database** (PostgreSQL 14+)
+2. **Configure environment variables** (see [DEPLOYMENT.md](./DEPLOYMENT.md))
+3. **Deploy frontend to Vercel**
+4. **Deploy backend to Railway/Render**
+5. **Run database migrations**
+
+### Detailed Deployment Guide
+
+For complete deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+The deployment guide covers:
+
+- Environment variable configuration
+- Database setup and migrations
+- Vercel frontend deployment
+- Railway/Render backend deployment
+- CI/CD pipeline setup
+- Domain and SSL configuration
+- Monitoring and error tracking
+
+### Deployment Scripts
+
+Use the deployment helper script:
+
+```bash
+./scripts/deploy.sh
+```
+
+This script provides:
+
+- Database migration runner
+- Environment variable checker
+- Secret generator
+- Build and test runners
+
+---
+
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
