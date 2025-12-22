@@ -70,13 +70,15 @@ describe("Security Headers Middleware", () => {
     expect(response.headers["referrer-policy"]).toBeDefined();
   });
 
-  it("should set Permissions-Policy header via helmet", async () => {
+  it("should set Permissions-Policy header", async () => {
     const response = await request(app).get("/test");
-    // Helmet may set this header, but it's optional depending on helmet version
-    // Check for either permissions-policy or feature-policy (older name)
-    const hasPermissionsPolicy =
-      response.headers["permissions-policy"] !== undefined ||
-      response.headers["feature-policy"] !== undefined;
-    expect(hasPermissionsPolicy || true).toBe(true); // Always pass - helmet handles this
+    // Permissions-Policy is set in customSecurityHeadersMiddleware
+    expect(response.headers["permissions-policy"]).toBeDefined();
+    expect(response.headers["permissions-policy"]).toContain(
+      "accelerometer=()"
+    );
+    expect(response.headers["permissions-policy"]).toContain(
+      "fullscreen=(self)"
+    );
   });
 });
