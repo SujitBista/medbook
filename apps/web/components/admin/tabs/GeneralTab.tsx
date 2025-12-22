@@ -52,6 +52,7 @@ export function GeneralTab({
         users={users}
         onRoleChange={onRoleChangeClick}
         onDelete={onDeleteUser}
+        loading={false}
       />
 
       {/* Role Change Modal */}
