@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: medbook-api
+    env: node
+    buildCommand: pnpm install --frozen-lockfile && pnpm build --filter=api
+    startCommand: cd apps/api && pnpm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+    healthCheckPath: /health
+    plan: starter
+
