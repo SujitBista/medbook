@@ -1,0 +1,13 @@
+{
+  "buildCommand": "cd ../.. && NODE_ENV=development pnpm install && pnpm build --filter=web",
+  "outputDirectory": ".next",
+  "framework": "nextjs",
+  "installCommand": "cd ../.. && NODE_ENV=development pnpm install",
+  "devCommand": "cd ../.. && pnpm dev --filter=web",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/$1"
+    }
+  ]
+}
