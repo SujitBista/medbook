@@ -156,6 +156,9 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.1.17
+      typescript:
+        specifier: ^5
+        version: 5.9.3
       zod:
         specifier: ^4.1.13
         version: 4.1.13
@@ -205,9 +208,6 @@ importers:
       playwright:
         specifier: ^1.57.0
         version: 1.57.0
-      typescript:
-        specifier: ^5
-        version: 5.9.3
       vitest:
         specifier: ^4.0.14
         version: 4.0.14(@types/node@20.19.24)(@vitest/ui@4.0.14)(jsdom@27.2.0)(msw@2.12.4)
@@ -7245,7 +7245,6 @@ packages:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
-    dev: true
 
   /unbox-primitive@1.1.0:
     resolution: {integrity: sha512-nWJ91DjeOkej/TA8pXQ3myruKpKEYgqvpw9lz4OPHj/NWFNluYrjbz9j01CJ8yKQd2g4jFoOkINCTW2I5LEEyw==}
