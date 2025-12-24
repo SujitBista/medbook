@@ -28,6 +28,7 @@
     "recharts": "^3.6.0",
     "swr": "^2.3.7",
     "tailwindcss": "^4",
+    "typescript": "^5",
     "zod": "^4.1.13"
   },
   "devDependencies": {
@@ -46,7 +47,6 @@
     "jsdom": "^27.2.0",
     "msw": "^2.12.4",
     "playwright": "^1.57.0",
-    "typescript": "^5",
     "vitest": "^4.0.14"
   }
 }
