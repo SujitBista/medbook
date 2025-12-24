@@ -4,7 +4,6 @@
   "framework": "nextjs",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "devCommand": "cd ../.. && pnpm dev --filter=web",
-  "rootDirectory": "apps/web",
   "rewrites": [
     {
       "source": "/api/(.*)",
