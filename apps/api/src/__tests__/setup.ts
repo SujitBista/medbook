@@ -6,7 +6,7 @@
 import { beforeAll, afterAll } from "vitest";
 
 // Set test environment variables
-process.env.NODE_ENV = "test";
+(process.env as { NODE_ENV?: string }).NODE_ENV = "test";
 process.env.JWT_SECRET = "test-jwt-secret-for-testing-only";
 process.env.PORT = "4000";
 process.env.API_URL = "http://localhost:4000";

@@ -44,7 +44,7 @@ describe("Security Headers Middleware", () => {
 
   it("should set Strict-Transport-Security header in production", async () => {
     const originalEnv = process.env.NODE_ENV;
-    process.env.NODE_ENV = "production";
+    (process.env as { NODE_ENV?: string }).NODE_ENV = "production";
 
     const prodApp = express();
     prodApp.use(securityHeaders);
@@ -57,7 +57,7 @@ describe("Security Headers Middleware", () => {
       "max-age=31536000"
     );
 
-    process.env.NODE_ENV = originalEnv;
+    (process.env as { NODE_ENV?: string }).NODE_ENV = originalEnv;
   });
 
   it("should set Content-Security-Policy header via helmet", async () => {
