@@ -1,7 +1,10 @@
 import { auth } from "@/lib/auth";
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import jwt from "jsonwebtoken";
+
+// Force dynamic rendering - this is an API route that requires authentication
+export const dynamic = "force-dynamic";
 
 /**
  * Generate JWT token for backend API calls
@@ -15,7 +18,7 @@ function generateBackendToken(userId: string, role: string): string {
  * GET /api/admin/appointments/stats
  * Get appointment statistics (admin only)
  */
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
     const session = await auth();
 

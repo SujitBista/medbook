@@ -10,11 +10,6 @@ export default defineConfig({
     exclude: ["node_modules", "dist", "**/*.config.*"],
     // Run tests sequentially to avoid database conflicts
     pool: "forks",
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
     // Ensure tests run one at a time, not concurrently
     sequence: {
       concurrent: false,

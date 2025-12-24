@@ -75,7 +75,7 @@ describe("corsMiddleware", () => {
     it("should allow no-origin requests in development mode", async () => {
       // Set NODE_ENV to development (or leave unset, which defaults to development)
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "development";
+      (process.env as { NODE_ENV?: string }).NODE_ENV = "development";
       process.env.CORS_ORIGIN = "http://localhost:3000";
       process.env.CORS_ALLOW_NO_ORIGIN = "false"; // Even when false, dev mode allows it
       process.env.CORS_ALLOW_NULL_ORIGIN = "false";
@@ -89,16 +89,16 @@ describe("corsMiddleware", () => {
 
       // Restore original NODE_ENV
       if (originalNodeEnv) {
-        process.env.NODE_ENV = originalNodeEnv;
+        (process.env as { NODE_ENV?: string }).NODE_ENV = originalNodeEnv;
       } else {
-        delete process.env.NODE_ENV;
+        delete (process.env as { NODE_ENV?: string }).NODE_ENV;
       }
     });
 
     it("should deny no-origin requests in production when CORS_ALLOW_NO_ORIGIN is false", async () => {
       // Set NODE_ENV to production to test production behavior
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as { NODE_ENV?: string }).NODE_ENV = "production";
       process.env.CORS_ORIGIN = "http://localhost:3000";
       process.env.CORS_ALLOW_NO_ORIGIN = "false";
       process.env.CORS_ALLOW_NULL_ORIGIN = "false";
@@ -115,16 +115,16 @@ describe("corsMiddleware", () => {
 
       // Restore original NODE_ENV
       if (originalNodeEnv) {
-        process.env.NODE_ENV = originalNodeEnv;
+        (process.env as { NODE_ENV?: string }).NODE_ENV = originalNodeEnv;
       } else {
-        delete process.env.NODE_ENV;
+        delete (process.env as { NODE_ENV?: string }).NODE_ENV;
       }
     });
 
     it("should allow no-origin requests in production when CORS_ALLOW_NO_ORIGIN is true", async () => {
       // Set NODE_ENV to production but allow no-origin
       const originalNodeEnv = process.env.NODE_ENV;
-      process.env.NODE_ENV = "production";
+      (process.env as { NODE_ENV?: string }).NODE_ENV = "production";
       process.env.CORS_ORIGIN = "http://localhost:3000";
       process.env.CORS_ALLOW_NO_ORIGIN = "true";
       process.env.CORS_ALLOW_NULL_ORIGIN = "false";
@@ -138,9 +138,9 @@ describe("corsMiddleware", () => {
 
       // Restore original NODE_ENV
       if (originalNodeEnv) {
-        process.env.NODE_ENV = originalNodeEnv;
+        (process.env as { NODE_ENV?: string }).NODE_ENV = originalNodeEnv;
       } else {
-        delete process.env.NODE_ENV;
+        delete (process.env as { NODE_ENV?: string }).NODE_ENV;
       }
     });
   });
