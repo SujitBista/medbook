@@ -19,7 +19,7 @@
     "db:migrate:create": "pnpm --filter @app/db db:migrate:create",
     "db:migrate:reset": "pnpm --filter @app/db db:migrate:reset",
     "db:seed": "pnpm --filter @app/db db:seed",
-    "prepare": "husky"
+    "prepare": "node -e \"if (!process.env.CI && !process.env.VERCEL) { try { require('child_process').execSync('husky', { stdio: 'ignore' }) } catch(e) {} }\""
   },
   "devDependencies": {
     "@vitest/coverage-istanbul": "^4.0.14",
