@@ -124,7 +124,6 @@ jobs:
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
           vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
           vercel-args: '--prod --yes'
-          working-directory: ./apps/web
 
   # Deploy backend to Railway/Render
   deploy-backend:
