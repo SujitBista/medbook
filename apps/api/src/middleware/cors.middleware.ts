@@ -113,6 +113,21 @@ const corsOptions: CorsOptions = {
       return callback(null, true);
     }
 
+    // Allow Vercel preview URLs (pattern: *.vercel.app)
+    // This allows both production (medbook-lake.vercel.app) and all preview deployments
+    // Preview URLs follow patterns like:
+    // - https://medbook-git-<branch>-<username>.vercel.app
+    // - https://medbook-<hash>.vercel.app
+    if (normalizedOrigin.endsWith(".vercel.app")) {
+      // Check NODE_ENV dynamically for each request to allow test overrides
+      const isDevForLogging =
+        (process.env.NODE_ENV || "development") === "development";
+      if (isDevForLogging) {
+        logger.debug(`CORS: Allowing Vercel preview URL: ${origin}`);
+      }
+      return callback(null, true);
+    }
+
     // Log denied origin (without exposing full origin in production)
     // Check NODE_ENV dynamically for each request to allow test overrides
     const isDevForLogging =
