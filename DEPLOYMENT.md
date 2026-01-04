@@ -158,6 +158,23 @@ DATABASE_URL=your-production-database-url pnpm db:seed
    - Vercel will automatically deploy on push to `main` branch
    - Or trigger manual deployment from the dashboard
 
+### Updating Vercel Build Settings
+
+If you need to update Vercel project build settings (e.g., after changes to the monorepo structure), you can use the provided script:
+
+```bash
+VERCEL_TOKEN=your_vercel_token node scripts/update-vercel-build-settings.js
+```
+
+This script updates:
+
+- Root Directory: `apps/web`
+- Install Command: `cd ../.. && pnpm install --frozen-lockfile`
+- Build Command: `cd ../.. && pnpm build --filter=web`
+- Output Directory: `.next`
+
+Get your Vercel token from: https://vercel.com/account/tokens
+
 ### Vercel Configuration
 
 Vercel automatically detects Next.js projects and handles configuration. Build settings (root directory, build commands, etc.) should be configured in Vercel project settings, not in a `vercel.json` file.
@@ -418,6 +435,8 @@ After deployment, verify:
 - Check build logs in Vercel dashboard
 - Verify all dependencies are in `package.json`
 - Ensure monorepo structure is correct
+- Verify build settings are configured correctly (see [Updating Vercel Build Settings](#updating-vercel-build-settings))
+- If build shows "0ms" duration, the build commands may be incorrect - run the update script: `VERCEL_TOKEN=your_token node scripts/update-vercel-build-settings.js`
 
 **Environment Variables Not Working**:
 
