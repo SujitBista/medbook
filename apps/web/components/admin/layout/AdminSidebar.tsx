@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import {
   HomeIcon,
@@ -9,7 +9,6 @@ import {
   CalendarIcon,
   ClockIcon,
   Cog6ToothIcon,
-  Bars3Icon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
 
@@ -32,7 +31,12 @@ const navItems: NavItem[] = [
     href: "/admin?tab=dashboard",
     icon: HomeIcon,
   },
-  { id: "users", label: "Users", href: "/admin?tab=general", icon: UsersIcon },
+  {
+    id: "general",
+    label: "Users",
+    href: "/admin?tab=general",
+    icon: UsersIcon,
+  },
   {
     id: "doctors",
     label: "Doctors",
@@ -60,11 +64,7 @@ const navItems: NavItem[] = [
 ];
 
 export function AdminSidebar({ isOpen, onToggle }: AdminSidebarProps) {
-  const pathname = usePathname();
-  const searchParams =
-    typeof window !== "undefined"
-      ? new URLSearchParams(window.location.search)
-      : null;
+  const searchParams = useSearchParams();
   const currentTab = searchParams?.get("tab") || null;
 
   const isActive = (item: NavItem) => {
