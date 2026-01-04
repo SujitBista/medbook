@@ -39,6 +39,7 @@ The API uses strict whitelist-based CORS policy for security.
 - `CORS_ORIGIN` - Comma-separated list of allowed origins. Origins are automatically normalized (lowercase, no trailing slash).
   - Default: `http://localhost:3000,http://127.0.0.1:3000,http://[::1]:3000`
   - Example: `CORS_ORIGIN=https://app.example.com,https://staging.example.com`
+  - **Note:** All origins ending with `.vercel.app` are automatically allowed in addition to the whitelist (enables Vercel preview deployments)
 
 - `CORS_ALLOW_NO_ORIGIN` - Allow requests with no Origin header (e.g., Postman, curl, server-to-server requests).
   - **Development**: Automatically enabled (no configuration needed)
@@ -65,6 +66,7 @@ pnpm start
 The API implements a strict CORS policy:
 
 - **Whitelist-based**: Only origins listed in `CORS_ORIGIN` are allowed
+- **Vercel preview support**: All origins ending with `.vercel.app` are automatically allowed (enables preview deployments)
 - **Normalized matching**: Origins are normalized (lowercase, no trailing slash) for consistent comparison
 - **Credentials support**: Cookies and authorization headers are allowed for whitelisted origins
 - **Preflight handling**: OPTIONS requests are properly handled with appropriate error responses
