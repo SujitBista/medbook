@@ -3,12 +3,12 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /**
- * Middleware to protect routes
+ * Proxy to protect routes
  * Redirects unauthenticated users to login page
  *
  * Note: In NextAuth v5, we use auth() as a wrapper that handles the request
  * properly in the edge runtime. The request is automatically passed to auth()
- * by Next.js middleware, and the session is available via req.auth in the wrapper callback.
+ * by Next.js proxy, and the session is available via req.auth in the wrapper callback.
  */
 export default auth(async (req) => {
   const request = req as NextRequest;
@@ -80,7 +80,7 @@ export default auth(async (req) => {
   return NextResponse.next();
 });
 
-// Configure which routes the middleware should run on
+// Configure which routes the proxy should run on
 export const config = {
   matcher: [
     /*
