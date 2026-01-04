@@ -389,15 +389,18 @@ function ProfilePage() {
     );
   }
 
+  // Determine redirect destination based on user role
+  const homeUrl = session?.user?.role === "ADMIN" ? "/admin" : "/";
+
   return (
     <div className="flex min-h-screen flex-col bg-gray-50">
       {/* Header */}
       <header className="border-b border-gray-200 bg-white">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
-          <Link href="/" className="text-xl font-bold text-gray-900">
+          <Link href={homeUrl} className="text-xl font-bold text-gray-900">
             MedBook
           </Link>
-          <Link href="/">
+          <Link href={homeUrl}>
             <Button variant="ghost" size="sm">
               Back to Home
             </Button>
