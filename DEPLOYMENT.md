@@ -160,11 +160,9 @@ DATABASE_URL=your-production-database-url pnpm db:seed
 
 ### Vercel Configuration
 
-The `vercel.json` file in the root directory configures:
+Vercel automatically detects Next.js projects and handles configuration. Build settings (root directory, build commands, etc.) should be configured in Vercel project settings, not in a `vercel.json` file.
 
-- Build commands for monorepo
-- API route rewrites
-- Framework settings
+**Note:** For Next.js projects, custom routing (rewrites, redirects, headers) can be configured in `vercel.json` if needed, but it's typically not required as Next.js handles routing automatically.
 
 ### Custom Domain
 
