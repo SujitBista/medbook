@@ -98,9 +98,7 @@ function LoginForm() {
       console.error("[Login] Exception caught:", error);
       // Provide more specific error messages
       const errorMessage =
-        error instanceof Error
-          ? `Connection error: ${error.message}. Please ensure the API server is running.`
-          : "An error occurred. Please try again.";
+        "The service is temporarily unavailable. Please try again later.";
       showError(errorMessage);
       setIsLoading(false);
     }

@@ -50,7 +50,7 @@ async function callBackendProfileApi(
         error: {
           code: "NETWORK_ERROR",
           message:
-            "Unable to reach profile service. Please ensure the API server is running.",
+            "The service is temporarily unavailable. Please try again later.",
         },
       },
       { status: 502 }

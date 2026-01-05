@@ -535,9 +535,7 @@ export default function RegisterPage() {
 
       setErrors({
         general:
-          error instanceof Error
-            ? `Connection error: ${error.message}. Please ensure the API server is running.`
-            : "An error occurred. Please try again.",
+          "The service is temporarily unavailable. Please try again later.",
       });
       setIsLoading(false);
     }

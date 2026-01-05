@@ -28,7 +28,14 @@ export function SystemHealthIndicators({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch system health");
+        let errorMessage = "Failed to fetch system health";
+        try {
+          const data = await response.json();
+          errorMessage = data.error?.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
