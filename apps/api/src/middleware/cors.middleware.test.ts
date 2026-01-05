@@ -60,11 +60,60 @@ describe("corsMiddleware", () => {
     expect(response.body).toBeDefined();
   });
 
+  it("should allow Vercel preview URLs (*.vercel.app)", async () => {
+    // Test various Vercel preview URL patterns
+    const vercelUrls = [
+      "https://medbook-lake.vercel.app",
+      "https://medbook-git-main-username.vercel.app",
+      "https://medbook-dqplvleue-sujitbista-1762s-projects.vercel.app",
+      "https://medbook-abc123def456.vercel.app",
+    ];
+
+    for (const url of vercelUrls) {
+      const response = await agent.get("/").set("Origin", url).expect(200);
+      expect(response.body).toBeDefined();
+    }
+  });
+
+  it("should allow Vercel preview URLs with different cases", async () => {
+    // Test that case doesn't matter (normalized to lowercase)
+    const response = await agent
+      .get("/")
+      .set("Origin", "HTTPS://MEDBOOK-LAKE.VERCEL.APP")
+      .expect(200);
+
+    expect(response.body).toBeDefined();
+  });
+
+  it("should allow Vercel preview URLs with trailing slash", async () => {
+    // Test that trailing slash is normalized
+    const response = await agent
+      .get("/")
+      .set("Origin", "https://medbook-lake.vercel.app/")
+      .expect(200);
+
+    expect(response.body).toBeDefined();
+  });
+
   it("should handle OPTIONS preflight request", async () => {
     const response = await agent
       .options("/")
       .set("Origin", "http://localhost:3000")
       .set("Access-Control-Request-Method", "POST")
+      .expect(204);
+
+    // OPTIONS requests should return 204 No Content
+    expect(response.headers["access-control-allow-origin"]).toBeDefined();
+  });
+
+  it("should handle OPTIONS preflight request from Vercel preview URL", async () => {
+    const response = await agent
+      .options("/")
+      .set(
+        "Origin",
+        "https://medbook-dqplvleue-sujitbista-1762s-projects.vercel.app"
+      )
+      .set("Access-Control-Request-Method", "GET")
       .expect(204);
 
     // OPTIONS requests should return 204 No Content

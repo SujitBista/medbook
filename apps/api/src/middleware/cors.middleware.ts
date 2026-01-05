@@ -108,6 +108,16 @@ const corsOptions: CorsOptions = {
     // Normalize the incoming origin for comparison using the same function
     const normalizedOrigin = normalizeOrigin(origin);
 
+    // Allow Vercel preview URLs automatically (*.vercel.app)
+    // This enables Vercel preview deployments to work without adding each URL to whitelist
+    // Supports both production (medbook-lake.vercel.app) and preview URLs like:
+    // - https://medbook-git-<branch>-<username>.vercel.app
+    // - https://medbook-<hash>.vercel.app
+    if (normalizedOrigin.endsWith(".vercel.app")) {
+      logger.debug(`CORS: Allowing Vercel preview URL: ${origin}`);
+      return callback(null, true);
+    }
+
     // Check if origin is in whitelist
     if (env.corsOrigins.includes(normalizedOrigin)) {
       return callback(null, true);
