@@ -43,6 +43,12 @@ export async function OPTIONS(req: NextRequest) {
  * Get all doctors (public endpoint, no auth required)
  */
 export async function GET(req: NextRequest) {
+  // Log the API URL being used (will show in Vercel function logs)
+  console.log("[Doctors] API URL from env:", env.apiUrl);
+  console.log(
+    "[Doctors] NEXT_PUBLIC_API_URL from process.env:",
+    process.env.NEXT_PUBLIC_API_URL || "not set"
+  );
   // #region agent log
   if (typeof fetch !== "undefined") {
     fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
@@ -51,7 +57,11 @@ export async function GET(req: NextRequest) {
       body: JSON.stringify({
         location: "apps/web/app/api/doctors/route.ts:30",
         message: "GET request received",
-        data: { url: req.url, apiUrl: env.apiUrl },
+        data: {
+          url: req.url,
+          apiUrl: env.apiUrl,
+          nextPublicApiUrl: process.env.NEXT_PUBLIC_API_URL || "not set",
+        },
         timestamp: Date.now(),
         sessionId: "debug-session",
         runId: "run1",
@@ -91,6 +101,26 @@ export async function GET(req: NextRequest) {
     const url = `${env.apiUrl}/doctors${queryString ? `?${queryString}` : ""}`;
 
     console.log("[Doctors] Fetching doctors:", url);
+    // #region agent log
+    if (typeof fetch !== "undefined") {
+      fetch(
+        "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "apps/web/app/api/doctors/route.ts:91",
+            message: "Building backend URL",
+            data: { envApiUrl: env.apiUrl, fullUrl: url, queryString },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "A",
+          }),
+        }
+      ).catch(() => {});
+    }
+    // #endregion
 
     // Call backend API (public endpoint, no auth required)
     let response: Response;
@@ -101,8 +131,59 @@ export async function GET(req: NextRequest) {
         },
         cache: "no-store", // Prevent Next.js caching
       });
+      // #region agent log
+      if (typeof fetch !== "undefined") {
+        fetch(
+          "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "apps/web/app/api/doctors/route.ts:103",
+              message: "Backend fetch response",
+              data: {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok,
+                url,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "B",
+            }),
+          }
+        ).catch(() => {});
+      }
+      // #endregion
     } catch (fetchError) {
       console.error("[Doctors] Fetch error (backend unavailable):", fetchError);
+      // #region agent log
+      if (typeof fetch !== "undefined") {
+        fetch(
+          "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "apps/web/app/api/doctors/route.ts:117",
+              message: "Backend fetch error",
+              data: {
+                error:
+                  fetchError instanceof Error
+                    ? fetchError.message
+                    : String(fetchError),
+                url,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "B",
+            }),
+          }
+        ).catch(() => {});
+      }
+      // #endregion
       return NextResponse.json(
         {
           success: false,
@@ -120,8 +201,59 @@ export async function GET(req: NextRequest) {
     try {
       const text = await response.text();
       data = text ? JSON.parse(text) : {};
+      // #region agent log
+      if (typeof fetch !== "undefined") {
+        fetch(
+          "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "apps/web/app/api/doctors/route.ts:128",
+              message: "Backend response parsed",
+              data: {
+                status: response.status,
+                hasData: !!data,
+                dataKeys:
+                  data && typeof data === "object" ? Object.keys(data) : [],
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "C",
+            }),
+          }
+        ).catch(() => {});
+      }
+      // #endregion
     } catch (parseError) {
       console.error("[Doctors] Failed to parse backend response:", parseError);
+      // #region agent log
+      if (typeof fetch !== "undefined") {
+        fetch(
+          "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              location: "apps/web/app/api/doctors/route.ts:138",
+              message: "Backend response parse error",
+              data: {
+                error:
+                  parseError instanceof Error
+                    ? parseError.message
+                    : String(parseError),
+                status: response.status,
+              },
+              timestamp: Date.now(),
+              sessionId: "debug-session",
+              runId: "run1",
+              hypothesisId: "C",
+            }),
+          }
+        ).catch(() => {});
+      }
+      // #endregion
       return NextResponse.json(
         {
           success: false,

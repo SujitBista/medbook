@@ -53,17 +53,119 @@ interface DoctorsResponse {
 // Fetcher function for SWR
 const fetcher = async (url: string): Promise<DoctorsResponse> => {
   console.log("[Doctors] Fetching doctors:", url);
+  // #region agent log
+  if (typeof fetch !== "undefined") {
+    fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "apps/web/app/doctors/page.tsx:55",
+        message: "Client fetcher called",
+        data: { url },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
   const response = await fetch(url, {
     cache: "no-store",
   });
 
+  // #region agent log
+  if (typeof fetch !== "undefined") {
+    fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "apps/web/app/doctors/page.tsx:61",
+        message: "Client fetch response",
+        data: {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok,
+          url,
+        },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
+
   if (!response.ok) {
+    // #region agent log
+    if (typeof fetch !== "undefined") {
+      fetch(
+        "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "apps/web/app/doctors/page.tsx:65",
+            message: "Client fetch error - response not ok",
+            data: {
+              status: response.status,
+              statusText: response.statusText,
+              url,
+            },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "D",
+          }),
+        }
+      ).catch(() => {});
+    }
+    // #endregion
     throw new Error(`Failed to fetch doctors: ${response.statusText}`);
   }
 
   const data: DoctorsResponse = await response.json();
 
+  // #region agent log
+  if (typeof fetch !== "undefined") {
+    fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        location: "apps/web/app/doctors/page.tsx:71",
+        message: "Client fetch data parsed",
+        data: { success: data.success, hasData: !!data.data, url },
+        timestamp: Date.now(),
+        sessionId: "debug-session",
+        runId: "run1",
+        hypothesisId: "D",
+      }),
+    }).catch(() => {});
+  }
+  // #endregion
+
   if (!data.success) {
+    // #region agent log
+    if (typeof fetch !== "undefined") {
+      fetch(
+        "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            location: "apps/web/app/doctors/page.tsx:77",
+            message: "Client fetch error - data.success is false",
+            data: { success: data.success, data, url },
+            timestamp: Date.now(),
+            sessionId: "debug-session",
+            runId: "run1",
+            hypothesisId: "D",
+          }),
+        }
+      ).catch(() => {});
+    }
+    // #endregion
     throw new Error("Failed to fetch doctors");
   }
 
