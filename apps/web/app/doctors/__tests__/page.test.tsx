@@ -761,6 +761,7 @@ describe("DoctorsPage", () => {
       // The component checks response.ok and response.statusText
       (global.fetch as any).mockResolvedValueOnce({
         ok: false,
+        status: 500,
         statusText: "Internal Server Error",
         json: async () => ({
           success: false,
@@ -797,10 +798,12 @@ describe("DoctorsPage", () => {
       (global.fetch as any)
         .mockResolvedValueOnce({
           ok: false,
+          status: 500,
           statusText: "Internal Server Error",
         })
         .mockResolvedValueOnce({
           ok: true,
+          status: 200,
           json: async () => ({
             success: true,
             data: [],
