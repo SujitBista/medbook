@@ -10,6 +10,7 @@ import {
   createAuthenticationError,
   createAuthorizationError,
 } from "../utils/errors";
+import { logger } from "../utils/logger";
 
 /**
  * Extended Request interface with user information
@@ -69,6 +70,12 @@ export function authenticate(
     const payload = verifyToken(token);
 
     if (!payload) {
+      logger.warn("Token verification failed", {
+        url: req.originalUrl,
+        method: req.method,
+        hasToken: !!token,
+        tokenLength: token?.length,
+      });
       const error = createAuthenticationError("Invalid or expired token");
       next(error);
       return;

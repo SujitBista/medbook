@@ -16,3 +16,6 @@ ADD COLUMN "profilePictureUrl" TEXT;
 
 
 
+
+
+

@@ -131,7 +131,43 @@ const env = {
   jwtSecret: getJwtSecret(),
 
   // API
-  apiUrl: getEnvVar("NEXT_PUBLIC_API_URL", "http://localhost:4000/api/v1"),
+  apiUrl: (() => {
+    const apiUrl = getEnvVar(
+      "NEXT_PUBLIC_API_URL",
+      "http://localhost:4000/api/v1"
+    );
+    // Validate API URL - ensure it's not empty or just a slash
+    if (!apiUrl || apiUrl === "/" || apiUrl.trim() === "") {
+      console.error(
+        "[Env] Invalid NEXT_PUBLIC_API_URL detected. Using default.",
+        { received: apiUrl }
+      );
+      return "http://localhost:4000/api/v1";
+    }
+    return apiUrl;
+  })(),
 } as const;
+
+// #region agent log
+if (typeof fetch !== "undefined") {
+  fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      location: "apps/web/lib/env.ts:135",
+      message: "API URL configured",
+      data: {
+        apiUrl: env.apiUrl,
+        nextAuthUrl: env.nextAuthUrl,
+        nextPublicApiUrl: process.env.NEXT_PUBLIC_API_URL || "not set",
+      },
+      timestamp: Date.now(),
+      sessionId: "debug-session",
+      runId: "run1",
+      hypothesisId: "B",
+    }),
+  }).catch(() => {});
+}
+// #endregion
 
 export { env };

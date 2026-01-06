@@ -16,7 +16,8 @@
     "db:migrate:deploy": "prisma migrate deploy",
     "db:migrate:create": "prisma migrate dev --create-only",
     "db:migrate:reset": "prisma migrate reset",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "db:reset-password": "tsx ../../scripts/reset-admin-password.ts"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",

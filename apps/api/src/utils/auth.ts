@@ -74,8 +74,22 @@ export function generateToken(userId: string, role: UserRole): string {
 export function verifyToken(token: string): JwtPayload | null {
   try {
     const decoded = jwt.verify(token, env.jwtSecret) as JwtPayload;
+
+    // Validate required fields
+    if (!decoded.id || !decoded.role) {
+      return null;
+    }
+
+    // Validate role is a valid UserRole enum value
+    const validRoles = Object.values(UserRole);
+    if (!validRoles.includes(decoded.role)) {
+      return null;
+    }
+
     return decoded;
   } catch (error) {
+    // jwt.verify throws errors for invalid tokens, expired tokens, etc.
+    // Return null to indicate invalid token
     return null;
   }
 }
