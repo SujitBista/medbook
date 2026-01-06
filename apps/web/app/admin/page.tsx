@@ -55,7 +55,14 @@ function AdminDashboardContent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch doctors");
+        let errorMessage = "Failed to fetch doctors";
+        try {
+          const data = await response.json();
+          errorMessage = data.error?.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
@@ -92,7 +99,20 @@ function AdminDashboardContent() {
       ]);
 
       if (!usersResponse.ok || !statsResponse.ok) {
-        throw new Error("Failed to fetch admin data");
+        let errorMessage = "Failed to fetch admin data";
+        // Try to extract error message from the failed response(s)
+        try {
+          if (!usersResponse.ok) {
+            const data = await usersResponse.json();
+            errorMessage = data.error?.message || errorMessage;
+          } else if (!statsResponse.ok) {
+            const data = await statsResponse.json();
+            errorMessage = data.error?.message || errorMessage;
+          }
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const usersData = await usersResponse.json();
@@ -165,7 +185,14 @@ function AdminDashboardContent() {
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch appointment stats");
+        let errorMessage = "Failed to fetch appointment stats";
+        try {
+          const data = await response.json();
+          errorMessage = data.error?.message || errorMessage;
+        } catch {
+          // If JSON parsing fails, use default message
+        }
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();

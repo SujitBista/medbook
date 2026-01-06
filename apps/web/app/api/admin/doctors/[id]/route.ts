@@ -48,14 +48,52 @@ export async function GET(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (fetchError) {
+      console.error(
+        "[AdminDoctors] Fetch error (backend unavailable):",
+        fetchError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NETWORK_ERROR",
+            message:
+              "The service is temporarily unavailable. Please try again later.",
+          },
+        },
+        { status: 502 }
+      );
+    }
 
-    const data = await response.json();
+    let data: unknown;
+    try {
+      const text = await response.text();
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error(
+        "[AdminDoctors] Failed to parse backend response:",
+        parseError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: "Invalid response from backend server",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(data, { status: response.status });
@@ -113,16 +151,54 @@ export async function PUT(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
-      method: "PUT",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+    } catch (fetchError) {
+      console.error(
+        "[AdminDoctors] Fetch error (backend unavailable):",
+        fetchError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NETWORK_ERROR",
+            message:
+              "The service is temporarily unavailable. Please try again later.",
+          },
+        },
+        { status: 502 }
+      );
+    }
 
-    const data = await response.json();
+    let data: unknown;
+    try {
+      const text = await response.text();
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error(
+        "[AdminDoctors] Failed to parse backend response:",
+        parseError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: "Invalid response from backend server",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(data, { status: response.status });
@@ -178,15 +254,53 @@ export async function DELETE(
     const token = generateBackendToken(session.user.id, session.user.role);
 
     // Call backend API
-    const response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
-      method: "DELETE",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      });
+    } catch (fetchError) {
+      console.error(
+        "[AdminDoctors] Fetch error (backend unavailable):",
+        fetchError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "NETWORK_ERROR",
+            message:
+              "The service is temporarily unavailable. Please try again later.",
+          },
+        },
+        { status: 502 }
+      );
+    }
 
-    const data = await response.json();
+    let data: unknown;
+    try {
+      const text = await response.text();
+      data = text ? JSON.parse(text) : {};
+    } catch (parseError) {
+      console.error(
+        "[AdminDoctors] Failed to parse backend response:",
+        parseError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: "Invalid response from backend server",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
       return NextResponse.json(data, { status: response.status });
