@@ -137,7 +137,9 @@ const fetcher = async (url: string): Promise<DoctorsResponse> => {
       }
     }
     // #endregion
-    throw new Error(`Failed to fetch doctors: ${response.statusText}`);
+    throw new Error(
+      `Failed to fetch doctors: ${response?.statusText || "Unknown error"}`
+    );
   }
 
   const data: DoctorsResponse = await response.json();
