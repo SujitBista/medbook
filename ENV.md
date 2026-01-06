@@ -137,9 +137,11 @@ CORS_ORIGIN=https://app.medbook.com,https://staging.medbook.com
 
 **Security Note:** Only include trusted origins. The API uses strict whitelist-based CORS policy.
 
+**Vercel Preview URLs:** All origins ending with `.vercel.app` are automatically allowed in addition to the whitelist. This enables Vercel preview deployments (e.g., `https://medbook-git-<branch>-<username>.vercel.app`) to work without adding each preview URL to the whitelist.
+
 ---
 
-### `CORS_ALLOW_NO_ORIGIN` (Optional)
+### `CORS_ALLOW_NO_ORIGIN` (Required in Production)
 
 Allow requests with no Origin header (e.g., Postman, curl, server-to-server requests).
 
@@ -153,7 +155,14 @@ Allow requests with no Origin header (e.g., Postman, curl, server-to-server requ
 CORS_ALLOW_NO_ORIGIN=true
 ```
 
-**⚠️ Security Warning:** Only enable in development or for trusted server-to-server communication.
+**⚠️ CRITICAL for NextAuth Authentication:**
+
+- **Must be set to `true` in production** to allow NextAuth's `authorize` function to make server-to-server requests
+- NextAuth runs on the server and makes requests without an Origin header
+- Without this setting, login will fail with `CredentialsSignin` error
+- This is safe because the request is server-to-server (not from a browser)
+
+**⚠️ Security Note:** This is safe for server-to-server communication. Only enable for trusted server-to-server requests.
 
 ---
 
