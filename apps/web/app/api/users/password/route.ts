@@ -2,12 +2,13 @@ import { auth } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
 import jwt from "jsonwebtoken";
+import { UserRole } from "@medbook/types";
 
 /**
  * Generate JWT token for backend API calls
  * Uses the same secret as the backend
  */
-function generateBackendToken(userId: string, role: string): string {
+function generateBackendToken(userId: string, role: UserRole): string {
   // Use JWT secret from env config (matches backend fallback in development)
   return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
 }
@@ -30,16 +31,59 @@ export async function PUT(req: NextRequest) {
       );
     }
 
+    // Validate that role exists and is valid
+    if (!session.user.role) {
+      console.error("[Password API] Session missing role:", {
+        userId: session.user.id,
+        sessionUser: session.user,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "User role not found in session",
+          },
+        },
+        { status: 401 }
+      );
+    }
+
+    // Validate role is a valid UserRole enum value
+    const validRoles = Object.values(UserRole);
+    if (!validRoles.includes(session.user.role as UserRole)) {
+      console.error("[Password API] Invalid role in session:", {
+        userId: session.user.id,
+        role: session.user.role,
+        validRoles,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Invalid user role in session",
+          },
+        },
+        { status: 401 }
+      );
+    }
+
     const body = await req.json();
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    const token = generateBackendToken(
+      session.user.id,
+      session.user.role as UserRole
+    );
 
     // Call backend API
     console.log("[Password API] Calling backend:", {
       url: `${env.apiUrl}/users/password`,
       userId: session.user.id,
+      role: session.user.role,
       hasToken: !!token,
+      tokenLength: token?.length,
     });
 
     const response = await fetch(`${env.apiUrl}/users/password`, {
