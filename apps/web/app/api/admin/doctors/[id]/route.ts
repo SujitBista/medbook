@@ -1,15 +1,6 @@
-import { auth } from "@/lib/auth";
+import { auth, generateBackendToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
-import jwt from "jsonwebtoken";
-
-/**
- * Generate JWT token for backend API calls
- * Uses the same secret as the backend
- */
-function generateBackendToken(userId: string, role: string): string {
-  return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
-}
 
 /**
  * GET /api/admin/doctors/[id]
@@ -45,11 +36,36 @@ export async function GET(
     }
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminDoctors] Token generated successfully (GET)", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminDoctors] Calling backend API (GET):", {
+        url: `${env.apiUrl}/admin/doctors/${id}`,
+        hasToken: !!token,
+      });
       response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -96,6 +112,29 @@ export async function GET(
     }
 
     if (!response.ok) {
+      console.error("[AdminDoctors] Backend API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      // If it's an authentication error, provide more helpful message
+      if (response.status === 401) {
+        const errorMessage =
+          (data as { error?: { message?: string } })?.error?.message ||
+          "Invalid or expired token";
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message:
+                errorMessage +
+                ". This may indicate a JWT_SECRET mismatch between frontend and backend.",
+            },
+          },
+          { status: response.status }
+        );
+      }
       return NextResponse.json(data, { status: response.status });
     }
 
@@ -148,11 +187,36 @@ export async function PUT(
     const body = await req.json();
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminDoctors] Token generated successfully (PUT)", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminDoctors] Calling backend API (PUT):", {
+        url: `${env.apiUrl}/admin/doctors/${id}`,
+        hasToken: !!token,
+      });
       response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
         method: "PUT",
         headers: {
@@ -201,6 +265,29 @@ export async function PUT(
     }
 
     if (!response.ok) {
+      console.error("[AdminDoctors] Backend API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      // If it's an authentication error, provide more helpful message
+      if (response.status === 401) {
+        const errorMessage =
+          (data as { error?: { message?: string } })?.error?.message ||
+          "Invalid or expired token";
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message:
+                errorMessage +
+                ". This may indicate a JWT_SECRET mismatch between frontend and backend.",
+            },
+          },
+          { status: response.status }
+        );
+      }
       return NextResponse.json(data, { status: response.status });
     }
 
@@ -251,11 +338,36 @@ export async function DELETE(
     }
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminDoctors] Token generated successfully (DELETE)", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminDoctors] Calling backend API (DELETE):", {
+        url: `${env.apiUrl}/admin/doctors/${id}`,
+        hasToken: !!token,
+      });
       response = await fetch(`${env.apiUrl}/admin/doctors/${id}`, {
         method: "DELETE",
         headers: {
@@ -303,6 +415,29 @@ export async function DELETE(
     }
 
     if (!response.ok) {
+      console.error("[AdminDoctors] Backend API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      // If it's an authentication error, provide more helpful message
+      if (response.status === 401) {
+        const errorMessage =
+          (data as { error?: { message?: string } })?.error?.message ||
+          "Invalid or expired token";
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message:
+                errorMessage +
+                ". This may indicate a JWT_SECRET mismatch between frontend and backend.",
+            },
+          },
+          { status: response.status }
+        );
+      }
       return NextResponse.json(data, { status: response.status });
     }
 

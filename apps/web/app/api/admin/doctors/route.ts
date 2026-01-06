@@ -1,15 +1,6 @@
-import { auth } from "@/lib/auth";
+import { auth, generateBackendToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
-import jwt from "jsonwebtoken";
-
-/**
- * Generate JWT token for backend API calls
- * Uses the same secret as the backend
- */
-function generateBackendToken(userId: string, role: string): string {
-  return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
-}
 
 /**
  * GET /api/admin/doctors
@@ -58,11 +49,36 @@ export async function GET(req: NextRequest) {
     const url = `${env.apiUrl}/admin/doctors${queryString ? `?${queryString}` : ""}`;
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminDoctors] Token generated successfully", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminDoctors] Calling backend API:", {
+        url,
+        hasToken: !!token,
+      });
       response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -165,11 +181,39 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminDoctorRegistration] Token generated successfully", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error(
+        "[AdminDoctorRegistration] Failed to generate token:",
+        tokenError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminDoctorRegistration] Calling backend API:", {
+        url: `${env.apiUrl}/admin/doctors`,
+        hasToken: !!token,
+      });
       response = await fetch(`${env.apiUrl}/admin/doctors`, {
         method: "POST",
         headers: {
@@ -218,6 +262,29 @@ export async function POST(req: NextRequest) {
     }
 
     if (!response.ok) {
+      console.error("[AdminDoctorRegistration] Backend API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      // If it's an authentication error, provide more helpful message
+      if (response.status === 401) {
+        const errorMessage =
+          (data as { error?: { message?: string } })?.error?.message ||
+          "Invalid or expired token";
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message:
+                errorMessage +
+                ". This may indicate a JWT_SECRET mismatch between frontend and backend.",
+            },
+          },
+          { status: response.status }
+        );
+      }
       return NextResponse.json(data, { status: response.status });
     }
 

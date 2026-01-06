@@ -1,15 +1,6 @@
-import { auth } from "@/lib/auth";
+import { auth, generateBackendToken } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
 import { env } from "@/lib/env";
-import jwt from "jsonwebtoken";
-
-/**
- * Generate JWT token for backend API calls
- * Uses the same secret as the backend
- */
-function generateBackendToken(userId: string, role: string): string {
-  return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
-}
 
 /**
  * GET /api/admin/appointments/stats
@@ -41,11 +32,39 @@ export async function GET(req: NextRequest) {
     }
 
     // Generate token for backend API
-    const token = generateBackendToken(session.user.id, session.user.role);
+    let token: string;
+    try {
+      token = generateBackendToken(session.user.id, session.user.role);
+      console.log("[AdminAppointments] Token generated successfully", {
+        userId: session.user.id,
+        role: session.user.role,
+        tokenLength: token.length,
+      });
+    } catch (tokenError) {
+      console.error(
+        "[AdminAppointments] Failed to generate token:",
+        tokenError
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "TOKEN_GENERATION_ERROR",
+            message:
+              "Failed to generate authentication token. Please check JWT_SECRET configuration.",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     // Call backend API
     let response: Response;
     try {
+      console.log("[AdminAppointments] Calling backend API:", {
+        url: `${env.apiUrl}/admin/appointments/stats`,
+        hasToken: !!token,
+      });
       response = await fetch(`${env.apiUrl}/admin/appointments/stats`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -92,6 +111,29 @@ export async function GET(req: NextRequest) {
     }
 
     if (!response.ok) {
+      console.error("[AdminAppointments] Backend API error:", {
+        status: response.status,
+        statusText: response.statusText,
+        data,
+      });
+      // If it's an authentication error, provide more helpful message
+      if (response.status === 401) {
+        const errorMessage =
+          (data as { error?: { message?: string } })?.error?.message ||
+          "Invalid or expired token";
+        return NextResponse.json(
+          {
+            success: false,
+            error: {
+              code: "AUTHENTICATION_ERROR",
+              message:
+                errorMessage +
+                ". This may indicate a JWT_SECRET mismatch between frontend and backend.",
+            },
+          },
+          { status: response.status }
+        );
+      }
       return NextResponse.json(data, { status: response.status });
     }
 

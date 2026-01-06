@@ -7,8 +7,40 @@ import jwt from "jsonwebtoken";
  * Generate JWT token for backend API calls
  * Uses the same secret as the backend
  */
-function generateBackendToken(userId: string, role: string): string {
-  return jwt.sign({ id: userId, role }, env.jwtSecret, { expiresIn: "7d" });
+export function generateBackendToken(userId: string, role: string): string {
+  try {
+    if (!env.jwtSecret) {
+      console.error("[Auth] JWT_SECRET is not configured!");
+      throw new Error("JWT_SECRET is not configured");
+    }
+
+    const token = jwt.sign({ id: userId, role }, env.jwtSecret, {
+      expiresIn: "7d",
+    });
+
+    // Verify the token can be decoded (basic sanity check)
+    try {
+      const decoded = jwt.decode(token);
+      if (!decoded || typeof decoded !== "object" || !decoded.id) {
+        console.error("[Auth] Generated token failed validation");
+        throw new Error("Generated token is invalid");
+      }
+    } catch (verifyError) {
+      console.error("[Auth] Token verification failed:", verifyError);
+      throw new Error("Failed to verify generated token");
+    }
+
+    return token;
+  } catch (error) {
+    console.error("[Auth] Error generating backend token:", {
+      error: error instanceof Error ? error.message : String(error),
+      userId,
+      role,
+      hasJwtSecret: !!env.jwtSecret,
+      jwtSecretLength: env.jwtSecret?.length || 0,
+    });
+    throw error;
+  }
 }
 
 /**
@@ -103,10 +135,27 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               };
             }
 
+            // Check for CORS errors specifically
+            const isCorsError =
+              response.status === 403 &&
+              (errorData?.error?.code === "CORS_ERROR" ||
+                errorData?.error?.message?.includes("CORS") ||
+                errorData?.message?.includes("CORS"));
+
+            if (isCorsError) {
+              console.error("[Auth] CORS Error detected:", {
+                status: response.status,
+                error: errorData,
+                apiUrl,
+                hint: "Set CORS_ALLOW_NO_ORIGIN=true in API server environment variables",
+              });
+            }
+
             console.error("[Auth] Login failed:", {
               status: response.status,
               statusText: response.statusText,
               error: errorData,
+              isCorsError,
             });
 
             // Return null to trigger CredentialsSignin, but log the actual error
