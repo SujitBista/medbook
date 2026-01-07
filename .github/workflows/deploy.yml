@@ -136,8 +136,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Check Render secrets
+        id: check-render
+        run: |
+          if [ -z "${{ secrets.RENDER_SERVICE_ID }}" ] || [ -z "${{ secrets.RENDER_API_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Render secrets not configured. Skipping Render deployment."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+            echo "✅ Render secrets found. Proceeding with deployment."
+          fi
+
       - name: Deploy to Render
-        if: ${{ secrets.RENDER_SERVICE_ID != '' }}
+        if: steps.check-render.outputs.skip == 'false'
         uses: johnbeynon/render-deploy@v0.6.2
         with:
           service-id: ${{ secrets.RENDER_SERVICE_ID }}
