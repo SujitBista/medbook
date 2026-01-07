@@ -164,33 +164,36 @@ export async function getAllDoctors(options?: {
   }
 
   // Enhanced search: search by name (firstName, lastName), email
+  const searchConditions: Prisma.DoctorWhereInput[] = [];
   if (search) {
-    where.OR = [
-      {
-        user: {
-          email: {
-            contains: search,
-            mode: "insensitive",
+    searchConditions.push({
+      OR: [
+        {
+          user: {
+            email: {
+              contains: search,
+              mode: "insensitive",
+            },
           },
         },
-      },
-      {
-        user: {
-          firstName: {
-            contains: search,
-            mode: "insensitive",
+        {
+          user: {
+            firstName: {
+              contains: search,
+              mode: "insensitive",
+            },
           },
         },
-      },
-      {
-        user: {
-          lastName: {
-            contains: search,
-            mode: "insensitive",
+        {
+          user: {
+            lastName: {
+              contains: search,
+              mode: "insensitive",
+            },
           },
         },
-      },
-    ];
+      ],
+    });
   }
 
   // Location filtering
@@ -209,31 +212,73 @@ export async function getAllDoctors(options?: {
   }
 
   // Filter by availability if requested
+  // This checks for doctors who have actual bookable slots (not just availabilities)
+  // A doctor is considered available only if they have slots that can be booked
+  // (accounting for minimum slot duration requirement from their slot template)
   if (hasAvailability) {
-    where.availabilities = {
-      some: {
-        OR: [
-          // One-time slots: endTime >= now
-          {
-            AND: [{ isRecurring: false }, { endTime: { gte: now } }],
+    searchConditions.push({
+      OR: [
+        // Has available slots (status = AVAILABLE, startTime >= now)
+        {
+          slots: {
+            some: {
+              AND: [
+                { status: "AVAILABLE" },
+                { startTime: { gte: now } },
+                // Only include slots with valid availabilities
+                { availability: { isNot: null } },
+              ],
+            },
           },
-          // Recurring slots:
-          // - validFrom must be null OR validFrom <= now (already started or no start date)
-          // - validTo must be null OR validTo >= now (not expired or no end date)
-          {
-            AND: [
-              { isRecurring: true },
-              {
-                OR: [{ validFrom: null }, { validFrom: { lte: now } }],
+        },
+        // Has availabilities that might be able to generate valid slots
+        // (we'll filter by actual slot template duration in post-processing)
+        {
+          AND: [
+            {
+              availabilities: {
+                some: {
+                  OR: [
+                    // One-time availability: endTime must be in the future
+                    {
+                      AND: [{ isRecurring: false }, { endTime: { gt: now } }],
+                    },
+                    // Recurring availability: must be active
+                    {
+                      AND: [
+                        { isRecurring: true },
+                        {
+                          OR: [
+                            { validFrom: null },
+                            { validFrom: { lte: now } },
+                          ],
+                        },
+                        {
+                          OR: [{ validTo: null }, { validTo: { gt: now } }],
+                        },
+                      ],
+                    },
+                  ],
+                },
               },
-              {
-                OR: [{ validTo: null }, { validTo: { gte: now } }],
+            },
+            // Ensure no existing available slots (so we know slots need to be generated)
+            {
+              slots: {
+                none: {
+                  AND: [{ status: "AVAILABLE" }, { startTime: { gte: now } }],
+                },
               },
-            ],
-          },
-        ],
-      },
-    };
+            },
+          ],
+        },
+      ],
+    });
+  }
+
+  // Combine all conditions with AND
+  if (searchConditions.length > 0) {
+    where.AND = searchConditions;
   }
 
   // Build orderBy clause based on sortBy
@@ -260,44 +305,171 @@ export async function getAllDoctors(options?: {
     };
   }
 
-  const [doctors, total] = await Promise.all([
-    query<
+  // Determine what to include in the query based on whether we need availability filtering
+  const includeOptions: Prisma.DoctorInclude = {
+    user: {
+      select: {
+        id: true,
+        email: true,
+        role: true,
+        firstName: true,
+        lastName: true,
+        phoneNumber: true,
+      },
+    },
+  };
+
+  // If filtering by availability, include slotTemplate, slots, and availabilities
+  if (hasAvailability) {
+    includeOptions.slotTemplate = {
+      select: {
+        durationMinutes: true,
+      },
+    };
+    includeOptions.slots = {
+      where: {
+        status: "AVAILABLE",
+        startTime: { gte: now },
+        availability: { isNot: null },
+      },
+      select: {
+        id: true,
+        status: true,
+        startTime: true,
+        availabilityId: true,
+      },
+    };
+    includeOptions.availabilities = {
+      where: {
+        OR: [
+          {
+            AND: [{ isRecurring: false }, { endTime: { gt: now } }],
+          },
+          {
+            AND: [
+              { isRecurring: true },
+              {
+                OR: [{ validFrom: null }, { validFrom: { lte: now } }],
+              },
+              {
+                OR: [{ validTo: null }, { validTo: { gt: now } }],
+              },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        isRecurring: true,
+        startTime: true,
+        endTime: true,
+        validFrom: true,
+        validTo: true,
+      },
+    };
+  }
+
+  // When filtering by availability, we need to fetch all doctors first,
+  // filter them, then paginate. This is because availability filtering
+  // requires checking slot template durations which can't be done at DB level.
+  let doctors: Prisma.DoctorGetPayload<{
+    include: typeof includeOptions;
+  }>[];
+  let total: number;
+
+  if (hasAvailability) {
+    // Fetch all doctors that match the base criteria
+    const allDoctors = await query<
       Prisma.DoctorGetPayload<{
-        include: {
-          user: {
-            select: {
-              id: true;
-              email: true;
-              role: true;
-              firstName: true;
-              lastName: true;
-              phoneNumber: true;
-            };
-          };
-        };
+        include: typeof includeOptions;
       }>[]
     >((prisma) =>
       prisma.doctor.findMany({
         where,
-        skip,
-        take: limit,
-        include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              role: true,
-              firstName: true,
-              lastName: true,
-              phoneNumber: true,
-            },
-          },
-        },
+        include: includeOptions,
         orderBy,
       })
-    ),
-    query<number>((prisma) => prisma.doctor.count({ where })),
-  ]);
+    );
+
+    // Post-filter: Filter doctors based on actual slot template duration
+    // This ensures doctors only appear if they have enough time for at least one slot
+    const filteredDoctors = allDoctors.filter((doctor) => {
+      // If doctor has available slots, include them
+      if (
+        doctor.slots &&
+        Array.isArray(doctor.slots) &&
+        doctor.slots.length > 0
+      ) {
+        return true;
+      }
+
+      // Otherwise, check if availabilities can generate valid slots
+      // Get slot template duration (default to 30 if not set)
+      const slotDurationMinutes = doctor.slotTemplate?.durationMinutes ?? 30;
+      const minSlotDurationMs = slotDurationMinutes * 60 * 1000;
+      const minSlotEndTime = new Date(now.getTime() + minSlotDurationMs);
+
+      // Check if any availability can generate a valid slot
+      if (
+        !doctor.availabilities ||
+        !Array.isArray(doctor.availabilities) ||
+        doctor.availabilities.length === 0
+      ) {
+        return false;
+      }
+
+      for (const availability of doctor.availabilities) {
+        if (!availability.isRecurring) {
+          // One-time: check if endTime is far enough in the future
+          if (new Date(availability.endTime) >= minSlotEndTime) {
+            return true;
+          }
+        } else {
+          // Recurring: check if validTo is far enough in the future
+          // and the time window itself has enough duration
+          const hasValidTimeRange =
+            !availability.validTo ||
+            new Date(availability.validTo) >= minSlotEndTime;
+
+          if (hasValidTimeRange) {
+            // Check if the time window itself has enough duration
+            const availStart = new Date(availability.startTime);
+            const availEnd = new Date(availability.endTime);
+            const availDurationMs = availEnd.getTime() - availStart.getTime();
+            if (availDurationMs >= minSlotDurationMs) {
+              return true;
+            }
+          }
+        }
+      }
+
+      return false;
+    });
+
+    // Calculate total from filtered results
+    total = filteredDoctors.length;
+
+    // Apply pagination to filtered results
+    doctors = filteredDoctors.slice(skip, skip + limit);
+  } else {
+    // When not filtering by availability, use standard pagination
+    [doctors, total] = await Promise.all([
+      query<
+        Prisma.DoctorGetPayload<{
+          include: typeof includeOptions;
+        }>[]
+      >((prisma) =>
+        prisma.doctor.findMany({
+          where,
+          skip,
+          take: limit,
+          include: includeOptions,
+          orderBy,
+        })
+      ),
+      query<number>((prisma) => prisma.doctor.count({ where })),
+    ]);
+  }
 
   return {
     doctors: doctors.map((doctor) => ({
