@@ -332,6 +332,22 @@ export async function createAvailability(
     if (validTo && validTo < validFrom) {
       throw createValidationError("validTo must be after validFrom");
     }
+
+    // Validate that validFrom is not in the past
+    const now = new Date();
+    if (validFrom < now) {
+      throw createValidationError(
+        "Cannot create a recurring schedule that starts in the past"
+      );
+    }
+  } else {
+    // For one-time schedules, validate that startTime is not in the past
+    const now = new Date();
+    if (startTime < now) {
+      throw createValidationError(
+        "Cannot create a schedule for a time that has already passed"
+      );
+    }
   }
 
   // Verify doctor exists
@@ -507,6 +523,26 @@ export async function updateAvailability(
     }
     if (finalValidTo && finalValidTo < finalValidFrom) {
       throw createValidationError("validTo must be after validFrom");
+    }
+
+    // Validate that validFrom is not in the past (if being updated)
+    if (validFrom !== undefined) {
+      const now = new Date();
+      if (finalValidFrom < now) {
+        throw createValidationError(
+          "Cannot update a recurring schedule to start in the past"
+        );
+      }
+    }
+  } else {
+    // For one-time schedules, validate that startTime is not in the past (if being updated)
+    if (startTime !== undefined) {
+      const now = new Date();
+      if (finalStartTime < now) {
+        throw createValidationError(
+          "Cannot update a schedule to a time that has already passed"
+        );
+      }
     }
   }
 

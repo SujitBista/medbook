@@ -234,10 +234,19 @@ describe("POST /api/v1/availability", () => {
     createdDoctorIds.push(doctor.id);
     createdUserIds.push(doctor.userId);
 
-    const startTime = new Date("2024-01-01T09:00:00Z");
-    const endTime = new Date("2024-01-01T17:00:00Z");
-    const validFrom = new Date("2024-01-01T00:00:00Z");
-    const validTo = new Date("2024-12-31T23:59:59Z");
+    // Use future dates to comply with validation that prevents past schedules
+    const now = new Date();
+    const tomorrow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const nextYear = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+    const startTime = new Date(tomorrow);
+    startTime.setHours(9, 0, 0, 0);
+    const endTime = new Date(tomorrow);
+    endTime.setHours(17, 0, 0, 0);
+    const validFrom = new Date(tomorrow);
+    validFrom.setHours(0, 0, 0, 0);
+    const validTo = new Date(nextYear);
+    validTo.setHours(23, 59, 59, 999);
 
     const response = await agent
       .post("/api/v1/availability")
@@ -433,6 +442,59 @@ describe("POST /api/v1/availability", () => {
 
     expect(response.body.success).toBe(false);
     expect(response.body.error.message).toContain("Doctor not found");
+  });
+
+  it("should reject one-time availability with past start time", async () => {
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const pastStartTime = new Date(Date.now() - 60 * 60 * 1000); // 1 hour ago
+    const pastEndTime = new Date(pastStartTime.getTime() + 60 * 60 * 1000);
+
+    const response = await agent
+      .post("/api/v1/availability")
+      .set(createAuthHeaders(doctor.userId, UserRole.DOCTOR))
+      .send({
+        doctorId: doctor.id,
+        startTime: pastStartTime.toISOString(),
+        endTime: pastEndTime.toISOString(),
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.message).toContain("already passed");
+  });
+
+  it("should reject recurring availability with past validFrom", async () => {
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const now = new Date();
+    const startTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    startTime.setHours(9, 0, 0, 0);
+    const endTime = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    endTime.setHours(17, 0, 0, 0);
+    const pastValidFrom = new Date(Date.now() - 24 * 60 * 60 * 1000); // Yesterday
+    const validTo = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000);
+
+    const response = await agent
+      .post("/api/v1/availability")
+      .set(createAuthHeaders(doctor.userId, UserRole.DOCTOR))
+      .send({
+        doctorId: doctor.id,
+        startTime: startTime.toISOString(),
+        endTime: endTime.toISOString(),
+        dayOfWeek: 1, // Monday
+        isRecurring: true,
+        validFrom: pastValidFrom.toISOString(),
+        validTo: validTo.toISOString(),
+      })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error.message).toContain("starts in the past");
   });
 });
 

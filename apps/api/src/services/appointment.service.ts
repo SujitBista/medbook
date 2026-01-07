@@ -547,6 +547,14 @@ export async function createAppointmentFromSlot(
       throw createConflictError("Slot is not available for booking");
     }
 
+    // Validate that the slot's start time is in the future
+    const now = new Date();
+    if (slot.startTime < now) {
+      throw createValidationError(
+        "Cannot book an appointment for a time that has already passed"
+      );
+    }
+
     // Verify patient exists
     const patient = await tx.user.findUnique({
       where: { id: patientId },
