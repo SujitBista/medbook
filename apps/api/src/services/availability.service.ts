@@ -148,8 +148,8 @@ export async function getAvailabilitiesByDoctorId(
 /**
  * Checks if a time slot overlaps with existing availabilities for a doctor
  * @param doctorId Doctor ID
- * @param startTime Start time
- * @param endTime End time
+ * @param startTime Start time (full datetime for one-time schedules)
+ * @param endTime End time (full datetime for one-time schedules)
  * @param excludeId Optional availability ID to exclude from check (for updates)
  * @returns true if there's an overlap, false otherwise
  */
@@ -159,37 +159,113 @@ async function hasOverlap(
   endTime: Date,
   excludeId?: string
 ): Promise<boolean> {
-  const where: Prisma.AvailabilityWhereInput = {
-    doctorId,
-    AND: [
-      // Overlap condition: New slot starts before existing ends AND ends after existing starts
-      { startTime: { lte: endTime } },
-      { endTime: { gte: startTime } },
-    ],
-  };
+  // Get the date of the new schedule (for checking recurring schedules)
+  const scheduleDate = new Date(startTime);
+  scheduleDate.setHours(0, 0, 0, 0);
+  const scheduleDayOfWeek = scheduleDate.getDay();
+  const scheduleDateEnd = new Date(scheduleDate);
+  scheduleDateEnd.setHours(23, 59, 59, 999);
 
-  if (excludeId) {
-    where.id = { not: excludeId };
-  }
+  // Extract time-of-day from the new schedule (for comparing with recurring schedules)
+  const newStartHour = startTime.getHours();
+  const newStartMinute = startTime.getMinutes();
+  const newEndHour = endTime.getHours();
+  const newEndMinute = endTime.getMinutes();
+  const newStartMinutes = newStartHour * 60 + newStartMinute;
+  const newEndMinutes = newEndHour * 60 + newEndMinute;
 
-  const overlapping = await query<{
-    id: string;
-    doctorId: string;
-    startTime: Date;
-    endTime: Date;
-    dayOfWeek: number | null;
-    isRecurring: boolean;
-    validFrom: Date | null;
-    validTo: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null>((prisma) =>
-    prisma.availability.findFirst({
-      where,
+  // Get all potential overlapping availabilities
+  const potentialOverlaps = await query<
+    {
+      id: string;
+      doctorId: string;
+      startTime: Date;
+      endTime: Date;
+      dayOfWeek: number | null;
+      isRecurring: boolean;
+      validFrom: Date | null;
+      validTo: Date | null;
+      createdAt: Date;
+      updatedAt: Date;
+    }[]
+  >((prisma) =>
+    prisma.availability.findMany({
+      where: {
+        doctorId,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+        OR: [
+          // One-time schedules: check datetime overlap
+          // Only check against schedules that haven't completely ended before the new schedule starts
+          {
+            AND: [
+              { isRecurring: false },
+              // Existing schedule hasn't completely ended before new one starts
+              { endTime: { gte: startTime } },
+              // Overlap condition: Existing slot starts before new ends AND ends after new starts
+              { startTime: { lte: endTime } },
+            ],
+          },
+          // Recurring schedules that might apply on this date
+          {
+            AND: [
+              { isRecurring: true },
+              // Check if recurring schedule applies on this day of week
+              {
+                OR: [
+                  { dayOfWeek: null }, // No specific day (applies every day)
+                  { dayOfWeek: scheduleDayOfWeek },
+                ],
+              },
+              // Check if recurring schedule is valid on this date
+              {
+                OR: [
+                  { validFrom: null },
+                  { validFrom: { lte: scheduleDateEnd } },
+                ],
+              },
+              {
+                OR: [{ validTo: null }, { validTo: { gte: scheduleDate } }],
+              },
+            ],
+          },
+        ],
+      },
     })
   );
 
-  return overlapping !== null;
+  // Check each potential overlap
+  for (const availability of potentialOverlaps) {
+    if (availability.isRecurring) {
+      // For recurring schedules, compare time-of-day only
+      const existingStartHour = availability.startTime.getHours();
+      const existingStartMinute = availability.startTime.getMinutes();
+      const existingEndHour = availability.endTime.getHours();
+      const existingEndMinute = availability.endTime.getMinutes();
+
+      // Convert to minutes for easier comparison
+      const existingStartMinutes = existingStartHour * 60 + existingStartMinute;
+      const existingEndMinutes = existingEndHour * 60 + existingEndMinute;
+
+      // Check if time-of-day overlaps
+      if (
+        existingStartMinutes < newEndMinutes &&
+        existingEndMinutes > newStartMinutes
+      ) {
+        return true;
+      }
+    } else {
+      // For one-time schedules, datetime overlap is already checked in the query
+      // But verify it's a true overlap (the query condition might be too broad)
+      if (
+        availability.startTime < endTime &&
+        availability.endTime > startTime
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
 }
 
 /**
