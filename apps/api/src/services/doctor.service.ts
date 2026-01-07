@@ -369,28 +369,31 @@ export async function getAllDoctors(options?: {
     };
   }
 
-  const [doctors, total] = await Promise.all([
-    query<
+  // When filtering by availability, we need to fetch all doctors first,
+  // filter them, then paginate. This is because availability filtering
+  // requires checking slot template durations which can't be done at DB level.
+  let doctors: Prisma.DoctorGetPayload<{
+    include: typeof includeOptions;
+  }>[];
+  let total: number;
+
+  if (hasAvailability) {
+    // Fetch all doctors that match the base criteria
+    const allDoctors = await query<
       Prisma.DoctorGetPayload<{
         include: typeof includeOptions;
       }>[]
     >((prisma) =>
       prisma.doctor.findMany({
         where,
-        skip,
-        take: limit,
         include: includeOptions,
         orderBy,
       })
-    ),
-    query<number>((prisma) => prisma.doctor.count({ where })),
-  ]);
+    );
 
-  // Post-filter: Filter doctors based on actual slot template duration
-  // This ensures doctors only appear if they have enough time for at least one slot
-  let filteredDoctors = doctors;
-  if (hasAvailability) {
-    filteredDoctors = doctors.filter((doctor) => {
+    // Post-filter: Filter doctors based on actual slot template duration
+    // This ensures doctors only appear if they have enough time for at least one slot
+    const filteredDoctors = allDoctors.filter((doctor) => {
       // If doctor has available slots, include them
       if (
         doctor.slots &&
@@ -442,10 +445,34 @@ export async function getAllDoctors(options?: {
 
       return false;
     });
+
+    // Calculate total from filtered results
+    total = filteredDoctors.length;
+
+    // Apply pagination to filtered results
+    doctors = filteredDoctors.slice(skip, skip + limit);
+  } else {
+    // When not filtering by availability, use standard pagination
+    [doctors, total] = await Promise.all([
+      query<
+        Prisma.DoctorGetPayload<{
+          include: typeof includeOptions;
+        }>[]
+      >((prisma) =>
+        prisma.doctor.findMany({
+          where,
+          skip,
+          take: limit,
+          include: includeOptions,
+          orderBy,
+        })
+      ),
+      query<number>((prisma) => prisma.doctor.count({ where })),
+    ]);
   }
 
   return {
-    doctors: filteredDoctors.map((doctor) => ({
+    doctors: doctors.map((doctor) => ({
       id: doctor.id,
       userId: doctor.userId,
       specialization: doctor.specialization ?? undefined,
@@ -469,10 +496,8 @@ export async function getAllDoctors(options?: {
     pagination: {
       page,
       limit,
-      total: hasAvailability ? filteredDoctors.length : total,
-      totalPages: hasAvailability
-        ? Math.ceil(filteredDoctors.length / limit)
-        : Math.ceil(total / limit),
+      total,
+      totalPages: Math.ceil(total / limit),
     },
   };
 }
