@@ -163,8 +163,8 @@ jobs:
             -o /tmp/render_response.json \
             -s)
 
-          if [ "$HTTP_CODE" -eq 201 ]; then
-            echo "✅ Deployment triggered successfully!"
+          if [ "$HTTP_CODE" -eq 201 ] || [ "$HTTP_CODE" -eq 202 ]; then
+            echo "✅ Deployment triggered successfully! (HTTP $HTTP_CODE)"
             echo "Response:"
             cat /tmp/render_response.json
           else
