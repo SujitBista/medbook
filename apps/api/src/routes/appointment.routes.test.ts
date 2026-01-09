@@ -280,6 +280,66 @@ describe("GET /api/v1/appointments/patient/:patientId", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
   });
+
+  it("should exclude archived appointments from patient queries", async () => {
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const startTime1 = new Date(Date.now() + 60 * 60 * 1000);
+    const endTime1 = new Date(startTime1.getTime() + 60 * 60 * 1000);
+    const startTime2 = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const endTime2 = new Date(startTime2.getTime() + 60 * 60 * 1000);
+
+    const activeAppointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      startTime: startTime1,
+      endTime: endTime1,
+    });
+    const archivedAppointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      startTime: startTime2,
+      endTime: endTime2,
+    });
+    createdAppointmentIds.push(activeAppointment.id, archivedAppointment.id);
+
+    // Manually archive one appointment
+    const { query } = await import("@app/db");
+    await query((prisma) =>
+      prisma.appointment.update({
+        where: { id: archivedAppointment.id },
+        data: { isArchived: true },
+      })
+    );
+
+    const headers = createAuthHeaders(patient.id, patient.role as UserRole);
+
+    const response = await agent
+      .get(`/api/v1/appointments/patient/${patient.id}`)
+      .set(headers)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toBeDefined();
+    expect(Array.isArray(response.body.data)).toBe(true);
+
+    // Should include active appointment
+    const foundActive = response.body.data.find(
+      (a: { id: string }) => a.id === activeAppointment.id
+    );
+    expect(foundActive).toBeDefined();
+
+    // Should NOT include archived appointment
+    const foundArchived = response.body.data.find(
+      (a: { id: string }) => a.id === archivedAppointment.id
+    );
+    expect(foundArchived).toBeUndefined();
+  });
 });
 
 describe("GET /api/v1/appointments/doctor/:doctorId", () => {
@@ -360,6 +420,66 @@ describe("GET /api/v1/appointments/doctor/:doctorId", () => {
 
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
+  });
+
+  it("should exclude archived appointments from doctor queries", async () => {
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const startTime1 = new Date(Date.now() + 60 * 60 * 1000);
+    const endTime1 = new Date(startTime1.getTime() + 60 * 60 * 1000);
+    const startTime2 = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const endTime2 = new Date(startTime2.getTime() + 60 * 60 * 1000);
+
+    const activeAppointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      startTime: startTime1,
+      endTime: endTime1,
+    });
+    const archivedAppointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      startTime: startTime2,
+      endTime: endTime2,
+    });
+    createdAppointmentIds.push(activeAppointment.id, archivedAppointment.id);
+
+    // Manually archive one appointment
+    const { query } = await import("@app/db");
+    await query((prisma) =>
+      prisma.appointment.update({
+        where: { id: archivedAppointment.id },
+        data: { isArchived: true },
+      })
+    );
+
+    const headers = createAuthHeaders(patient.id, patient.role as UserRole);
+
+    const response = await agent
+      .get(`/api/v1/appointments/doctor/${doctor.id}`)
+      .set(headers)
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toBeDefined();
+    expect(Array.isArray(response.body.data)).toBe(true);
+
+    // Should include active appointment
+    const foundActive = response.body.data.find(
+      (a: { id: string }) => a.id === activeAppointment.id
+    );
+    expect(foundActive).toBeDefined();
+
+    // Should NOT include archived appointment
+    const foundArchived = response.body.data.find(
+      (a: { id: string }) => a.id === archivedAppointment.id
+    );
+    expect(foundArchived).toBeUndefined();
   });
 });
 

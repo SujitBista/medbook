@@ -119,6 +119,7 @@ export async function getAppointmentById(
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
+    isArchived: appointment.isArchived ?? false,
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   };
@@ -140,6 +141,7 @@ export async function getAppointmentsByPatientId(
 ): Promise<Appointment[]> {
   const where: Prisma.AppointmentWhereInput = {
     patientId,
+    isArchived: false, // Exclude archived appointments
   };
 
   if (options?.status) {
@@ -193,6 +195,7 @@ export async function getAppointmentsByPatientId(
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
+    isArchived: appointment.isArchived ?? false,
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   }));
@@ -214,6 +217,7 @@ export async function getAppointmentsByDoctorId(
 ): Promise<Appointment[]> {
   const where: Prisma.AppointmentWhereInput = {
     doctorId,
+    isArchived: false, // Exclude archived appointments
   };
 
   if (options?.status) {
@@ -267,6 +271,7 @@ export async function getAppointmentsByDoctorId(
     endTime: appointment.endTime,
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
+    isArchived: appointment.isArchived ?? false,
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   }));
@@ -319,8 +324,9 @@ async function hasTimeConflict(
 ): Promise<boolean> {
   const where: Prisma.AppointmentWhereInput = {
     doctorId,
-    // Only check conflicts with non-cancelled appointments
+    // Only check conflicts with non-cancelled and non-archived appointments
     status: { not: AppointmentStatus.CANCELLED },
+    isArchived: false, // Exclude archived appointments from conflict checks
     AND: [
       // Conflict condition: New appointment starts before existing ends AND ends after existing starts
       { startTime: { lte: endTime } },
@@ -603,6 +609,7 @@ export async function createAppointmentFromSlot(
         endTime: appointment.endTime,
         status: appointment.status as AppointmentStatus,
         notes: appointment.notes ?? undefined,
+        isArchived: appointment.isArchived ?? false,
         createdAt: appointment.createdAt,
         updatedAt: appointment.updatedAt,
       },
@@ -799,6 +806,7 @@ export async function createAppointment(
       endTime: Date;
       status: string;
       notes: string | null;
+      isArchived: boolean;
       createdAt: Date;
       updatedAt: Date;
     }>((prisma) =>
@@ -832,6 +840,7 @@ export async function createAppointment(
       endTime: appointment.endTime,
       status: appointment.status as AppointmentStatus,
       notes: appointment.notes ?? undefined,
+      isArchived: appointment.isArchived ?? false,
       createdAt: appointment.createdAt,
       updatedAt: appointment.updatedAt,
     };
