@@ -21,6 +21,7 @@ export interface Appointment {
   endTime: Date;
   status: AppointmentStatus;
   notes?: string;
+  isArchived?: boolean; // Whether the appointment has been archived (expired appointments)
   createdAt: Date;
   updatedAt: Date;
 }

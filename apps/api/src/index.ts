@@ -10,6 +10,7 @@ import { env } from "./config/env";
 import { logger } from "./utils/logger";
 import * as cron from "node-cron";
 import { processReminders } from "./jobs/reminder.job";
+import { archiveExpiredAppointments } from "./jobs/appointment-archive.job";
 
 /**
  * Server entry point
@@ -41,6 +42,24 @@ async function startServer() {
   });
 
   logger.info("Reminder job scheduled to run every hour");
+
+  // Set up archive job to run daily at 2 AM
+  // Cron format: minute hour day month day-of-week
+  // "0 2 * * *" means: at minute 0 of hour 2 (2 AM) every day
+  cron.schedule("0 2 * * *", async () => {
+    logger.info("Running scheduled appointment archive job");
+    try {
+      const count = await archiveExpiredAppointments();
+      logger.info(`Archive job completed: ${count} appointments archived`);
+    } catch (error) {
+      logger.error("Archive job failed", {
+        error: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+    }
+  });
+
+  logger.info("Appointment archive job scheduled to run daily at 2 AM");
 }
 
 // Start the server
