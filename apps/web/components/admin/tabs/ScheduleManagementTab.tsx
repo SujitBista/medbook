@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { Button, Input, Card } from "@medbook/ui";
 import { TimePicker } from "@/components/forms/TimePicker";
 import type {
@@ -202,6 +202,51 @@ export function ScheduleManagementTab({
       setSlotTemplateLoading(false);
     }
   }, [selectedDoctorForSchedule]);
+
+  // Track previous doctor to detect changes
+  const previousDoctorIdRef = useRef<string | null>(null);
+
+  // Clear form state when doctor changes
+  useEffect(() => {
+    if (selectedDoctorForSchedule) {
+      const currentDoctorId = selectedDoctorForSchedule.id;
+      const previousDoctorId = previousDoctorIdRef.current;
+
+      // If doctor changed, clear all date/time state
+      if (previousDoctorId && previousDoctorId !== currentDoctorId) {
+        console.log(
+          "[ScheduleManagementTab] Doctor changed, clearing form state"
+        );
+        // Clear all date/time selection state
+        setSelectedDates([]);
+        setUseDateRange(false);
+        setDateRangeStart("");
+        setDateRangeEnd("");
+        setTimeRangeStart("09:00");
+        setTimeRangeEnd("17:00");
+        setSelectedIndividualSlots(new Set());
+        setSchedulingMode("timeRange");
+        setScheduleFormErrors({});
+        setShowScheduleForm(false);
+        setEditingScheduleId(null);
+
+        // Reset form data with current doctor
+        const now = new Date();
+        setScheduleFormData({
+          doctorId: currentDoctorId,
+          startTime: formatDateTimeLocal(now),
+          endTime: formatDateTimeLocal(now),
+          isRecurring: false,
+          dayOfWeek: undefined,
+          validFrom: undefined,
+          validTo: undefined,
+        });
+      }
+      previousDoctorIdRef.current = currentDoctorId;
+    } else {
+      previousDoctorIdRef.current = null;
+    }
+  }, [selectedDoctorForSchedule?.id]);
 
   useEffect(() => {
     if (selectedDoctorForSchedule) {
@@ -426,8 +471,11 @@ export function ScheduleManagementTab({
 
   const resetScheduleForm = () => {
     const now = new Date();
+    // Use current doctor if available, otherwise keep existing doctorId
+    const currentDoctorId =
+      selectedDoctorForSchedule?.id || scheduleFormData.doctorId || "";
     setScheduleFormData({
-      doctorId: selectedDoctorForSchedule?.id || "",
+      doctorId: currentDoctorId,
       startTime: formatDateTimeLocal(now),
       endTime: formatDateTimeLocal(now),
       isRecurring: false,
@@ -436,6 +484,7 @@ export function ScheduleManagementTab({
       validTo: undefined,
     });
     setScheduleFormErrors({});
+    // Clear all date/time selection state
     setSelectedDates([]);
     setUseDateRange(false);
     setDateRangeStart("");
@@ -600,6 +649,46 @@ export function ScheduleManagementTab({
         if (datesToSchedule.length === 0) {
           setScheduleFormErrors({ dates: "Please select at least one date" });
           return;
+        }
+
+        // Validate that all selected dates are in the future
+        const now = new Date();
+        const today = formatDateLocal(now);
+        const invalidDates = datesToSchedule.filter((date) => date < today);
+        if (invalidDates.length > 0) {
+          setScheduleFormErrors({
+            dates:
+              "Cannot create a schedule for dates that have already passed",
+          });
+          return;
+        }
+
+        // Validate that the selected date/time combinations are in the future
+        const nowDateTime = now.getTime();
+        for (const date of datesToSchedule) {
+          if (schedulingMode === "timeRange") {
+            const startDateTime = localToUtcDate(`${date}T${timeRangeStart}`);
+            if (startDateTime.getTime() < nowDateTime) {
+              setScheduleFormErrors({
+                dates: `Cannot create a schedule for ${date} at ${timeRangeStart} - this time has already passed`,
+              });
+              return;
+            }
+          } else {
+            // For individual slots, validate each selected slot
+            for (const slotKey of selectedIndividualSlots) {
+              const slot = individualSlots.find((s) => s.key === slotKey);
+              if (slot) {
+                const startDateTime = localToUtcDate(`${date}T${slot.start}`);
+                if (startDateTime.getTime() < nowDateTime) {
+                  setScheduleFormErrors({
+                    dates: `Cannot create a schedule for ${date} at ${slot.start} - this time has already passed`,
+                  });
+                  return;
+                }
+              }
+            }
+          }
         }
 
         const promises: Promise<Response>[] = [];
