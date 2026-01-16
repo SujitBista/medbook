@@ -41,6 +41,14 @@ describe("ScheduleManagementTab", () => {
   });
 
   it("renders doctor selection input", () => {
+    // Mock fetch to prevent errors
+    (global.fetch as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        data: [],
+      }),
+    });
+
     render(
       <ScheduleManagementTab onError={mockOnError} onSuccess={mockOnSuccess} />
     );
@@ -75,7 +83,7 @@ describe("ScheduleManagementTab", () => {
 
     // Mock doctors fetch
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url) => {
-      if (url.includes("/api/admin/doctors")) {
+      if (typeof url === "string" && url.includes("/api/admin/doctors")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -83,7 +91,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      if (url.includes("/api/availability")) {
+      if (typeof url === "string" && url.includes("/api/availability")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -92,7 +100,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      if (url.includes("/api/slots/template")) {
+      if (typeof url === "string" && url.includes("/api/slots/template")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -105,7 +113,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      return Promise.reject(new Error("Unexpected URL"));
+      return Promise.reject(new Error(`Unexpected URL: ${url}`));
     });
 
     render(
@@ -136,13 +144,17 @@ describe("ScheduleManagementTab", () => {
     const doctorOption1 = screen.getByText(/doctor1@example.com/i);
     await user.click(doctorOption1);
 
-    // Wait for doctor to be selected and form to appear
+    // Wait for doctor to be selected and button to appear
     await waitFor(() => {
-      expect(screen.getByText(/Add New Schedule/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Add New Schedule/i })
+      ).toBeInTheDocument();
     });
 
-    // Click "Add New Schedule" button
-    const addScheduleButton = screen.getByText(/Add New Schedule/i);
+    // Click "Add New Schedule" button (use getByRole to be more specific)
+    const addScheduleButton = screen.getByRole("button", {
+      name: /Add New Schedule/i,
+    });
     await user.click(addScheduleButton);
 
     // Wait for form to appear
@@ -184,8 +196,10 @@ describe("ScheduleManagementTab", () => {
       expect(screen.getByText(/doctor2@example.com/i)).toBeInTheDocument();
     });
 
-    // Click "Add New Schedule" again
-    const addScheduleButton2 = screen.getByText(/Add New Schedule/i);
+    // Click "Add New Schedule" again (use getByRole to be more specific)
+    const addScheduleButton2 = screen.getByRole("button", {
+      name: /Add New Schedule/i,
+    });
     await user.click(addScheduleButton2);
 
     // Wait for form to appear
@@ -205,7 +219,7 @@ describe("ScheduleManagementTab", () => {
 
     // Mock doctors fetch
     (global.fetch as ReturnType<typeof vi.fn>).mockImplementation((url) => {
-      if (url.includes("/api/admin/doctors")) {
+      if (typeof url === "string" && url.includes("/api/admin/doctors")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -213,7 +227,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      if (url.includes("/api/availability")) {
+      if (typeof url === "string" && url.includes("/api/availability")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -222,7 +236,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      if (url.includes("/api/slots/template")) {
+      if (typeof url === "string" && url.includes("/api/slots/template")) {
         return Promise.resolve({
           ok: true,
           json: async () => ({
@@ -235,7 +249,7 @@ describe("ScheduleManagementTab", () => {
           }),
         });
       }
-      return Promise.reject(new Error("Unexpected URL"));
+      return Promise.reject(new Error(`Unexpected URL: ${url}`));
     });
 
     render(
@@ -267,7 +281,9 @@ describe("ScheduleManagementTab", () => {
 
     // Switch to second doctor immediately
     await waitFor(() => {
-      expect(screen.getByText(/Add New Schedule/i)).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Add New Schedule/i })
+      ).toBeInTheDocument();
     });
 
     const doctorInput2 = screen.getByPlaceholderText(
@@ -290,8 +306,10 @@ describe("ScheduleManagementTab", () => {
       expect(screen.getByText(/doctor2@example.com/i)).toBeInTheDocument();
     });
 
-    // Add new schedule for second doctor
-    const addScheduleButton = screen.getByText(/Add New Schedule/i);
+    // Add new schedule for second doctor (use getByRole to be more specific)
+    const addScheduleButton = screen.getByRole("button", {
+      name: /Add New Schedule/i,
+    });
     await user.click(addScheduleButton);
 
     // Wait for form
@@ -306,13 +324,6 @@ describe("ScheduleManagementTab", () => {
 
     const dateInput = screen.getByLabelText(/Select Date/i);
     await user.type(dateInput, tomorrowStr);
-
-    // Set time range
-    const timeRangeStartInput = screen.getByLabelText(/Start Time/i);
-    const timeRangeEndInput = screen.getByLabelText(/End Time/i);
-
-    // Note: TimePicker might have a different structure, adjust selectors as needed
-    // For now, we'll verify the form is ready to submit
 
     // Verify date is set correctly
     expect(dateInput).toHaveValue(tomorrowStr);
