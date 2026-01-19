@@ -102,6 +102,16 @@ export const env = {
   get n8nWebhookTimeout(): number {
     return parseInt(process.env.N8N_WEBHOOK_TIMEOUT || "10000", 10);
   },
+  // Stripe configuration
+  get stripeSecretKey(): string | undefined {
+    return process.env.STRIPE_SECRET_KEY;
+  },
+  get stripePublishableKey(): string | undefined {
+    return process.env.STRIPE_PUBLISHABLE_KEY;
+  },
+  get stripeWebhookSecret(): string | undefined {
+    return process.env.STRIPE_WEBHOOK_SECRET;
+  },
 };
 
 export const isDevelopment = env.nodeEnv === "development";
