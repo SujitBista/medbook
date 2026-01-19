@@ -8,6 +8,8 @@
 // TODO: Add service exports as they are created
 export * from "./auth.service";
 export * from "./user.service";
+export * from "./payment.service";
+export * from "./commission.service";
 export * from "./admin.service";
 export * from "./doctor.service";
 export * from "./email.service";

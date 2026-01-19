@@ -23,7 +23,8 @@
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^4.2.1",
-    "resend": "^6.5.2"
+    "resend": "^6.5.2",
+    "stripe": "^20.2.0"
   },
   "devDependencies": {
     "@medbook/eslint-config": "workspace:^",
