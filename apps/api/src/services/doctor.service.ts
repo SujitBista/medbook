@@ -142,7 +142,7 @@ export async function getAllDoctors(options?: {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? 10;
   const skip = (page - 1) * limit;
-  const search = options?.search?.trim().toLowerCase();
+  const search = options?.search?.trim()?.toLowerCase();
   const specialization = options?.specialization?.trim();
   const hasAvailability = options?.hasAvailability ?? false;
   const city = options?.city?.trim();
