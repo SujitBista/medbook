@@ -59,12 +59,15 @@ export async function GET(req: NextRequest) {
         );
 
         if (!doctorsResponse.ok) {
+          const errorData = await doctorsResponse.json().catch(() => ({}));
+          const errorMessage =
+            errorData?.error?.message ||
+            `Failed to fetch doctors: ${doctorsResponse.status} ${doctorsResponse.statusText}`;
           console.error(
             "[Appointments] Failed to fetch doctors:",
-            doctorsResponse.status,
-            doctorsResponse.statusText
+            errorMessage
           );
-          throw new Error("Failed to fetch doctors");
+          throw new Error(errorMessage);
         }
 
         const doctorsData = await doctorsResponse.json();
@@ -90,7 +93,25 @@ export async function GET(req: NextRequest) {
               Authorization: `Bearer ${token}`,
               "Content-Type": "application/json",
             },
-          }).then((res) => res.json())
+          })
+            .then(async (res) => {
+              const data = await res.json();
+              if (!res.ok) {
+                throw new Error(
+                  data?.error?.message ||
+                    `Failed to fetch appointments for doctor ${doctor.id}`
+                );
+              }
+              return data;
+            })
+            .catch((err) => {
+              console.error(
+                `[Appointments] Error fetching appointments for doctor ${doctor.id}:`,
+                err
+              );
+              // Return empty result instead of throwing to allow other doctors' appointments to load
+              return { success: false, data: [] };
+            })
         );
 
         const appointmentResults = await Promise.all(appointmentPromises);
@@ -121,12 +142,16 @@ export async function GET(req: NextRequest) {
         });
       } catch (error) {
         console.error("[Appointments] Error fetching all appointments:", error);
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch all appointments";
         return NextResponse.json(
           {
             success: false,
             error: {
               code: "INTERNAL_ERROR",
-              message: "Failed to fetch all appointments",
+              message: errorMessage,
             },
           },
           { status: 500 }
@@ -165,18 +190,33 @@ export async function GET(req: NextRequest) {
     const data = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      // Extract error message from backend response if available
+      const errorMessage =
+        data?.error?.message ||
+        `Failed to fetch appointments: ${response.status} ${response.statusText}`;
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: data?.error?.code || "INTERNAL_ERROR",
+            message: errorMessage,
+          },
+        },
+        { status: response.status }
+      );
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[Appointments] Error fetching appointments:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "Internal server error";
     return NextResponse.json(
       {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "Internal server error",
+          message: errorMessage,
         },
       },
       { status: 500 }
