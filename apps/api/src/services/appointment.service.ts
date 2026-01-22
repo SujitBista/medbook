@@ -538,6 +538,11 @@ export async function createAppointmentFromSlot(
   patientId: string,
   notes?: string
 ): Promise<Appointment> {
+  logger.info("Creating appointment from slot", {
+    slotId,
+    patientId,
+  });
+
   // Use transaction to ensure atomicity
   const result = await withTransaction(async (tx) => {
     // Lock the slot row (SELECT FOR UPDATE equivalent via findUnique)
@@ -546,27 +551,42 @@ export async function createAppointmentFromSlot(
     });
 
     if (!slot) {
+      logger.warn("Slot not found", { slotId });
       throw createNotFoundError("Slot");
     }
 
     if (slot.status !== SlotStatus.AVAILABLE) {
+      logger.warn("Slot not available for booking", {
+        slotId,
+        status: slot.status,
+      });
       throw createConflictError("Slot is not available for booking");
     }
 
     // Validate that the slot's start time is in the future
     const now = new Date();
     if (slot.startTime < now) {
+      logger.warn("Attempted to book appointment in the past", {
+        slotId,
+        startTime: slot.startTime,
+        now,
+      });
       throw createValidationError(
         "Cannot book an appointment for a time that has already passed"
       );
     }
 
-    // Verify patient exists
+    // Verify patient exists and get email
     const patient = await tx.user.findUnique({
       where: { id: patientId },
+      select: {
+        id: true,
+        email: true,
+      },
     });
 
     if (!patient) {
+      logger.warn("Patient not found", { patientId });
       throw createNotFoundError("Patient");
     }
 
