@@ -10,8 +10,10 @@ import {
   Doctor,
   Slot,
   SlotStatus,
+  Payment,
 } from "@medbook/types";
 import { formatDateTime } from "@/components/features/appointment/utils";
+import { PaymentStatus } from "@/components/features/payment/PaymentStatus";
 import Link from "next/link";
 
 interface AppointmentResponse {
@@ -52,6 +54,7 @@ export default function AppointmentDetailPage() {
   const [selectedSlotId, setSelectedSlotId] = useState<string | null>(null);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
+  const [payment, setPayment] = useState<Payment | null>(null);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -80,6 +83,34 @@ export default function AppointmentDetailPage() {
       fetchLoggedInDoctor();
     }
   }, [session?.user?.role, session?.user?.id]);
+
+  // Fetch payment information when appointment is loaded
+  useEffect(() => {
+    if (appointment?.id) {
+      fetchPayment();
+    }
+  }, [appointment?.id]);
+
+  const fetchPayment = async () => {
+    if (!appointmentId) return;
+
+    try {
+      const response = await fetch(
+        `/api/payments/appointment/${appointmentId}`,
+        { cache: "no-store" }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success && data.data) {
+          setPayment(data.data);
+        }
+      }
+    } catch (err) {
+      console.error("[AppointmentDetail] Error fetching payment:", err);
+      // Don't show error, payment might not exist
+    }
+  };
 
   const fetchAppointment = async () => {
     try {
@@ -493,6 +524,20 @@ export default function AppointmentDetailPage() {
                   <p className="text-gray-900 whitespace-pre-wrap">
                     {appointment.notes}
                   </p>
+                </div>
+              )}
+
+              {payment && (
+                <div className="pt-4 border-t border-gray-200">
+                  <h3 className="text-sm font-medium text-gray-700 mb-3">
+                    Payment Information
+                  </h3>
+                  <PaymentStatus
+                    status={payment.status}
+                    amount={payment.amount}
+                    refundedAmount={payment.refundedAmount}
+                    refundReason={payment.refundReason}
+                  />
                 </div>
               )}
 

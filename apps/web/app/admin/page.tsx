@@ -11,6 +11,7 @@ import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
 import { AppointmentsTab } from "@/components/admin/tabs/AppointmentsTab";
+import { CommissionsTab } from "@/components/admin/tabs/CommissionsTab";
 import { SettingsTab } from "@/components/admin/tabs/SettingsTab";
 import type {
   User,
@@ -299,6 +300,17 @@ function AdminDashboardContent() {
       {activeTab === "appointments" && (
         <AppointmentsTab
           doctors={doctors}
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }}
+        />
+      )}
+
+      {/* Commissions Tab */}
+      {activeTab === "commissions" && (
+        <CommissionsTab
           onError={setError}
           onSuccess={(message) => {
             setSuccessMessage(message);

@@ -21,6 +21,9 @@ import {
   getDoctorStatistics,
   getAppointmentStatistics,
   getSystemHealthStatus,
+  getCommissionSettings,
+  createCommissionSettingsForDoctor,
+  updateCommissionSettingsForDoctor,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -106,5 +109,29 @@ router.put("/doctors/:id", updateDoctorProfile);
  * Delete doctor
  */
 router.delete("/doctors/:id", removeDoctor);
+
+/**
+ * GET /api/v1/admin/doctors/:doctorId/commission-settings
+ * Get commission settings for a doctor
+ */
+router.get("/doctors/:doctorId/commission-settings", getCommissionSettings);
+
+/**
+ * POST /api/v1/admin/doctors/:doctorId/commission-settings
+ * Create commission settings for a doctor
+ */
+router.post(
+  "/doctors/:doctorId/commission-settings",
+  createCommissionSettingsForDoctor
+);
+
+/**
+ * PUT /api/v1/admin/doctors/:doctorId/commission-settings
+ * Update commission settings for a doctor
+ */
+router.put(
+  "/doctors/:doctorId/commission-settings",
+  updateCommissionSettingsForDoctor
+);
 
 export default router;

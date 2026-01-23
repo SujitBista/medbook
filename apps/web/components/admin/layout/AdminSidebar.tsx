@@ -8,6 +8,7 @@ import {
   UserGroupIcon,
   CalendarIcon,
   ClockIcon,
+  CurrencyDollarIcon,
   Cog6ToothIcon,
   XMarkIcon,
 } from "@heroicons/react/24/outline";
@@ -54,6 +55,12 @@ const navItems: NavItem[] = [
     label: "Schedule Management",
     href: "/admin?tab=schedule-management",
     icon: ClockIcon,
+  },
+  {
+    id: "commissions",
+    label: "Commissions & Pricing",
+    href: "/admin?tab=commissions",
+    icon: CurrencyDollarIcon,
   },
   {
     id: "settings",
