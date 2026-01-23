@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
@@ -167,6 +167,12 @@ export default function DoctorDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [bookedAppointment, setBookedAppointment] =
     useState<Appointment | null>(null);
+  const [appointmentPrice, setAppointmentPrice] = useState<
+    number | undefined
+  >();
+  const [paymentIntentId, setPaymentIntentId] = useState<string | undefined>();
+  const [clientSecret, setClientSecret] = useState<string | undefined>();
+  const [creatingPaymentIntent, setCreatingPaymentIntent] = useState(false);
 
   // Build slots API URL
   const slotsUrl = useMemo(() => {
@@ -212,16 +218,177 @@ export default function DoctorDetailPage() {
     refreshInterval: 30000,
   });
 
+  // Fetch commission settings to get appointment price
+  useEffect(() => {
+    if (!doctorId) return;
+
+    const fetchCommissionSettings = async () => {
+      try {
+        const response = await fetch(
+          `/api/admin/doctors/${doctorId}/commission-settings`,
+          { cache: "no-store" }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setAppointmentPrice(data.data.appointmentPrice);
+          }
+        }
+      } catch (err) {
+        console.error(
+          "[DoctorDetail] Error fetching commission settings:",
+          err
+        );
+        // Don't show error to user, just proceed without payment
+      }
+    };
+
+    fetchCommissionSettings();
+  }, [doctorId]);
+
   // Combined loading state
   const loading = doctorLoading || slotsLoading;
 
   // Combined error state
   const fetchError = doctorError || slotsError;
 
-  const handleSlotSelect = (slot: TimeSlot) => {
+  const handleSlotSelect = async (slot: TimeSlot) => {
     setSelectedSlot(slot);
-    setShowBookingForm(true);
     setError(null);
+
+    // If payment is required, create payment intent first
+    if (appointmentPrice && session?.user?.id) {
+      try {
+        setCreatingPaymentIntent(true);
+        const response = await fetch("/api/payments/create-intent", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            amount: appointmentPrice,
+            currency: "usd",
+            appointmentId: "", // Will be set after appointment creation
+            patientId: session.user.id,
+            doctorId: doctorId,
+          }),
+        });
+
+        const data = await response.json();
+
+        if (!response.ok || !data.success) {
+          throw new Error(
+            data.error?.message || "Failed to initialize payment"
+          );
+        }
+
+        setPaymentIntentId(data.data.paymentIntentId);
+        setClientSecret(data.data.clientSecret);
+        setShowBookingForm(true);
+      } catch (err) {
+        console.error("[DoctorDetail] Error creating payment intent:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to initialize payment. Please try again."
+        );
+      } finally {
+        setCreatingPaymentIntent(false);
+      }
+    } else {
+      // No payment required, show booking form directly
+      setShowBookingForm(true);
+    }
+  };
+
+  const handlePaymentSuccess = async (piId: string) => {
+    // Payment is confirmed, now create the appointment
+    if (!selectedSlot || !session?.user?.id) {
+      return;
+    }
+
+    try {
+      setBooking(true);
+      setError(null);
+
+      // First confirm the payment
+      const confirmResponse = await fetch("/api/payments/confirm", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          paymentIntentId: piId,
+          appointmentId: "", // Will be set after appointment creation
+        }),
+      });
+
+      if (!confirmResponse.ok) {
+        const confirmData = await confirmResponse.json();
+        throw new Error(
+          confirmData.error?.message || "Failed to confirm payment"
+        );
+      }
+
+      // Now create the appointment
+      const input: CreateAppointmentInput = {
+        patientId: session.user.id,
+        doctorId: doctorId,
+        availabilityId: selectedSlot.availabilityId,
+        slotId: selectedSlot.id,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      };
+
+      const response = await fetch("/api/appointments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(input),
+      });
+
+      const data: AppointmentCreateResponse = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(
+          data.error?.message || "Failed to book appointment. Please try again."
+        );
+      }
+
+      // Update payment with appointment ID
+      if (paymentIntentId && data.data.id) {
+        await fetch("/api/payments/confirm", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentIntentId: paymentIntentId,
+            appointmentId: data.data.id,
+          }),
+        });
+      }
+
+      setBookedAppointment(data.data);
+      setShowBookingForm(false);
+      setSelectedSlot(null);
+      setPaymentIntentId(undefined);
+      setClientSecret(undefined);
+
+      // Refresh slots to update available slots
+      await mutateSlots();
+    } catch (err) {
+      console.error("[DoctorDetail] Error booking appointment:", err);
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to book appointment. Please try again."
+      );
+    } finally {
+      setBooking(false);
+    }
   };
 
   const handleBookingSubmit = async (input: CreateAppointmentInput) => {
@@ -235,6 +402,12 @@ export default function DoctorDetailPage() {
       setError(
         "Admins cannot book appointments. Please use the admin dashboard."
       );
+      return;
+    }
+
+    // If payment is required but not completed, don't proceed
+    if (appointmentPrice && !paymentIntentId) {
+      setError("Payment is required to complete booking");
       return;
     }
 
@@ -261,9 +434,25 @@ export default function DoctorDetailPage() {
         );
       }
 
+      // If payment was made, confirm it with appointment ID
+      if (paymentIntentId && data.data.id) {
+        await fetch("/api/payments/confirm", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            paymentIntentId: paymentIntentId,
+            appointmentId: data.data.id,
+          }),
+        });
+      }
+
       setBookedAppointment(data.data);
       setShowBookingForm(false);
       setSelectedSlot(null);
+      setPaymentIntentId(undefined);
+      setClientSecret(undefined);
 
       // Refresh slots to update available slots
       await mutateSlots();
@@ -283,6 +472,8 @@ export default function DoctorDetailPage() {
     setShowBookingForm(false);
     setSelectedSlot(null);
     setError(null);
+    setPaymentIntentId(undefined);
+    setClientSecret(undefined);
   };
 
   if (loading) {
@@ -684,7 +875,14 @@ export default function DoctorDetailPage() {
                 selectedSlot={selectedSlot}
                 onSubmit={handleBookingSubmit}
                 onCancel={handleCancelBooking}
-                loading={booking}
+                loading={booking || creatingPaymentIntent}
+                appointmentPrice={appointmentPrice}
+                paymentIntentId={paymentIntentId}
+                clientSecret={clientSecret}
+                onPaymentSuccess={handlePaymentSuccess}
+                showPayment={
+                  !!appointmentPrice && !!paymentIntentId && !!clientSecret
+                }
               />
             )}
           </div>
