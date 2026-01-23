@@ -1,11 +1,12 @@
 "use client";
 
 import React, { useState } from "react";
-import { Button, Card, Input } from "@medbook/ui";
+import { Button, Card } from "@medbook/ui";
 import { TimeSlot, formatDateTime } from "./utils";
 import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
+import Link from "next/link";
 
 interface BookingFormProps {
   doctorId: string;
@@ -59,10 +60,8 @@ export function BookingForm({
       return;
     }
 
-    if (!patientId || patientId.trim() === "") {
-      setError("Please log in to book an appointment");
-      return;
-    }
+    // Note: Login check removed - this function should only be called when authenticated
+    // The UI prevents submission when not authenticated
 
     // If payment is required, ensure it's completed
     if (
@@ -97,8 +96,17 @@ export function BookingForm({
     }
   };
 
+  // Determine authentication state
+  const isAuthenticated = patientId && patientId.trim() !== "";
+  const loginCallbackUrl = `/doctors/${doctorId}`;
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Prevent submission if not authenticated
+    if (!isAuthenticated) {
+      return;
+    }
 
     // If payment is required and not completed, don't submit yet
     if (showPayment && appointmentPrice && !paymentCompleted) {
@@ -108,19 +116,32 @@ export function BookingForm({
     await handleBookingSubmit();
   };
 
-  const isAuthenticated = patientId && patientId.trim() !== "";
-
   return (
     <Card title="Book Appointment">
       {selectedSlot ? (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Login Required Message - Only show when NOT authenticated */}
           {!isAuthenticated && (
-            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
-              <p className="text-sm font-medium mb-1">Login Required</p>
-              <p className="text-sm">
-                Please log in to book an appointment. You will be redirected to
-                the login page when you click &quot;Confirm Booking&quot;.
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-4 rounded-lg">
+              <p className="text-sm font-medium mb-2">Sign in to continue</p>
+              <p className="text-sm mb-4">
+                Please sign in or create an account to book this appointment.
               </p>
+              <div className="flex gap-3">
+                <Link
+                  href={`/login?callbackUrl=${encodeURIComponent(loginCallbackUrl)}`}
+                  className="flex-1"
+                >
+                  <Button variant="primary" className="w-full" type="button">
+                    Log in
+                  </Button>
+                </Link>
+                <Link href="/register" className="flex-1">
+                  <Button variant="outline" className="w-full" type="button">
+                    Create account
+                  </Button>
+                </Link>
+              </div>
             </div>
           )}
           <div className="bg-gray-50 p-4 rounded-lg">
@@ -190,36 +211,38 @@ export function BookingForm({
             </div>
           )}
 
-          {error && (
+          {/* Only show error messages when authenticated (login errors are handled via UI state, not error messages) */}
+          {error && isAuthenticated && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               <p className="text-sm">{error}</p>
             </div>
           )}
 
-          {/* Only show booking button if payment is completed or not required */}
-          {(!showPayment || paymentCompleted || !appointmentPrice) && (
-            <div
-              className="flex gap-3 pt-4"
-              style={{ visibility: "visible", display: "flex" }}
-            >
-              <Button
-                type="submit"
-                variant="primary"
-                disabled={loading || (showPayment && !paymentCompleted)}
-                className="flex-1"
+          {/* Only show booking button when authenticated and payment is completed or not required */}
+          {isAuthenticated &&
+            (!showPayment || paymentCompleted || !appointmentPrice) && (
+              <div
+                className="flex gap-3 pt-4"
+                style={{ visibility: "visible", display: "flex" }}
               >
-                {loading ? "Booking..." : "Confirm Booking"}
-              </Button>
-              <Button
-                type="button"
-                variant="secondary"
-                onClick={onCancel}
-                disabled={loading}
-              >
-                Cancel
-              </Button>
-            </div>
-          )}
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={loading || (showPayment && !paymentCompleted)}
+                  className="flex-1"
+                >
+                  {loading ? "Booking..." : "Confirm Booking"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={onCancel}
+                  disabled={loading}
+                >
+                  Cancel
+                </Button>
+              </div>
+            )}
         </form>
       ) : (
         <div className="text-center py-8">
