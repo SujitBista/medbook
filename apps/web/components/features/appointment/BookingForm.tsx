@@ -119,7 +119,7 @@ export function BookingForm({
               <p className="text-sm font-medium mb-1">Login Required</p>
               <p className="text-sm">
                 Please log in to book an appointment. You will be redirected to
-                the login page when you click "Confirm Booking".
+                the login page when you click &quot;Confirm Booking&quot;.
               </p>
             </div>
           )}
