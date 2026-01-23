@@ -254,6 +254,14 @@ export default function DoctorDetailPage() {
   const fetchError = doctorError || slotsError;
 
   const handleSlotSelect = async (slot: TimeSlot) => {
+    // Prevent admins from selecting slots
+    if (session?.user?.role === "ADMIN") {
+      setError(
+        "Admins cannot book appointments. Please use the admin dashboard to manage appointments."
+      );
+      return;
+    }
+
     setSelectedSlot(slot);
     setError(null);
 
@@ -766,7 +774,41 @@ export default function DoctorDetailPage() {
               />
             ) : !showBookingForm ? (
               <Card title="Available Time Slots">
-                {availableSlots.length === 0 ? (
+                {session?.user?.role === "ADMIN" ? (
+                  <div className="text-center py-12">
+                    <div className="mx-auto w-16 h-16 mb-4 text-amber-500">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        strokeWidth={1.5}
+                        stroke="currentColor"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
+                        />
+                      </svg>
+                    </div>
+                    <p className="text-gray-900 font-semibold text-lg mb-2">
+                      Admin Access
+                    </p>
+                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
+                      Admins cannot book appointments through the public booking
+                      page. Please use the admin dashboard to manage
+                      appointments and view booking information.
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                      <Link href="/admin">
+                        <Button variant="primary">Go to Admin Dashboard</Button>
+                      </Link>
+                      <Link href="/doctors">
+                        <Button variant="outline">Browse Doctors</Button>
+                      </Link>
+                    </div>
+                  </div>
+                ) : availableSlots.length === 0 ? (
                   <div className="text-center py-12">
                     <div className="mx-auto w-16 h-16 mb-4 text-gray-300">
                       <svg
