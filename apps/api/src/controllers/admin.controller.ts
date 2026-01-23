@@ -23,7 +23,16 @@ import {
   deleteDoctor,
   getDoctorStats,
 } from "../services/doctor.service";
-import { UpdateDoctorInput } from "@medbook/types";
+import {
+  getCommissionSettingsByDoctorId,
+  createCommissionSettings,
+  updateCommissionSettings,
+} from "../services/commission.service";
+import {
+  UpdateDoctorInput,
+  CreateCommissionSettingsInput,
+  UpdateCommissionSettingsInput,
+} from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
 
@@ -523,6 +532,127 @@ export async function getSystemHealthStatus(
     res.status(200).json({
       success: true,
       health,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get commission settings for a doctor (admin only)
+ * GET /api/v1/admin/doctors/:doctorId/commission-settings
+ */
+export async function getCommissionSettings(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { doctorId } = req.params;
+
+    if (!doctorId) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    const settings = await getCommissionSettingsByDoctorId(doctorId);
+
+    res.status(200).json({
+      success: true,
+      data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Create commission settings for a doctor (admin only)
+ * POST /api/v1/admin/doctors/:doctorId/commission-settings
+ */
+export async function createCommissionSettingsForDoctor(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { doctorId } = req.params;
+    const { commissionRate, appointmentPrice } = req.body;
+
+    if (!doctorId) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    if (commissionRate === undefined || appointmentPrice === undefined) {
+      const error = createValidationError(
+        "Commission rate and appointment price are required"
+      );
+      next(error);
+      return;
+    }
+
+    const input: CreateCommissionSettingsInput = {
+      doctorId,
+      commissionRate: Number(commissionRate),
+      appointmentPrice: Number(appointmentPrice),
+    };
+
+    const settings = await createCommissionSettings(input);
+
+    res.status(201).json({
+      success: true,
+      data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update commission settings for a doctor (admin only)
+ * PUT /api/v1/admin/doctors/:doctorId/commission-settings
+ */
+export async function updateCommissionSettingsForDoctor(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { doctorId } = req.params;
+    const { commissionRate, appointmentPrice } = req.body;
+
+    if (!doctorId) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    // Validate that at least one field is provided
+    if (commissionRate === undefined && appointmentPrice === undefined) {
+      const error = createValidationError(
+        "At least one field (commissionRate or appointmentPrice) must be provided"
+      );
+      next(error);
+      return;
+    }
+
+    const input: UpdateCommissionSettingsInput = {
+      ...(commissionRate !== undefined && {
+        commissionRate: Number(commissionRate),
+      }),
+      ...(appointmentPrice !== undefined && {
+        appointmentPrice: Number(appointmentPrice),
+      }),
+    };
+
+    const settings = await updateCommissionSettings(doctorId, input);
+
+    res.status(200).json({
+      success: true,
+      data: settings,
     });
   } catch (error) {
     next(error);

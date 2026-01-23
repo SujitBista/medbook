@@ -101,4 +101,5 @@ export type TabType =
   | "doctors"
   | "schedule-management"
   | "appointments"
+  | "commissions"
   | "settings";

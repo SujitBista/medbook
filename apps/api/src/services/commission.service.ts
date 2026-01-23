@@ -372,6 +372,55 @@ export async function createCommission(
 }
 
 /**
+ * Get commission by ID
+ * @param commissionId Commission ID
+ * @returns Commission record or null
+ */
+export async function getCommissionById(
+  commissionId: string
+): Promise<Commission | null> {
+  const commission = await query<{
+    id: string;
+    paymentId: string;
+    appointmentId: string;
+    doctorId: string;
+    appointmentAmount: unknown;
+    commissionRate: unknown;
+    commissionAmount: unknown;
+    doctorPayoutAmount: unknown;
+    status: PrismaCommissionStatus;
+    stripeTransferId: string | null;
+    paidAt: Date | null;
+    createdAt: Date;
+    updatedAt: Date;
+  } | null>((prisma) =>
+    prisma.commission.findUnique({
+      where: { id: commissionId },
+    })
+  );
+
+  if (!commission) {
+    return null;
+  }
+
+  return {
+    id: commission.id,
+    paymentId: commission.paymentId,
+    appointmentId: commission.appointmentId,
+    doctorId: commission.doctorId,
+    appointmentAmount: Number(commission.appointmentAmount),
+    commissionRate: Number(commission.commissionRate),
+    commissionAmount: Number(commission.commissionAmount),
+    doctorPayoutAmount: Number(commission.doctorPayoutAmount),
+    status: convertCommissionStatus(commission.status),
+    stripeTransferId: commission.stripeTransferId ?? undefined,
+    paidAt: commission.paidAt ?? undefined,
+    createdAt: commission.createdAt,
+    updatedAt: commission.updatedAt,
+  };
+}
+
+/**
  * Get commission by payment ID
  * @param paymentId Payment ID
  * @returns Commission record or null

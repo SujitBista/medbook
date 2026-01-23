@@ -27,8 +27,12 @@ You have two options to create the service:
    - **Branch**: `main`
    - **Root Directory**: Leave empty (monorepo root)
    - **Build Command**: `pnpm install --frozen-lockfile && pnpm build --filter=api`
+   - **Release Command**: `pnpm db:migrate:deploy && pnpm db:generate`
    - **Start Command**: `cd apps/api && pnpm start`
    - **Plan**: `Starter` (or your preferred plan)
+
+   **Important:** Do **not** put `prisma migrate deploy` (or `pnpm prisma ...`) in the Start Command. The Prisma CLI is only available in the `@app/db` package. Migrations must run via the **Release Command** from the repo root.
+
 5. Click **"Create Web Service"**
 
 ### Option B: Using render.yaml (Alternative)
@@ -139,6 +143,34 @@ In Render dashboard:
 2. Enable **"Auto-Deploy"** for your branch
 3. Connect GitHub (if not already connected)
 
+## Run migrations in production (one-off)
+
+If you need to run migrations **now** (e.g. before the next deploy, or the Release Command did not run):
+
+1. **Render CLI one-off job** (recommended; uses the service’s build and `DATABASE_URL`):
+
+   ```bash
+   # Ensure you’re logged in: render login (or set RENDER_API_KEY)
+   ./scripts/run-render-migrate.sh [SERVICE_ID]
+   ```
+
+   Or with the CLI only:
+
+   ```bash
+   render jobs create <SERVICE_ID> --start-command "pnpm db:migrate:deploy" --confirm
+   ```
+
+   Get `<SERVICE_ID>` from the service URL (`/web/srv-xxx`) or: `render services list -o json | jq '.[] | "\(.name) \(.id)"'`
+
+2. **SSH into the service** (paid plans; same build and env):
+
+   ```bash
+   render ssh <SERVICE_ID>
+   # in the shell:
+   pnpm db:migrate:deploy
+   exit
+   ```
+
 ## Troubleshooting
 
 ### Service won't start
@@ -158,6 +190,31 @@ In Render dashboard:
 - Verify `DATABASE_URL` is correct
 - Check database is accessible from Render
 - Ensure database migrations have run
+
+### `Command "prisma" not found` or `ERR_PNPM_RECURSIVE_EXEC_FIRST_FAIL  Command "prisma" not found`
+
+This happens when the **Start Command** includes `pnpm prisma migrate deploy` (or similar). The `prisma` CLI is not available in `apps/api`; it lives in the `@app/db` package.
+
+**Fix:** Use the **Release Command** to run migrations from the repo root instead of the Start Command. (If the service uses `render.yaml`, the Release Command is already set there; ensure the Render Dashboard has not overridden it.)
+
+1. In Render → Service → **Build & Deploy**:
+   - **Release Command:** `pnpm db:migrate:deploy && pnpm db:generate`
+   - **Start Command:** `cd apps/api && pnpm start` (do **not** include `prisma` or `migrate` here)
+2. Save and redeploy. The Release Command runs before the new instance serves traffic and uses the correct script from the monorepo root.
+
+### 500 on GET /api/admin/doctors – `column doctors.stripeAccountId does not exist`
+
+The `stripeAccountId` column was added in a migration. If migrations never ran in production (e.g. **Release Command** was missing or wrong, or you saw `Command "prisma" not found`), the column is missing.
+
+1. **Fix the Release Command** (recommended): In Render → Build & Deploy, set **Release Command** to `pnpm db:migrate:deploy && pnpm db:generate` and **Start Command** to `cd apps/api && pnpm start` only. Redeploy so migrations run.
+2. **One-off fix** (if you need the app working before the next deploy): In Render Shell or locally with prod `DATABASE_URL`:
+   ```bash
+   pnpm db:migrate:deploy
+   ```
+   Or run this SQL on the production DB:
+   ```sql
+   ALTER TABLE "doctors" ADD COLUMN IF NOT EXISTS "stripeAccountId" TEXT;
+   ```
 
 ## Next Steps
 

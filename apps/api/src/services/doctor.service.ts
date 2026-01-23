@@ -142,11 +142,11 @@ export async function getAllDoctors(options?: {
   const page = options?.page ?? 1;
   const limit = options?.limit ?? 10;
   const skip = (page - 1) * limit;
-  const search = options?.search?.trim().toLowerCase();
-  const specialization = options?.specialization?.trim();
+  const search = options?.search?.trim()?.toLowerCase() || undefined;
+  const specialization = options?.specialization?.trim() || undefined;
   const hasAvailability = options?.hasAvailability ?? false;
-  const city = options?.city?.trim();
-  const state = options?.state?.trim();
+  const city = options?.city?.trim() || undefined;
+  const state = options?.state?.trim() || undefined;
   const sortBy = options?.sortBy ?? "createdAt";
   const sortOrder = options?.sortOrder ?? "desc";
 
@@ -377,98 +377,117 @@ export async function getAllDoctors(options?: {
   }>[];
   let total: number;
 
-  if (hasAvailability) {
-    // Fetch all doctors that match the base criteria
-    const allDoctors = await query<
-      Prisma.DoctorGetPayload<{
-        include: typeof includeOptions;
-      }>[]
-    >((prisma) =>
-      prisma.doctor.findMany({
-        where,
-        include: includeOptions,
-        orderBy,
-      })
-    );
-
-    // Post-filter: Filter doctors based on actual slot template duration
-    // This ensures doctors only appear if they have enough time for at least one slot
-    const filteredDoctors = allDoctors.filter((doctor) => {
-      // If doctor has available slots, include them
-      if (
-        doctor.slots &&
-        Array.isArray(doctor.slots) &&
-        doctor.slots.length > 0
-      ) {
-        return true;
-      }
-
-      // Otherwise, check if availabilities can generate valid slots
-      // Get slot template duration (default to 30 if not set)
-      const slotDurationMinutes = doctor.slotTemplate?.durationMinutes ?? 30;
-      const minSlotDurationMs = slotDurationMinutes * 60 * 1000;
-      const minSlotEndTime = new Date(now.getTime() + minSlotDurationMs);
-
-      // Check if any availability can generate a valid slot
-      if (
-        !doctor.availabilities ||
-        !Array.isArray(doctor.availabilities) ||
-        doctor.availabilities.length === 0
-      ) {
-        return false;
-      }
-
-      for (const availability of doctor.availabilities) {
-        if (!availability.isRecurring) {
-          // One-time: check if endTime is far enough in the future
-          if (new Date(availability.endTime) >= minSlotEndTime) {
-            return true;
-          }
-        } else {
-          // Recurring: check if validTo is far enough in the future
-          // and the time window itself has enough duration
-          const hasValidTimeRange =
-            !availability.validTo ||
-            new Date(availability.validTo) >= minSlotEndTime;
-
-          if (hasValidTimeRange) {
-            // Check if the time window itself has enough duration
-            const availStart = new Date(availability.startTime);
-            const availEnd = new Date(availability.endTime);
-            const availDurationMs = availEnd.getTime() - availStart.getTime();
-            if (availDurationMs >= minSlotDurationMs) {
-              return true;
-            }
-          }
-        }
-      }
-
-      return false;
-    });
-
-    // Calculate total from filtered results
-    total = filteredDoctors.length;
-
-    // Apply pagination to filtered results
-    doctors = filteredDoctors.slice(skip, skip + limit);
-  } else {
-    // When not filtering by availability, use standard pagination
-    [doctors, total] = await Promise.all([
-      query<
+  try {
+    if (hasAvailability) {
+      // Fetch all doctors that match the base criteria
+      const allDoctors = await query<
         Prisma.DoctorGetPayload<{
           include: typeof includeOptions;
         }>[]
       >((prisma) =>
         prisma.doctor.findMany({
           where,
-          skip,
-          take: limit,
           include: includeOptions,
           orderBy,
         })
-      ),
-      query<number>((prisma) => prisma.doctor.count({ where })),
-    ]);
+      );
+
+      // Post-filter: Filter doctors based on actual slot template duration
+      // This ensures doctors only appear if they have enough time for at least one slot
+      const filteredDoctors = allDoctors.filter((doctor) => {
+        // If doctor has available slots, include them
+        if (
+          doctor.slots &&
+          Array.isArray(doctor.slots) &&
+          doctor.slots.length > 0
+        ) {
+          return true;
+        }
+
+        // Otherwise, check if availabilities can generate valid slots
+        // Get slot template duration (default to 30 if not set)
+        const slotDurationMinutes = doctor.slotTemplate?.durationMinutes ?? 30;
+        const minSlotDurationMs = slotDurationMinutes * 60 * 1000;
+        const minSlotEndTime = new Date(now.getTime() + minSlotDurationMs);
+
+        // Check if any availability can generate a valid slot
+        if (
+          !doctor.availabilities ||
+          !Array.isArray(doctor.availabilities) ||
+          doctor.availabilities.length === 0
+        ) {
+          return false;
+        }
+
+        for (const availability of doctor.availabilities) {
+          if (!availability.isRecurring) {
+            // One-time: check if endTime is far enough in the future
+            if (new Date(availability.endTime) >= minSlotEndTime) {
+              return true;
+            }
+          } else {
+            // Recurring: check if validTo is far enough in the future
+            // and the time window itself has enough duration
+            const hasValidTimeRange =
+              !availability.validTo ||
+              new Date(availability.validTo) >= minSlotEndTime;
+
+            if (hasValidTimeRange) {
+              // Check if the time window itself has enough duration
+              const availStart = new Date(availability.startTime);
+              const availEnd = new Date(availability.endTime);
+              const availDurationMs = availEnd.getTime() - availStart.getTime();
+              if (availDurationMs >= minSlotDurationMs) {
+                return true;
+              }
+            }
+          }
+        }
+
+        return false;
+      });
+
+      // Calculate total from filtered results
+      total = filteredDoctors.length;
+
+      // Apply pagination to filtered results
+      doctors = filteredDoctors.slice(skip, skip + limit);
+    } else {
+      // When not filtering by availability, use standard pagination
+      [doctors, total] = await Promise.all([
+        query<
+          Prisma.DoctorGetPayload<{
+            include: typeof includeOptions;
+          }>[]
+        >((prisma) =>
+          prisma.doctor.findMany({
+            where,
+            skip,
+            take: limit,
+            include: includeOptions,
+            orderBy,
+          })
+        ),
+        query<number>((prisma) => prisma.doctor.count({ where })),
+      ]);
+    }
+  } catch (error) {
+    logger.error("Error in getAllDoctors query", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      options: {
+        page,
+        limit,
+        search,
+        specialization,
+        hasAvailability,
+        city,
+        state,
+        sortBy,
+        sortOrder,
+      },
+    });
+    throw error;
   }
 
   return {

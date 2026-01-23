@@ -4,6 +4,8 @@ import React, { useState } from "react";
 import { Button, Card, Input } from "@medbook/ui";
 import { TimeSlot, formatDateTime } from "./utils";
 import { CreateAppointmentInput } from "@medbook/types";
+import { PaymentForm } from "@/components/features/payment/PaymentForm";
+import { StripeProvider } from "@/components/features/payment/StripeProvider";
 
 interface BookingFormProps {
   doctorId: string;
@@ -12,6 +14,12 @@ interface BookingFormProps {
   onSubmit: (input: CreateAppointmentInput) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  // Payment props
+  appointmentPrice?: number;
+  paymentIntentId?: string;
+  clientSecret?: string;
+  onPaymentSuccess?: (paymentIntentId: string) => void;
+  showPayment?: boolean;
 }
 
 /**
@@ -24,12 +32,26 @@ export function BookingForm({
   onSubmit,
   onCancel,
   loading = false,
+  appointmentPrice,
+  paymentIntentId,
+  clientSecret,
+  onPaymentSuccess,
+  showPayment = false,
 }: BookingFormProps) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [paymentCompleted, setPaymentCompleted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handlePaymentSuccess = (piId: string) => {
+    setPaymentCompleted(true);
+    if (onPaymentSuccess) {
+      onPaymentSuccess(piId);
+    }
+    // Automatically proceed to booking after payment
+    handleBookingSubmit();
+  };
+
+  const handleBookingSubmit = async () => {
     setError(null);
 
     if (!selectedSlot) {
@@ -38,7 +60,18 @@ export function BookingForm({
     }
 
     if (!patientId || patientId.trim() === "") {
-      setError("Please select a patient");
+      setError("Please log in to book an appointment");
+      return;
+    }
+
+    // If payment is required, ensure it's completed
+    if (
+      showPayment &&
+      appointmentPrice &&
+      !paymentCompleted &&
+      !paymentIntentId
+    ) {
+      setError("Payment is required to complete booking");
       return;
     }
 
@@ -64,10 +97,32 @@ export function BookingForm({
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // If payment is required and not completed, don't submit yet
+    if (showPayment && appointmentPrice && !paymentCompleted) {
+      return;
+    }
+
+    await handleBookingSubmit();
+  };
+
+  const isAuthenticated = patientId && patientId.trim() !== "";
+
   return (
     <Card title="Book Appointment">
       {selectedSlot ? (
         <form onSubmit={handleSubmit} className="space-y-4">
+          {!isAuthenticated && (
+            <div className="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg">
+              <p className="text-sm font-medium mb-1">Login Required</p>
+              <p className="text-sm">
+                Please log in to book an appointment. You will be redirected to
+                the login page when you click &quot;Confirm Booking&quot;.
+              </p>
+            </div>
+          )}
           <div className="bg-gray-50 p-4 rounded-lg">
             <p className="text-sm text-gray-600 mb-1">Selected Time Slot</p>
             <p className="font-semibold text-gray-900">
@@ -82,6 +137,11 @@ export function BookingForm({
               )}{" "}
               minutes
             </p>
+            {appointmentPrice && (
+              <p className="text-sm font-semibold text-gray-900 mt-2">
+                Price: ${appointmentPrice.toFixed(2)}
+              </p>
+            )}
           </div>
 
           <div>
@@ -101,33 +161,65 @@ export function BookingForm({
             />
           </div>
 
+          {/* Payment Section */}
+          {showPayment &&
+            appointmentPrice &&
+            clientSecret &&
+            paymentIntentId &&
+            !paymentCompleted && (
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                  Payment Information
+                </h3>
+                <StripeProvider clientSecret={clientSecret}>
+                  <PaymentForm
+                    amount={appointmentPrice}
+                    paymentIntentId={paymentIntentId}
+                    clientSecret={clientSecret}
+                    onSuccess={handlePaymentSuccess}
+                    onError={(err) => setError(err)}
+                    onCancel={onCancel}
+                  />
+                </StripeProvider>
+              </div>
+            )}
+
+          {paymentCompleted && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
+              <p className="text-sm">Payment completed successfully!</p>
+            </div>
+          )}
+
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg">
               <p className="text-sm">{error}</p>
             </div>
           )}
 
-          <div
-            className="flex gap-3 pt-4"
-            style={{ visibility: "visible", display: "flex" }}
-          >
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={loading}
-              className="flex-1"
+          {/* Only show booking button if payment is completed or not required */}
+          {(!showPayment || paymentCompleted || !appointmentPrice) && (
+            <div
+              className="flex gap-3 pt-4"
+              style={{ visibility: "visible", display: "flex" }}
             >
-              {loading ? "Booking..." : "Confirm Booking"}
-            </Button>
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={onCancel}
-              disabled={loading}
-            >
-              Cancel
-            </Button>
-          </div>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading || (showPayment && !paymentCompleted)}
+                className="flex-1"
+              >
+                {loading ? "Booking..." : "Confirm Booking"}
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onCancel}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+            </div>
+          )}
         </form>
       ) : (
         <div className="text-center py-8">
