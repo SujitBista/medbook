@@ -7,6 +7,7 @@ import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
+import { ClockIcon } from "@heroicons/react/24/outline";
 
 interface BookingFormProps {
   doctorId: string;
@@ -133,7 +134,7 @@ export function BookingForm({
                   className="flex-1"
                 >
                   <Button variant="primary" className="w-full" type="button">
-                    Log in
+                    Log in to book
                   </Button>
                 </Link>
                 <Link href="/register" className="flex-1">
@@ -144,9 +145,14 @@ export function BookingForm({
               </div>
             </div>
           )}
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Selected Time Slot</p>
-            <p className="font-semibold text-gray-900">
+          <div className="bg-gray-50 p-4 rounded-lg border-2 border-primary-200">
+            <div className="flex items-center gap-2 mb-2">
+              <ClockIcon className="h-5 w-5 text-primary-600" />
+              <p className="text-sm font-medium text-gray-700">
+                Selected Time Slot
+              </p>
+            </div>
+            <p className="text-xl font-bold text-gray-900 mb-1">
               {formatDateTime(selectedSlot.startTime)}
             </p>
             <p className="text-sm text-gray-500 mt-1">
@@ -178,8 +184,14 @@ export function BookingForm({
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Add any additional notes or concerns..."
               rows={4}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              disabled={!isAuthenticated}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
             />
+            {!isAuthenticated && (
+              <p className="mt-1.5 text-xs text-gray-500">
+                Sign in to add notes for the doctor.
+              </p>
+            )}
           </div>
 
           {/* Payment Section */}
