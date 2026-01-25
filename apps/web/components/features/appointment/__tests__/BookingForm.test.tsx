@@ -261,7 +261,8 @@ describe("BookingForm", () => {
       />
     );
 
-    expect(screen.getByText("Booking as")).toBeInTheDocument();
-    expect(screen.getByText("Jane Doe · jane@example.com")).toBeInTheDocument();
+    // Patient identity is shown in the appointment card (minimal read-only confirmation)
+    expect(screen.getByText("Jane Doe")).toBeInTheDocument();
+    expect(screen.getByText(/jane@example\.com/)).toBeInTheDocument();
   });
 });
