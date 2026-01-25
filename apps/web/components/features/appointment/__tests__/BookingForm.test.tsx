@@ -42,13 +42,17 @@ describe("BookingForm", () => {
       />
     );
 
-    expect(screen.getByText("Book Appointment")).toBeInTheDocument();
-    expect(screen.getByText(/Selected Time Slot/i)).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: /Confirm your appointment/i })
+    ).toBeInTheDocument();
+    expect(screen.getByText(/30 minutes/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Confirm Booking/i })
+      screen.getByRole("button", { name: /Confirm booking/i })
     ).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Cancel/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Change slot/i })
+    ).toBeInTheDocument();
   });
 
   it("shows message when no slot is selected", () => {
@@ -78,8 +82,7 @@ describe("BookingForm", () => {
       />
     );
 
-    // Check that the slot date/time is displayed
-    expect(screen.getByText(/Duration:/i)).toBeInTheDocument();
+    expect(screen.getByText(/30 minutes/i)).toBeInTheDocument();
   });
 
   it("allows user to enter notes", async () => {
@@ -118,7 +121,7 @@ describe("BookingForm", () => {
     await user.type(notesInput, "Test appointment notes");
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm Booking/i,
+      name: /Confirm booking/i,
     });
     await user.click(submitButton);
 
@@ -136,7 +139,7 @@ describe("BookingForm", () => {
     });
   });
 
-  it("calls onCancel when cancel button is clicked", async () => {
+  it("calls onCancel when change slot button is clicked", async () => {
     const user = userEvent.setup();
     render(
       <BookingForm
@@ -148,14 +151,15 @@ describe("BookingForm", () => {
       />
     );
 
-    const cancelButton = screen.getByRole("button", { name: /Cancel/i });
-    await user.click(cancelButton);
+    const changeSlotButton = screen.getByRole("button", {
+      name: /Change slot/i,
+    });
+    await user.click(changeSlotButton);
 
     expect(mockOnCancel).toHaveBeenCalledTimes(1);
   });
 
   it("shows error when submitting without selected slot", async () => {
-    const user = userEvent.setup();
     render(
       <BookingForm
         doctorId="doctor-1"
@@ -186,7 +190,7 @@ describe("BookingForm", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm Booking/i,
+      name: /Confirm booking/i,
     });
     await user.click(submitButton);
 
@@ -208,10 +212,12 @@ describe("BookingForm", () => {
     );
 
     const submitButton = screen.getByRole("button", { name: /Booking.../i });
-    const cancelButton = screen.getByRole("button", { name: /Cancel/i });
+    const changeSlotButton = screen.getByRole("button", {
+      name: /Change slot/i,
+    });
 
     expect(submitButton).toBeDisabled();
-    expect(cancelButton).toBeDisabled();
+    expect(changeSlotButton).toBeDisabled();
   });
 
   it("submits with empty notes when notes field is empty", async () => {
@@ -229,7 +235,7 @@ describe("BookingForm", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm Booking/i,
+      name: /Confirm booking/i,
     });
     await user.click(submitButton);
 
@@ -240,5 +246,22 @@ describe("BookingForm", () => {
         })
       );
     });
+  });
+
+  it("shows patient identity when patientName and patientEmail are provided", () => {
+    render(
+      <BookingForm
+        doctorId="doctor-1"
+        patientId="patient-1"
+        patientName="Jane Doe"
+        patientEmail="jane@example.com"
+        selectedSlot={mockSlot}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    expect(screen.getByText("Booking as")).toBeInTheDocument();
+    expect(screen.getByText("Jane Doe · jane@example.com")).toBeInTheDocument();
   });
 });
