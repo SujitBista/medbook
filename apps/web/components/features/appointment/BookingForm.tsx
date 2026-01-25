@@ -7,7 +7,7 @@ import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
-import { ClockIcon } from "@heroicons/react/24/outline";
+import { ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 
 interface BookingFormProps {
   doctorId: string;
@@ -132,41 +132,84 @@ export function BookingForm({
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Login Required Message - Only show when NOT authenticated */}
           {!isAuthenticated && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-4 rounded-lg">
-              <p className="text-sm font-medium mb-2">Sign in to continue</p>
-              <p className="text-sm mb-4">
-                Please sign in or create an account to book this appointment.
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-5 py-5 rounded-lg">
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-blue-700">
+                  Step 2 of 3
+                </span>
+                <span className="text-blue-600">·</span>
+                <span className="text-sm font-medium">Sign in to continue</span>
+              </div>
+              <p className="text-sm text-blue-700 mb-5 leading-relaxed">
+                We&apos;ll securely save your appointment details. Sign in to
+                complete your booking.
               </p>
-              <div className="flex gap-3">
+              <div className="space-y-3">
                 <Link
                   href={`/login?callbackUrl=${encodeURIComponent(loginCallbackUrl)}`}
-                  className="flex-1"
+                  className="block"
                 >
                   <Button variant="primary" className="w-full" type="button">
-                    Log in to book
+                    Sign in to book
                   </Button>
                 </Link>
-                <Link href="/register" className="flex-1">
-                  <Button variant="outline" className="w-full" type="button">
-                    Create account
-                  </Button>
-                </Link>
+                <div className="text-center">
+                  <Link
+                    href="/register"
+                    className="text-sm text-blue-700 hover:text-blue-900 underline underline-offset-2"
+                  >
+                    Don&apos;t have an account? Create one
+                  </Link>
+                </div>
+                <p className="text-xs text-center text-blue-600 mt-3">
+                  Your information is encrypted and secure
+                </p>
               </div>
             </div>
           )}
 
           {/* Emphasized selected time slot */}
-          <div className="rounded-xl border-2 border-primary-400 bg-gradient-to-br from-primary-50 to-primary-100/80 px-6 py-6 shadow-sm">
+          <div
+            className={`rounded-xl border-2 ${
+              isAuthenticated
+                ? "border-primary-400 bg-gradient-to-br from-primary-50 to-primary-100/80"
+                : "border-gray-300 bg-gray-50/60"
+            } px-6 py-6 shadow-sm relative`}
+          >
+            {!isAuthenticated && (
+              <div className="absolute inset-0 bg-white/40 rounded-xl flex items-center justify-center backdrop-blur-[1px]">
+                <div className="flex flex-col items-center gap-2 text-gray-500">
+                  <LockClosedIcon className="h-6 w-6" />
+                  <span className="text-xs font-medium">Sign in to unlock</span>
+                </div>
+              </div>
+            )}
             <div className="flex items-center gap-2 mb-3">
-              <ClockIcon className="h-6 w-6 text-primary-600" />
-              <span className="text-xs font-semibold uppercase tracking-wide text-primary-700">
+              <ClockIcon
+                className={`h-6 w-6 ${
+                  isAuthenticated ? "text-primary-600" : "text-gray-400"
+                }`}
+              />
+              <span
+                className={`text-xs font-semibold uppercase tracking-wide ${
+                  isAuthenticated ? "text-primary-700" : "text-gray-500"
+                }`}
+              >
                 Your appointment
               </span>
             </div>
-            <p className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
+            <p
+              className={`text-3xl font-bold tracking-tight mb-2 ${
+                isAuthenticated ? "text-gray-900" : "text-gray-400"
+              }`}
+            >
               {formatDateTime(selectedSlot.startTime)}
             </p>
-            <p className="text-base font-medium text-gray-700">
+            <p
+              className={`text-base font-medium ${
+                isAuthenticated ? "text-gray-700" : "text-gray-400"
+              }`}
+            >
               {Math.round(
                 (selectedSlot.endTime.getTime() -
                   selectedSlot.startTime.getTime()) /
@@ -175,7 +218,11 @@ export function BookingForm({
               minutes
             </p>
             {appointmentPrice && (
-              <p className="mt-2 text-sm font-semibold text-gray-900">
+              <p
+                className={`mt-2 text-sm font-semibold ${
+                  isAuthenticated ? "text-gray-900" : "text-gray-400"
+                }`}
+              >
                 ${appointmentPrice.toFixed(2)}
               </p>
             )}
@@ -209,10 +256,14 @@ export function BookingForm({
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. 'Follow-up for chest pain', 'Medication review needed', 'Discuss test results from last visit'"
+              placeholder={
+                isAuthenticated
+                  ? "e.g. 'Follow-up for chest pain', 'Medication review needed', 'Discuss test results from last visit'"
+                  : "Sign in to add notes for your doctor"
+              }
               rows={3}
               disabled={!isAuthenticated}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:bg-gray-50 disabled:text-gray-400 disabled:cursor-not-allowed disabled:placeholder:text-gray-300"
             />
             {isAuthenticated ? (
               <p className="mt-1.5 text-xs text-gray-500">
@@ -220,8 +271,8 @@ export function BookingForm({
                 before your visit.
               </p>
             ) : (
-              <p className="mt-1.5 text-xs text-amber-600">
-                Sign in to add notes for the doctor.
+              <p className="mt-1.5 text-xs text-gray-500">
+                This field will be available after you sign in.
               </p>
             )}
           </div>
