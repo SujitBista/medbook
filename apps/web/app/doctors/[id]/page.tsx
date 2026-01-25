@@ -621,162 +621,35 @@ export default function DoctorDetailPage() {
                   )}
                 </div>
 
-                {/* Doctor Details */}
-                <div className="space-y-4 border-t border-gray-200 pt-6">
-                  {/* License Number */}
-                  {doctor.licenseNumber && (
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          License Number
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 mt-1">
-                          {doctor.licenseNumber}
-                        </p>
-                      </div>
+                {/* Doctor Details - Essential only */}
+                {(doctor.city || doctor.state) && (
+                  <div className="border-t border-gray-200 pt-6">
+                    <div className="flex items-center justify-center gap-2 text-sm text-gray-600">
+                      <svg
+                        className="h-4 w-4 text-gray-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                        />
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                        />
+                      </svg>
+                      <span>
+                        {[doctor.city, doctor.state].filter(Boolean).join(", ")}
+                      </span>
                     </div>
-                  )}
-
-                  {/* Years of Experience */}
-                  {doctor.yearsOfExperience && (
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Experience
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 mt-1">
-                          {doctor.yearsOfExperience}{" "}
-                          {doctor.yearsOfExperience === 1 ? "year" : "years"}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Education */}
-                  {doctor.education && (
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 14l9-5-9-5-9 5 9 5z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 14v9M12 14l-9-5m9 5l9-5m-9 5V5"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Education
-                        </p>
-                        <p className="text-sm text-gray-900 mt-1 leading-relaxed">
-                          {doctor.education}
-                        </p>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Location */}
-                  {(doctor.city || doctor.state) && (
-                    <div className="flex items-start gap-3">
-                      <div className="flex-shrink-0 mt-1">
-                        <svg
-                          className="h-5 w-5 text-gray-400"
-                          fill="none"
-                          stroke="currentColor"
-                          viewBox="0 0 24 24"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                          />
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                          />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
-                          Location
-                        </p>
-                        <p className="text-sm font-semibold text-gray-900 mt-1">
-                          {[doctor.city, doctor.state]
-                            .filter(Boolean)
-                            .join(", ")}
-                        </p>
-                        {doctor.address && (
-                          <p className="text-xs text-gray-600 mt-1">
-                            {doctor.address}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bio */}
-                  {doctor.bio && (
-                    <div className="border-t border-gray-200 pt-6 mt-6">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-3">
-                        About
-                      </p>
-                      <p className="text-sm text-gray-700 leading-relaxed">
-                        {doctor.bio}
-                      </p>
-                    </div>
-                  )}
-                </div>
+                  </div>
+                )}
               </div>
             </Card>
           </div>

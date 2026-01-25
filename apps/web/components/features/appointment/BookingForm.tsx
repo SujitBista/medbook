@@ -156,17 +156,17 @@ export function BookingForm({
           )}
 
           {/* Emphasized selected time slot */}
-          <div className="rounded-xl border-2 border-primary-300 bg-primary-50/60 px-5 py-5">
-            <div className="flex items-center gap-2 mb-2">
-              <ClockIcon className="h-5 w-5 text-primary-600" />
+          <div className="rounded-xl border-2 border-primary-400 bg-gradient-to-br from-primary-50 to-primary-100/80 px-6 py-6 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <ClockIcon className="h-6 w-6 text-primary-600" />
               <span className="text-xs font-semibold uppercase tracking-wide text-primary-700">
                 Your appointment
               </span>
             </div>
-            <p className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
+            <p className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
               {formatDateTime(selectedSlot.startTime)}
             </p>
-            <p className="text-sm text-gray-600">
+            <p className="text-base font-medium text-gray-700">
               {Math.round(
                 (selectedSlot.endTime.getTime() -
                   selectedSlot.startTime.getTime()) /
@@ -209,7 +209,7 @@ export function BookingForm({
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="e.g. symptoms, follow-up questions, or special requests for the doctor"
+              placeholder="e.g. 'Follow-up for chest pain', 'Medication review needed', 'Discuss test results from last visit'"
               rows={3}
               disabled={!isAuthenticated}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
@@ -265,23 +265,33 @@ export function BookingForm({
           {/* Only show booking button when authenticated and payment is completed or not required */}
           {isAuthenticated &&
             (!showPayment || paymentCompleted || !appointmentPrice) && (
-              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4">
+              <div className="pt-2">
                 <Button
                   type="submit"
                   variant="primary"
                   disabled={loading || (showPayment && !paymentCompleted)}
-                  className="w-full flex-1 sm:w-auto"
+                  className="w-full"
                 >
-                  {loading ? "Booking..." : "Confirm booking"}
+                  {loading
+                    ? "Booking..."
+                    : appointmentPrice
+                      ? "Pay & confirm appointment"
+                      : "Confirm appointment"}
                 </Button>
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  disabled={loading}
-                  className="text-sm text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  Change slot
-                </button>
+                <p className="mt-2 text-xs text-center text-gray-500">
+                  You&apos;ll receive a confirmation email. No charges until
+                  your visit.
+                </p>
+                <div className="mt-4 text-center">
+                  <button
+                    type="button"
+                    onClick={onCancel}
+                    disabled={loading}
+                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    Change time slot
+                  </button>
+                </div>
               </div>
             )}
         </form>
