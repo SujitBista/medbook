@@ -512,20 +512,22 @@ describe("DoctorDashboardPage", () => {
         { timeout: 3000 }
       );
 
-      // Then wait for error message to appear (use findByText which auto-waits)
-      const errorMessage = await screen.findByText(
-        /Failed to fetch appointments/i,
-        {},
+      // Wait for error message to appear
+      await waitFor(
+        () => {
+          expect(
+            screen.getByText(/Failed to fetch appointments/i)
+          ).toBeInTheDocument();
+        },
         { timeout: 5000 }
       );
-      expect(errorMessage).toBeInTheDocument();
 
       // Wait for Retry button (it should be in the document after error appears)
       await waitFor(
         () => {
           expect(screen.getByText("Retry")).toBeInTheDocument();
         },
-        { timeout: 5000 }
+        { timeout: 2000 }
       );
     });
 
