@@ -7,7 +7,7 @@ import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
-import { ClockIcon } from "@heroicons/react/24/outline";
+import { ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 
 interface BookingFormProps {
   doctorId: string;
@@ -132,9 +132,12 @@ export function BookingForm({
         <form onSubmit={handleSubmit} className="space-y-5">
           {/* Login Required Message - Only show when NOT authenticated */}
           {!isAuthenticated && (
-            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-4 rounded-lg">
-              <p className="text-sm font-medium mb-2">Sign in to continue</p>
-              <p className="text-sm mb-4">
+            <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-3 rounded-lg">
+              <p className="text-sm font-medium mb-1.5 flex items-center gap-1.5">
+                <LockClosedIcon className="h-4 w-4" />
+                Sign in to continue
+              </p>
+              <p className="text-sm mb-3">
                 Please sign in or create an account to book this appointment.
               </p>
               <div className="flex gap-3">
