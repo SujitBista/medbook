@@ -48,10 +48,10 @@ describe("BookingForm", () => {
     expect(screen.getByText(/30 minutes/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/Notes/i)).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Confirm booking/i })
+      screen.getByRole("button", { name: /Confirm appointment/i })
     ).toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Change slot/i })
+      screen.getByRole("button", { name: /Change time slot/i })
     ).toBeInTheDocument();
   });
 
@@ -121,7 +121,7 @@ describe("BookingForm", () => {
     await user.type(notesInput, "Test appointment notes");
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm booking/i,
+      name: /Confirm appointment/i,
     });
     await user.click(submitButton);
 
@@ -152,7 +152,7 @@ describe("BookingForm", () => {
     );
 
     const changeSlotButton = screen.getByRole("button", {
-      name: /Change slot/i,
+      name: /Change time slot/i,
     });
     await user.click(changeSlotButton);
 
@@ -190,7 +190,7 @@ describe("BookingForm", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm booking/i,
+      name: /Confirm appointment/i,
     });
     await user.click(submitButton);
 
@@ -213,7 +213,7 @@ describe("BookingForm", () => {
 
     const submitButton = screen.getByRole("button", { name: /Booking.../i });
     const changeSlotButton = screen.getByRole("button", {
-      name: /Change slot/i,
+      name: /Change time slot/i,
     });
 
     expect(submitButton).toBeDisabled();
@@ -235,7 +235,7 @@ describe("BookingForm", () => {
     );
 
     const submitButton = screen.getByRole("button", {
-      name: /Confirm booking/i,
+      name: /Confirm appointment/i,
     });
     await user.click(submitButton);
 
@@ -264,5 +264,41 @@ describe("BookingForm", () => {
     // Patient identity is shown in the appointment card (minimal read-only confirmation)
     expect(screen.getByText("Jane Doe")).toBeInTheDocument();
     expect(screen.getByText(/jane@example\.com/)).toBeInTheDocument();
+  });
+
+  it("shows 'Pay & confirm appointment' button when appointment price is provided", () => {
+    render(
+      <BookingForm
+        doctorId="doctor-1"
+        patientId="patient-1"
+        selectedSlot={mockSlot}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+        appointmentPrice={100}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Pay & confirm appointment/i })
+    ).toBeInTheDocument();
+  });
+
+  it("shows 'Confirm appointment' button when no appointment price is provided", () => {
+    render(
+      <BookingForm
+        doctorId="doctor-1"
+        patientId="patient-1"
+        selectedSlot={mockSlot}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    expect(
+      screen.getByRole("button", { name: /Confirm appointment/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Pay & confirm appointment/i })
+    ).not.toBeInTheDocument();
   });
 });
