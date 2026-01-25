@@ -914,6 +914,16 @@ export default function DoctorDetailPage() {
               <BookingForm
                 doctorId={doctorId}
                 patientId={session?.user?.id || ""}
+                patientName={
+                  typeof session?.user?.name === "string"
+                    ? session.user.name
+                    : undefined
+                }
+                patientEmail={
+                  typeof session?.user?.email === "string"
+                    ? session.user.email
+                    : undefined
+                }
                 selectedSlot={selectedSlot}
                 onSubmit={handleBookingSubmit}
                 onCancel={handleCancelBooking}

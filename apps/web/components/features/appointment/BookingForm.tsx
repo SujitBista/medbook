@@ -7,7 +7,7 @@ import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
-import { ClockIcon } from "@heroicons/react/24/outline";
+import { ClockIcon, UserCircleIcon } from "@heroicons/react/24/outline";
 
 interface BookingFormProps {
   doctorId: string;
@@ -16,6 +16,10 @@ interface BookingFormProps {
   onSubmit: (input: CreateAppointmentInput) => Promise<void>;
   onCancel: () => void;
   loading?: boolean;
+  /** Display name for the logged-in patient (shown in confirmation) */
+  patientName?: string;
+  /** Email for the logged-in patient (shown in confirmation) */
+  patientEmail?: string;
   // Payment props
   appointmentPrice?: number;
   paymentIntentId?: string;
@@ -34,6 +38,8 @@ export function BookingForm({
   onSubmit,
   onCancel,
   loading = false,
+  patientName,
+  patientEmail,
   appointmentPrice,
   paymentIntentId,
   clientSecret,
@@ -117,10 +123,13 @@ export function BookingForm({
     await handleBookingSubmit();
   };
 
+  const patientDisplay =
+    (patientName?.trim() || patientEmail?.trim()) && isAuthenticated;
+
   return (
-    <Card title="Book Appointment">
+    <Card title="Confirm your appointment">
       {selectedSlot ? (
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-5">
           {/* Login Required Message - Only show when NOT authenticated */}
           {!isAuthenticated && (
             <div className="bg-blue-50 border border-blue-200 text-blue-800 px-4 py-4 rounded-lg">
@@ -145,18 +154,36 @@ export function BookingForm({
               </div>
             </div>
           )}
-          <div className="bg-gray-50 p-4 rounded-lg border-2 border-primary-200">
+
+          {/* Patient identity - only when logged in and we have name/email */}
+          {patientDisplay && (
+            <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50/80 px-4 py-3">
+              <UserCircleIcon className="h-6 w-6 shrink-0 text-gray-500" />
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-0.5">
+                  Booking as
+                </p>
+                <p className="font-semibold text-gray-900">
+                  {[patientName?.trim(), patientEmail?.trim()]
+                    .filter(Boolean)
+                    .join(" · ")}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Emphasized selected time slot */}
+          <div className="rounded-xl border-2 border-primary-300 bg-primary-50/60 px-5 py-5">
             <div className="flex items-center gap-2 mb-2">
               <ClockIcon className="h-5 w-5 text-primary-600" />
-              <p className="text-sm font-medium text-gray-700">
-                Selected Time Slot
-              </p>
+              <span className="text-xs font-semibold uppercase tracking-wide text-primary-700">
+                Your appointment
+              </span>
             </div>
-            <p className="text-xl font-bold text-gray-900 mb-1">
+            <p className="text-2xl font-bold tracking-tight text-gray-900 mb-1">
               {formatDateTime(selectedSlot.startTime)}
             </p>
-            <p className="text-sm text-gray-500 mt-1">
-              Duration:{" "}
+            <p className="text-sm text-gray-600">
               {Math.round(
                 (selectedSlot.endTime.getTime() -
                   selectedSlot.startTime.getTime()) /
@@ -165,8 +192,8 @@ export function BookingForm({
               minutes
             </p>
             {appointmentPrice && (
-              <p className="text-sm font-semibold text-gray-900 mt-2">
-                Price: ${appointmentPrice.toFixed(2)}
+              <p className="mt-2 text-sm font-semibold text-gray-900">
+                ${appointmentPrice.toFixed(2)}
               </p>
             )}
           </div>
@@ -176,19 +203,25 @@ export function BookingForm({
               htmlFor="notes"
               className="block text-sm font-medium text-gray-700 mb-1"
             >
-              Notes (Optional)
+              Notes for the doctor{" "}
+              <span className="font-normal text-gray-500">(optional)</span>
             </label>
             <textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Add any additional notes or concerns..."
-              rows={4}
+              placeholder="e.g. symptoms, follow-up questions, or special requests for the doctor"
+              rows={3}
               disabled={!isAuthenticated}
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none disabled:bg-gray-100 disabled:text-gray-500 disabled:cursor-not-allowed"
             />
-            {!isAuthenticated && (
+            {isAuthenticated ? (
               <p className="mt-1.5 text-xs text-gray-500">
+                Optional. Share anything you&apos;d like the doctor to know
+                before your visit.
+              </p>
+            ) : (
+              <p className="mt-1.5 text-xs text-amber-600">
                 Sign in to add notes for the doctor.
               </p>
             )}
@@ -233,26 +266,23 @@ export function BookingForm({
           {/* Only show booking button when authenticated and payment is completed or not required */}
           {isAuthenticated &&
             (!showPayment || paymentCompleted || !appointmentPrice) && (
-              <div
-                className="flex gap-3 pt-4"
-                style={{ visibility: "visible", display: "flex" }}
-              >
+              <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:gap-4">
                 <Button
                   type="submit"
                   variant="primary"
                   disabled={loading || (showPayment && !paymentCompleted)}
-                  className="flex-1"
+                  className="w-full flex-1 sm:w-auto"
                 >
-                  {loading ? "Booking..." : "Confirm Booking"}
+                  {loading ? "Booking..." : "Confirm booking"}
                 </Button>
-                <Button
+                <button
                   type="button"
-                  variant="secondary"
                   onClick={onCancel}
                   disabled={loading}
+                  className="text-sm text-gray-500 underline-offset-2 hover:text-gray-700 hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  Cancel
-                </Button>
+                  Change slot
+                </button>
               </div>
             )}
         </form>
