@@ -14,6 +14,8 @@ import {
 import { Slot, SlotStatus } from "@medbook/types";
 import Link from "next/link";
 import useSWR from "swr";
+import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
+import { AuthStatus } from "@/app/components/AuthStatus";
 
 // Doctor Avatar Component with fallback
 function DoctorAvatar({
@@ -561,6 +563,24 @@ export default function DoctorDetailPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
+      {/* Header */}
+      <header className="border-b border-gray-200 bg-white sticky top-0 z-50 shadow-sm">
+        <div className="container mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between">
+            <Link href="/">
+              <h1 className="text-xl font-bold text-gray-900">MedBook</h1>
+            </Link>
+            <div className="flex items-center gap-4">
+              {status === "authenticated" && session?.user ? (
+                <UserProfileDropdown />
+              ) : (
+                <AuthStatus />
+              )}
+            </div>
+          </div>
+        </div>
+      </header>
+
       <div className="container mx-auto px-4 py-8 max-w-7xl">
         <div className="mb-6">
           <Link href="/doctors">

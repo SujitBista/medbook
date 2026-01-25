@@ -7,7 +7,7 @@ import { CreateAppointmentInput } from "@medbook/types";
 import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
-import { ClockIcon, UserCircleIcon } from "@heroicons/react/24/outline";
+import { ClockIcon } from "@heroicons/react/24/outline";
 
 interface BookingFormProps {
   doctorId: string;
@@ -155,23 +155,6 @@ export function BookingForm({
             </div>
           )}
 
-          {/* Patient identity - only when logged in and we have name/email */}
-          {patientDisplay && (
-            <div className="flex items-start gap-3 rounded-lg border border-gray-200 bg-gray-50/80 px-4 py-3">
-              <UserCircleIcon className="h-6 w-6 shrink-0 text-gray-500" />
-              <div>
-                <p className="text-xs font-medium uppercase tracking-wide text-gray-500 mb-0.5">
-                  Booking as
-                </p>
-                <p className="font-semibold text-gray-900">
-                  {[patientName?.trim(), patientEmail?.trim()]
-                    .filter(Boolean)
-                    .join(" · ")}
-                </p>
-              </div>
-            </div>
-          )}
-
           {/* Emphasized selected time slot */}
           <div className="rounded-xl border-2 border-primary-300 bg-primary-50/60 px-5 py-5">
             <div className="flex items-center gap-2 mb-2">
@@ -195,6 +178,22 @@ export function BookingForm({
               <p className="mt-2 text-sm font-semibold text-gray-900">
                 ${appointmentPrice.toFixed(2)}
               </p>
+            )}
+            {/* Minimal read-only booking identity confirmation */}
+            {patientDisplay && (
+              <div className="mt-3 pt-3 border-t border-primary-200">
+                <p className="text-xs text-primary-700">
+                  <span className="font-medium">
+                    {patientName?.trim() || patientEmail?.trim()}
+                  </span>
+                  {patientName?.trim() && patientEmail?.trim() && (
+                    <span className="text-primary-600">
+                      {" "}
+                      · {patientEmail?.trim()}
+                    </span>
+                  )}
+                </p>
+              </div>
             )}
           </div>
 
