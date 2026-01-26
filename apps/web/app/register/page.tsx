@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { z } from "zod";
 import { Button, Input, Card } from "@medbook/ui";
 import Link from "next/link";
@@ -40,7 +40,9 @@ const registerSchema = z
     path: ["confirmPassword"],
   });
 
-export default function RegisterPage() {
+function RegisterForm() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   // Log API URL on component mount for debugging
   useEffect(() => {
     console.log("[Registration] Component mounted");
@@ -50,7 +52,6 @@ export default function RegisterPage() {
       process.env.NEXT_PUBLIC_API_URL || "not set (using default)"
     );
   }, []);
-  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -515,8 +516,12 @@ export default function RegisterPage() {
       );
       console.log("[Registration] Redirecting to login page");
 
-      // Registration successful - redirect to login
-      router.push("/login?registered=true");
+      const callbackUrl = searchParams.get("callbackUrl");
+      const cb =
+        callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+          ? `&callbackUrl=${encodeURIComponent(callbackUrl)}`
+          : "";
+      router.push(`/login?registered=true${cb}`);
     } catch (error) {
       // Handle network errors or other exceptions
       console.error("[Registration] Exception caught:", error);
@@ -575,7 +580,11 @@ export default function RegisterPage() {
                     {errors.general.includes("already exists") && (
                       <p className="mt-2 text-sm text-red-700">
                         <Link
-                          href="/login"
+                          href={
+                            searchParams.get("callbackUrl")
+                              ? `/login?callbackUrl=${encodeURIComponent(searchParams.get("callbackUrl")!)}`
+                              : "/login"
+                          }
                           className="font-medium underline hover:text-red-900 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 rounded"
                         >
                           Sign in to your existing account
@@ -763,7 +772,11 @@ export default function RegisterPage() {
             <p className="text-gray-600">
               Already have an account?{" "}
               <Link
-                href="/login"
+                href={
+                  searchParams.get("callbackUrl")
+                    ? `/login?callbackUrl=${encodeURIComponent(searchParams.get("callbackUrl")!)}`
+                    : "/login"
+                }
                 className="font-medium text-blue-600 hover:text-blue-500"
               >
                 Sign in
@@ -773,5 +786,19 @@ export default function RegisterPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center bg-gray-50">
+          <div className="h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600" />
+        </div>
+      }
+    >
+      <RegisterForm />
+    </Suspense>
   );
 }

@@ -21,8 +21,12 @@ function LoginForm() {
   useEffect(() => {
     if (searchParams.get("registered") === "true") {
       showSuccess("Registration successful! Please sign in.");
-      // Remove the query parameter from URL to prevent showing message on refresh
-      router.replace("/login", { scroll: false });
+      const callbackUrl = searchParams.get("callbackUrl");
+      const keep =
+        callbackUrl?.startsWith("/") && !callbackUrl.startsWith("//")
+          ? `?callbackUrl=${encodeURIComponent(callbackUrl)}`
+          : "";
+      router.replace(`/login${keep}`, { scroll: false });
     }
   }, [searchParams, router, showSuccess]);
 
@@ -171,7 +175,11 @@ function LoginForm() {
               <p className="text-gray-600">
                 Don&apos;t have an account?{" "}
                 <Link
-                  href="/register"
+                  href={
+                    searchParams.get("callbackUrl")
+                      ? `/register?callbackUrl=${encodeURIComponent(searchParams.get("callbackUrl")!)}`
+                      : "/register"
+                  }
                   className="font-medium text-blue-600 hover:text-blue-500"
                 >
                   Sign up

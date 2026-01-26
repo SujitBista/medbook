@@ -301,4 +301,28 @@ describe("BookingForm", () => {
       screen.queryByRole("button", { name: /Pay & confirm appointment/i })
     ).not.toBeInTheDocument();
   });
+
+  it("includes slot-aware callbackUrl in 'Sign in to book' link when unauthenticated", () => {
+    render(
+      <BookingForm
+        doctorId="doctor-1"
+        patientId=""
+        selectedSlot={mockSlot}
+        onSubmit={mockOnSubmit}
+        onCancel={mockOnCancel}
+      />
+    );
+
+    const signInLink = screen.getByRole("link", { name: /Sign in to book/i });
+    expect(signInLink).toBeInTheDocument();
+    const href = signInLink.getAttribute("href") ?? "";
+    expect(href).toMatch(/\/login\?callbackUrl=/);
+    const callbackMatch = href.match(/callbackUrl=([^&]+)/);
+    expect(callbackMatch).toBeTruthy();
+    const callbackUrl = decodeURIComponent(callbackMatch![1]);
+    expect(callbackUrl).toMatch(/\/doctors\/doctor-1/);
+    expect(callbackUrl).toContain("slotId=slot-1");
+    expect(callbackUrl).toContain("availabilityId=avail-1");
+    expect(callbackUrl).toContain("confirm=1");
+  });
 });
