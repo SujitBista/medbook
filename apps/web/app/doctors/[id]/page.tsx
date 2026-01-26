@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
-import { useRouter, useParams } from "next/navigation";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
 import { Doctor, Appointment, CreateAppointmentInput } from "@medbook/types";
 import {
@@ -12,6 +12,10 @@ import {
   TimeSlot,
 } from "@/components/features/appointment";
 import { Slot, SlotStatus } from "@medbook/types";
+import {
+  parseBookingConfirmParams,
+  buildBookingConfirmCallbackUrl,
+} from "@/lib/booking-callback";
 import Link from "next/link";
 import useSWR from "swr";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
@@ -161,7 +165,9 @@ export default function DoctorDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const doctorId = params.id as string;
+  const hasRestoredRef = useRef(false);
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -248,6 +254,116 @@ export default function DoctorDetailPage() {
 
     fetchCommissionSettings();
   }, [doctorId]);
+
+  // Restore confirm step from callbackUrl params after post-login redirect
+  useEffect(() => {
+    if (!doctorId || !doctor || hasRestoredRef.current) return;
+    const parsed = parseBookingConfirmParams(searchParams);
+    if (!parsed) return;
+
+    hasRestoredRef.current = true;
+    const restoredSlot: TimeSlot = {
+      id: parsed.slotId,
+      availabilityId: parsed.availabilityId,
+      startTime: parsed.startTime,
+      endTime: parsed.endTime,
+    };
+    setSelectedSlot(restoredSlot);
+    setError(null);
+
+    const createPaymentIntentAndShowForm = async () => {
+      if (appointmentPrice && session?.user?.id) {
+        try {
+          setCreatingPaymentIntent(true);
+          const res = await fetch("/api/payments/create-intent", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              amount: appointmentPrice,
+              currency: "usd",
+              appointmentId: "",
+              patientId: session.user.id,
+              doctorId,
+            }),
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            setPaymentIntentId(data.data.paymentIntentId);
+            setClientSecret(data.data.clientSecret);
+          }
+        } catch (err) {
+          console.error(
+            "[DoctorDetail] Error creating payment intent on restore:",
+            err
+          );
+          setError("Failed to prepare payment. Please try again.");
+        } finally {
+          setCreatingPaymentIntent(false);
+        }
+      }
+      setShowBookingForm(true);
+    };
+
+    createPaymentIntentAndShowForm();
+  }, [doctorId, doctor, searchParams, session?.user?.id, appointmentPrice]);
+
+  // Create payment intent when appointmentPrice arrives after restore (commission fetch async)
+  useEffect(() => {
+    if (
+      !hasRestoredRef.current ||
+      !showBookingForm ||
+      !selectedSlot ||
+      !appointmentPrice ||
+      !session?.user?.id ||
+      paymentIntentId
+    )
+      return;
+    if (!parseBookingConfirmParams(searchParams)) return;
+
+    let cancelled = false;
+    setCreatingPaymentIntent(true);
+    fetch("/api/payments/create-intent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        amount: appointmentPrice,
+        currency: "usd",
+        appointmentId: "",
+        patientId: session.user.id,
+        doctorId,
+      }),
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success) {
+          setPaymentIntentId(data.data.paymentIntentId);
+          setClientSecret(data.data.clientSecret);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          console.error(
+            "[DoctorDetail] Error creating payment intent on restore:",
+            err
+          );
+          setError("Failed to prepare payment. Please try again.");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setCreatingPaymentIntent(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    showBookingForm,
+    selectedSlot,
+    appointmentPrice,
+    session?.user?.id,
+    paymentIntentId,
+    doctorId,
+    searchParams,
+  ]);
 
   // Combined loading state
   const loading = doctorLoading || slotsLoading;
@@ -403,7 +519,16 @@ export default function DoctorDetailPage() {
 
   const handleBookingSubmit = async (input: CreateAppointmentInput) => {
     if (!session?.user?.id) {
-      router.push(`/login?callbackUrl=/doctors/${doctorId}`);
+      const callbackUrl =
+        selectedSlot?.id && selectedSlot?.availabilityId
+          ? buildBookingConfirmCallbackUrl(doctorId, {
+              id: selectedSlot.id,
+              availabilityId: selectedSlot.availabilityId,
+              startTime: selectedSlot.startTime,
+              endTime: selectedSlot.endTime,
+            })
+          : `/doctors/${doctorId}`;
+      router.push(`/login?callbackUrl=${encodeURIComponent(callbackUrl)}`);
       return;
     }
 
@@ -484,6 +609,11 @@ export default function DoctorDetailPage() {
     setError(null);
     setPaymentIntentId(undefined);
     setClientSecret(undefined);
+    const hasConfirmParams = parseBookingConfirmParams(searchParams);
+    if (hasConfirmParams) {
+      hasRestoredRef.current = false;
+      router.replace(`/doctors/${doctorId}`, { scroll: false });
+    }
   };
 
   if (loading) {
@@ -757,7 +887,17 @@ export default function DoctorDetailPage() {
                               Please sign in to book this appointment
                             </p>
                             <Link
-                              href={`/login?callbackUrl=/doctors/${doctorId}`}
+                              href={`/login?callbackUrl=${encodeURIComponent(
+                                selectedSlot?.id && selectedSlot?.availabilityId
+                                  ? buildBookingConfirmCallbackUrl(doctorId, {
+                                      id: selectedSlot.id,
+                                      availabilityId:
+                                        selectedSlot.availabilityId,
+                                      startTime: selectedSlot.startTime,
+                                      endTime: selectedSlot.endTime,
+                                    })
+                                  : `/doctors/${doctorId}`
+                              )}`}
                             >
                               <Button variant="primary" className="w-full">
                                 Sign In to Book

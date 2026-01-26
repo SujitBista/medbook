@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Button, Card } from "@medbook/ui";
 import { TimeSlot, formatDateTime } from "./utils";
 import { CreateAppointmentInput } from "@medbook/types";
@@ -8,6 +8,7 @@ import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
 import { ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
+import { buildBookingConfirmCallbackUrl } from "@/lib/booking-callback";
 
 interface BookingFormProps {
   doctorId: string;
@@ -105,7 +106,17 @@ export function BookingForm({
 
   // Determine authentication state
   const isAuthenticated = patientId && patientId.trim() !== "";
-  const loginCallbackUrl = `/doctors/${doctorId}`;
+  const loginCallbackUrl = useMemo(() => {
+    if (selectedSlot?.id && selectedSlot?.availabilityId) {
+      return buildBookingConfirmCallbackUrl(doctorId, {
+        id: selectedSlot.id,
+        availabilityId: selectedSlot.availabilityId,
+        startTime: selectedSlot.startTime,
+        endTime: selectedSlot.endTime,
+      });
+    }
+    return `/doctors/${doctorId}`;
+  }, [doctorId, selectedSlot]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -129,7 +140,11 @@ export function BookingForm({
   return (
     <Card title="Confirm your appointment">
       {selectedSlot ? (
-        <form onSubmit={handleSubmit} className="space-y-5">
+        <form
+          data-testid="booking-confirm-form"
+          onSubmit={handleSubmit}
+          className="space-y-5"
+        >
           {/* Login Required Message - Only show when NOT authenticated */}
           {!isAuthenticated && (
             <div className="bg-blue-50 border border-blue-200 text-blue-800 px-5 py-5 rounded-lg">
@@ -155,7 +170,7 @@ export function BookingForm({
                 </Link>
                 <div className="text-center">
                   <Link
-                    href="/register"
+                    href={`/register?callbackUrl=${encodeURIComponent(loginCallbackUrl)}`}
                     className="text-sm text-blue-700 hover:text-blue-900 underline underline-offset-2"
                   >
                     Don&apos;t have an account? Create one
