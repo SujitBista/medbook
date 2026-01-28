@@ -148,7 +148,42 @@ const env = {
   })(),
 
   // Stripe
-  stripePublishableKey: getEnvVar("NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY", ""),
+  stripePublishableKey: (() => {
+    // In Next.js, NEXT_PUBLIC_ variables are available in both server and client
+    // Access directly from process.env (Next.js handles the loading)
+    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || "";
+
+    // Debug logging in development (server-side only)
+    if (
+      typeof window === "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.log("[Env] Stripe publishable key check:", {
+        found: !!key,
+        length: key?.length || 0,
+        startsWith: key?.substring(0, 8) || "N/A",
+        rawEnv: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+          ? "SET"
+          : "NOT SET",
+        allNextPublicKeys: Object.keys(process.env).filter((k) =>
+          k.startsWith("NEXT_PUBLIC_")
+        ),
+      });
+    }
+
+    // Also log on client-side in development
+    if (
+      typeof window !== "undefined" &&
+      process.env.NODE_ENV === "development"
+    ) {
+      console.log("[Env] Client-side Stripe key:", {
+        found: !!key,
+        length: key?.length || 0,
+      });
+    }
+
+    return key;
+  })(),
 } as const;
 
 // #region agent log
