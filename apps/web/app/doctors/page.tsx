@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button, Card, Input } from "@medbook/ui";
 import { Doctor } from "@medbook/types";
@@ -36,6 +36,49 @@ function DoctorAvatar({
       className="h-20 w-20 rounded-full object-cover border-2 border-primary-100 shadow-md group-hover:border-primary-300 transition-colors"
       onError={() => setImageError(true)}
     />
+  );
+}
+
+// Doctor Price Display Component
+function DoctorPriceDisplay({
+  doctorId,
+  className = "",
+}: {
+  doctorId: string;
+  className?: string;
+}) {
+  const [appointmentPrice, setAppointmentPrice] = useState<number | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/doctors/${doctorId}/price`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && data.data?.appointmentPrice) {
+          setAppointmentPrice(data.data.appointmentPrice);
+        }
+      })
+      .catch((err) => {
+        console.error("[DoctorPriceDisplay] Error fetching price:", err);
+      })
+      .finally(() => {
+        setLoading(false);
+      });
+  }, [doctorId]);
+
+  if (loading || !appointmentPrice) {
+    return null;
+  }
+
+  return (
+    <div className={className}>
+      <p className="text-lg font-semibold text-primary-600">
+        ${appointmentPrice.toFixed(2)}
+        <span className="text-sm font-normal text-gray-500 ml-1">
+          per visit
+        </span>
+      </p>
+    </div>
   );
 }
 
@@ -600,6 +643,12 @@ export default function DoctorsPage() {
                               </span>
                             </div>
                           )}
+
+                          {/* Appointment Price */}
+                          <DoctorPriceDisplay
+                            doctorId={doctor.id}
+                            className="mb-4"
+                          />
 
                           {/* Action Button */}
                           <Link href={`/doctors/${doctor.id}`}>

@@ -9,6 +9,7 @@ import {
   getDoctors,
   getDoctor,
   getDoctorByUser,
+  getDoctorPrice,
   registerDoctor,
   updateDoctorProfile,
 } from "../controllers/doctor.controller";
@@ -32,6 +33,12 @@ router.get("/:id", getDoctor);
  * Get doctor by user ID (public, no auth required)
  */
 router.get("/user/:userId", getDoctorByUser);
+
+/**
+ * GET /api/v1/doctors/:id/price
+ * Get appointment price for a doctor (public, no auth required)
+ */
+router.get("/:id/price", getDoctorPrice);
 
 // Routes below require authentication
 router.use(authenticate);
