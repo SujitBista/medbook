@@ -68,21 +68,63 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const data = await response.json();
+    let data: {
+      success?: boolean;
+      data?: {
+        paymentIntentId?: string;
+        clientSecret?: string;
+      };
+      error?: {
+        code?: string;
+        message?: string;
+      };
+      message?: string;
+    };
+    try {
+      const text = await response.text();
+      if (!text) {
+        throw new Error("Empty response from backend");
+      }
+      data = JSON.parse(text);
+    } catch (parseError) {
+      console.error("[PaymentIntent] JSON parse error:", parseError);
+      console.error("[PaymentIntent] Response status:", response.status);
+      console.error(
+        "[PaymentIntent] Response statusText:",
+        response.statusText
+      );
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "PARSE_ERROR",
+            message: "Failed to parse response from payment service",
+          },
+        },
+        { status: 500 }
+      );
+    }
 
     if (!response.ok) {
+      console.error("[PaymentIntent] Backend error:", data);
       return NextResponse.json(data, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error) {
     console.error("[PaymentIntent] Error:", error);
+    const errorMessage =
+      error instanceof Error ? error.message : "An unexpected error occurred";
+    console.error("[PaymentIntent] Error details:", {
+      message: errorMessage,
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
       {
         success: false,
         error: {
           code: "INTERNAL_ERROR",
-          message: "An unexpected error occurred",
+          message: errorMessage,
         },
       },
       { status: 500 }

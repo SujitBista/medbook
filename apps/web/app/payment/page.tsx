@@ -18,7 +18,6 @@ function PaymentFormContent() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [processing, setProcessing] = useState(false);
 
   // Get appointment details from query params
   const doctorId = searchParams.get("doctorId");
@@ -79,19 +78,103 @@ function PaymentFormContent() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          amount: appointmentPrice,
+          amount: appointmentPrice, // Amount in dollars, backend will convert to cents
           currency: "usd",
-          appointmentId: "", // Will be set after appointment creation
+          // appointmentId is optional - will be set after appointment creation
           patientId: session?.user?.id,
           doctorId: doctorId,
         }),
       });
 
-      const intentData = await intentResponse.json();
-
-      if (!intentResponse.ok || !intentData.success) {
+      let intentData: {
+        success?: boolean;
+        data?: {
+          paymentIntentId?: string;
+          clientSecret?: string;
+        };
+        error?: {
+          code?: string;
+          message?: string;
+        };
+        message?: string;
+      };
+      try {
+        const responseText = await intentResponse.text();
+        if (!responseText) {
+          throw new Error("Empty response from payment service");
+        }
+        intentData = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("[PaymentPage] Failed to parse response:", parseError);
+        console.error("[PaymentPage] Response status:", intentResponse.status);
+        console.error(
+          "[PaymentPage] Response headers:",
+          Object.fromEntries(intentResponse.headers.entries())
+        );
         throw new Error(
-          intentData.error?.message || "Failed to initialize payment"
+          "Invalid response from payment service. Please try again."
+        );
+      }
+
+      // Check if response is not OK or if success flag is false/undefined
+      if (!intentResponse.ok) {
+        // Log full response for debugging
+        console.error(
+          "[PaymentPage] Payment intent creation failed (HTTP error):",
+          {
+            status: intentResponse.status,
+            statusText: intentResponse.statusText,
+            ok: intentResponse.ok,
+            response: intentData,
+          }
+        );
+
+        // Extract error message from various possible formats
+        const errorMessage =
+          intentData?.error?.message ||
+          intentData?.error?.code ||
+          intentData?.message ||
+          (intentData?.error && typeof intentData.error === "string"
+            ? intentData.error
+            : null) ||
+          `Payment service returned error (${intentResponse.status})`;
+
+        throw new Error(errorMessage);
+      }
+
+      // Check if success flag is explicitly false or missing
+      if (
+        intentData.success === false ||
+        (intentData.success === undefined && !intentData.data)
+      ) {
+        // Log full response for debugging
+        console.error(
+          "[PaymentPage] Payment intent creation failed (success=false):",
+          {
+            status: intentResponse.status,
+            success: intentData.success,
+            error: intentData.error,
+            message: intentData.message,
+            fullResponse: JSON.stringify(intentData, null, 2),
+          }
+        );
+
+        // Extract error message from various possible formats
+        const errorMessage =
+          intentData?.error?.message ||
+          intentData?.error?.code ||
+          intentData?.message ||
+          (intentData?.error && typeof intentData.error === "string"
+            ? intentData.error
+            : null) ||
+          "Failed to initialize payment";
+
+        throw new Error(errorMessage);
+      }
+
+      if (!intentData.data?.paymentIntentId || !intentData.data?.clientSecret) {
+        throw new Error(
+          "Payment intent created but missing required data (paymentIntentId or clientSecret)"
         );
       }
 
@@ -99,11 +182,18 @@ function PaymentFormContent() {
       setClientSecret(intentData.data.clientSecret);
     } catch (err) {
       console.error("[PaymentPage] Error initializing payment:", err);
-      setError(
+      const errorMessage =
         err instanceof Error
           ? err.message
-          : "Failed to initialize payment. Please try again."
-      );
+          : "Failed to initialize payment. Please try again.";
+      console.error("[PaymentPage] Error details:", {
+        error: errorMessage,
+        doctorId,
+        slotId,
+        availabilityId,
+        hasSession: !!session?.user?.id,
+      });
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
@@ -116,29 +206,10 @@ function PaymentFormContent() {
     }
 
     try {
-      setProcessing(true);
       setError(null);
 
-      // First confirm the payment
-      const confirmResponse = await fetch("/api/payments/confirm", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          paymentIntentId: piId,
-          appointmentId: "", // Will be set after appointment creation
-        }),
-      });
-
-      if (!confirmResponse.ok) {
-        const confirmData = await confirmResponse.json();
-        throw new Error(
-          confirmData.error?.message || "Failed to confirm payment"
-        );
-      }
-
-      // Create the appointment
+      // Create the appointment with payment intent ID
+      // The backend will validate payment and create payment record if needed
       const appointmentResponse = await fetch("/api/appointments", {
         method: "POST",
         headers: {
@@ -151,6 +222,7 @@ function PaymentFormContent() {
           slotId: slotId,
           startTime: startTime,
           endTime: endTime,
+          paymentIntentId: piId, // Include payment intent ID for validation
         }),
       });
 
@@ -186,13 +258,11 @@ function PaymentFormContent() {
           ? err.message
           : "Failed to complete booking. Please try again."
       );
-      setProcessing(false);
     }
   };
 
   const handlePaymentError = (errorMessage: string) => {
     setError(errorMessage);
-    setProcessing(false);
   };
 
   const handleCancel = () => {

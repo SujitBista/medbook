@@ -23,6 +23,8 @@ import {
 } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
+import { getCommissionSettingsByDoctorId } from "../services/commission.service";
+import { query } from "@app/db";
 
 /**
  * Get appointment by ID
@@ -201,6 +203,7 @@ export async function createAppointmentSlot(
       startTime,
       endTime,
       notes,
+      paymentIntentId,
     } = req.body;
 
     // Validate required fields
@@ -211,6 +214,150 @@ export async function createAppointmentSlot(
       const error = createValidationError("Patient ID is required");
       next(error);
       return;
+    }
+
+    // Check if payment is required for this doctor
+    const commissionSettings = await getCommissionSettingsByDoctorId(doctorId);
+    const appointmentPrice = commissionSettings?.appointmentPrice ?? 0;
+    const requiresPayment = appointmentPrice > 0;
+
+    // If payment is required, verify payment intent is provided and valid
+    if (requiresPayment) {
+      if (!paymentIntentId) {
+        const error = createValidationError(
+          "Payment is required. Please complete payment before booking."
+        );
+        next(error);
+        return;
+      }
+
+      // Verify payment exists and is confirmed, or create it if it doesn't exist
+      try {
+        let payment = await query<{
+          id: string;
+          appointmentId: string;
+          patientId: string;
+          doctorId: string;
+          status: string;
+        } | null>((prisma) =>
+          prisma.payment.findUnique({
+            where: { stripePaymentIntentId: paymentIntentId },
+            select: {
+              id: true,
+              appointmentId: true,
+              patientId: true,
+              doctorId: true,
+              status: true,
+            },
+          })
+        );
+
+        // If payment doesn't exist, create it from the payment intent
+        if (!payment) {
+          const { getPaymentIntent } = await import("../utils/stripe");
+          const stripePaymentIntent = await getPaymentIntent(paymentIntentId);
+
+          // Verify payment intent is confirmed
+          if (
+            stripePaymentIntent.status !== "succeeded" &&
+            stripePaymentIntent.status !== "processing"
+          ) {
+            const error = createValidationError(
+              "Payment is not confirmed. Please complete payment before booking."
+            );
+            next(error);
+            return;
+          }
+
+          // Create payment record
+          const newPayment = await query<{
+            id: string;
+            appointmentId: string;
+            patientId: string;
+            doctorId: string;
+            status: string;
+          }>((prisma) =>
+            prisma.payment.create({
+              data: {
+                appointmentId: "", // Will be set after appointment creation
+                patientId: patientId,
+                doctorId: doctorId,
+                amount: stripePaymentIntent.amount / 100, // Convert from cents
+                currency: stripePaymentIntent.currency,
+                status:
+                  stripePaymentIntent.status === "succeeded"
+                    ? "COMPLETED"
+                    : stripePaymentIntent.status === "processing"
+                      ? "PROCESSING"
+                      : "PENDING",
+                stripePaymentIntentId: paymentIntentId,
+                stripeChargeId:
+                  stripePaymentIntent.latest_charge &&
+                  typeof stripePaymentIntent.latest_charge === "object"
+                    ? stripePaymentIntent.latest_charge.id
+                    : typeof stripePaymentIntent.latest_charge === "string"
+                      ? stripePaymentIntent.latest_charge
+                      : null,
+                refundedAmount: 0,
+                metadata: {},
+              },
+              select: {
+                id: true,
+                appointmentId: true,
+                patientId: true,
+                doctorId: true,
+                status: true,
+              },
+            })
+          );
+          payment = newPayment;
+        }
+
+        // Verify payment matches patient and doctor
+        if (payment.patientId !== patientId) {
+          const error = createValidationError(
+            "Payment does not match patient. Please use your own payment."
+          );
+          next(error);
+          return;
+        }
+
+        if (payment.doctorId !== doctorId) {
+          const error = createValidationError(
+            "Payment does not match doctor. Please pay for the correct appointment."
+          );
+          next(error);
+          return;
+        }
+
+        // Verify payment is confirmed (COMPLETED or PROCESSING)
+        if (payment.status !== "COMPLETED" && payment.status !== "PROCESSING") {
+          const error = createValidationError(
+            "Payment is not confirmed. Please complete payment before booking."
+          );
+          next(error);
+          return;
+        }
+
+        // Verify appointment hasn't been created yet (appointmentId should be empty or match)
+        // If appointmentId exists and doesn't match, it means payment was already used
+        if (payment.appointmentId && payment.appointmentId.trim() !== "") {
+          // Allow if it's the same appointment (for idempotency)
+          // But we're creating a new one, so this shouldn't happen
+          const error = createValidationError(
+            "Payment has already been used for another appointment."
+          );
+          next(error);
+          return;
+        }
+      } catch (err) {
+        console.error("[AppointmentController] Error validating payment:", err);
+        const error = createValidationError(
+          "Failed to validate payment. Please try again."
+        );
+        next(error);
+        return;
+      }
     }
 
     // If slotId is provided, use slot-based booking (startTime/endTime not required)
@@ -231,6 +378,25 @@ export async function createAppointmentSlot(
       } as CreateAppointmentInput;
 
       const appointment = await createAppointment(input);
+
+      // If payment was required and provided, update payment with appointment ID
+      if (requiresPayment && paymentIntentId) {
+        try {
+          const { confirmPayment } = await import(
+            "../services/payment.service"
+          );
+          await confirmPayment({
+            paymentIntentId,
+            appointmentId: appointment.id,
+          });
+        } catch (err) {
+          console.error(
+            "[AppointmentController] Error updating payment with appointment ID:",
+            err
+          );
+          // Don't fail the appointment creation, but log the error
+        }
+      }
 
       res.status(201).json({
         success: true,
@@ -285,6 +451,23 @@ export async function createAppointmentSlot(
     };
 
     const appointment = await createAppointment(input);
+
+    // If payment was required and provided, update payment with appointment ID
+    if (requiresPayment && paymentIntentId) {
+      try {
+        const { confirmPayment } = await import("../services/payment.service");
+        await confirmPayment({
+          paymentIntentId,
+          appointmentId: appointment.id,
+        });
+      } catch (err) {
+        console.error(
+          "[AppointmentController] Error updating payment with appointment ID:",
+          err
+        );
+        // Don't fail the appointment creation, but log the error
+      }
+    }
 
     res.status(201).json({
       success: true,

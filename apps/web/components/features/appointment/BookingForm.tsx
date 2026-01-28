@@ -4,8 +4,6 @@ import React, { useState, useMemo } from "react";
 import { Button, Card } from "@medbook/ui";
 import { TimeSlot, formatDateTime } from "./utils";
 import { CreateAppointmentInput } from "@medbook/types";
-import { PaymentForm } from "@/components/features/payment/PaymentForm";
-import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
 import { ClockIcon, LockClosedIcon } from "@heroicons/react/24/outline";
 import { buildBookingConfirmCallbackUrl } from "@/lib/booking-callback";
@@ -49,16 +47,6 @@ export function BookingForm({
 }: BookingFormProps) {
   const [notes, setNotes] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [paymentCompleted, setPaymentCompleted] = useState(false);
-
-  const handlePaymentSuccess = (piId: string) => {
-    setPaymentCompleted(true);
-    if (onPaymentSuccess) {
-      onPaymentSuccess(piId);
-    }
-    // Automatically proceed to booking after payment
-    handleBookingSubmit();
-  };
 
   const handleBookingSubmit = async () => {
     setError(null);
@@ -71,16 +59,7 @@ export function BookingForm({
     // Note: Login check removed - this function should only be called when authenticated
     // The UI prevents submission when not authenticated
 
-    // If payment is required, ensure it's completed
-    if (
-      showPayment &&
-      appointmentPrice &&
-      !paymentCompleted &&
-      !paymentIntentId
-    ) {
-      setError("Payment is required to complete booking");
-      return;
-    }
+    // Payment is handled via redirect to payment page, so no validation needed here
 
     try {
       const input: CreateAppointmentInput = {
@@ -96,11 +75,40 @@ export function BookingForm({
       await onSubmit(input);
     } catch (err) {
       console.error("[BookingForm] Error submitting booking:", err);
-      setError(
+      const errorMessage =
         err instanceof Error
           ? err.message
-          : "Failed to book appointment. Please try again."
-      );
+          : "Failed to book appointment. Please try again.";
+
+      // If payment is required, redirect to payment page instead of showing error
+      if (
+        errorMessage.includes("Payment is required") &&
+        selectedSlot &&
+        selectedSlot.id &&
+        selectedSlot.availabilityId
+      ) {
+        const paymentUrl = new URL("/payment", window.location.origin);
+        paymentUrl.searchParams.set("doctorId", doctorId);
+        paymentUrl.searchParams.set("slotId", selectedSlot.id);
+        paymentUrl.searchParams.set(
+          "availabilityId",
+          selectedSlot.availabilityId
+        );
+        paymentUrl.searchParams.set(
+          "startTime",
+          selectedSlot.startTime.toISOString()
+        );
+        paymentUrl.searchParams.set(
+          "endTime",
+          selectedSlot.endTime.toISOString()
+        );
+        paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+
+        window.location.href = paymentUrl.toString();
+        return;
+      }
+
+      setError(errorMessage);
     }
   };
 
@@ -154,10 +162,7 @@ export function BookingForm({
       return;
     }
 
-    // If payment is required and not completed, don't submit yet
-    if (showPayment && appointmentPrice && !paymentCompleted) {
-      return;
-    }
+    // Payment is handled via redirect to payment page, so no need to check showPayment here
 
     await handleBookingSubmit();
   };
@@ -320,34 +325,7 @@ export function BookingForm({
             )}
           </div>
 
-          {/* Payment Section */}
-          {showPayment &&
-            appointmentPrice &&
-            clientSecret &&
-            paymentIntentId &&
-            !paymentCompleted && (
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                  Payment Information
-                </h3>
-                <StripeProvider clientSecret={clientSecret}>
-                  <PaymentForm
-                    amount={appointmentPrice}
-                    paymentIntentId={paymentIntentId}
-                    clientSecret={clientSecret}
-                    onSuccess={handlePaymentSuccess}
-                    onError={(err) => setError(err)}
-                    onCancel={onCancel}
-                  />
-                </StripeProvider>
-              </div>
-            )}
-
-          {paymentCompleted && (
-            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg">
-              <p className="text-sm">Payment completed successfully!</p>
-            </div>
-          )}
+          {/* Payment is handled on dedicated payment page - no inline payment form */}
 
           {/* Only show error messages when authenticated (login errors are handled via UI state, not error messages) */}
           {error && isAuthenticated && (

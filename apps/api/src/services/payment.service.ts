@@ -17,6 +17,7 @@ import {
   createNotFoundError,
   createValidationError,
   createConflictError,
+  createAppError,
 } from "../utils/errors";
 import { logger } from "../utils/logger";
 import {
@@ -26,6 +27,7 @@ import {
   processPartialRefund,
   getPaymentIntent,
 } from "../utils/stripe";
+import { isStripeConfigured } from "../config/stripe";
 
 /**
  * Convert Prisma PaymentStatus to @medbook/types PaymentStatus
@@ -56,28 +58,84 @@ export async function createPaymentIntentForAppointment(
     throw createValidationError("Payment amount must be greater than 0");
   }
 
+  // Check if Stripe is configured
+  if (!isStripeConfigured()) {
+    logger.error("Stripe is not configured", {
+      patientId,
+      doctorId,
+      amount,
+    });
+    throw createAppError(
+      "STRIPE_NOT_CONFIGURED",
+      "Payment processing is not configured. Please contact support.",
+      503
+    );
+  }
+
   // Verify appointment exists (optional - can be created later)
   // For now, we'll just create the payment intent
 
   // Create payment intent via Stripe
-  const paymentIntent = await createPaymentIntent(amount, currency, {
-    appointmentId,
+  // Only include appointmentId in metadata if it's provided
+  const paymentMetadata: Record<string, string> = {
     patientId,
     doctorId,
-    ...metadata,
-  });
-
-  logger.info("Payment intent created for appointment", {
-    paymentIntentId: paymentIntent.id,
-    appointmentId,
-    amount,
-    currency,
-  });
-
-  return {
-    clientSecret: paymentIntent.client_secret || "",
-    paymentIntentId: paymentIntent.id,
+    ...(appointmentId && { appointmentId }),
+    ...(metadata as Record<string, string> | undefined),
   };
+
+  try {
+    const paymentIntent = await createPaymentIntent(
+      amount,
+      currency,
+      paymentMetadata
+    );
+
+    logger.info("Payment intent created for appointment", {
+      paymentIntentId: paymentIntent.id,
+      appointmentId,
+      amount,
+      currency,
+    });
+
+    return {
+      clientSecret: paymentIntent.client_secret || "",
+      paymentIntentId: paymentIntent.id,
+    };
+  } catch (error) {
+    // Log the full error for debugging
+    logger.error("Failed to create payment intent", {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      patientId,
+      doctorId,
+      amount,
+      currency,
+    });
+
+    // If it's a Stripe configuration error, provide a clearer message
+    if (
+      error instanceof Error &&
+      error.message.includes("Stripe secret key is not configured")
+    ) {
+      throw createAppError(
+        "STRIPE_NOT_CONFIGURED",
+        "Payment processing is not configured. Please contact support.",
+        503
+      );
+    }
+
+    // Re-throw Stripe API errors with a user-friendly message
+    if (error instanceof Error) {
+      throw createAppError(
+        "PAYMENT_INTENT_CREATION_FAILED",
+        `Failed to initialize payment: ${error.message}`,
+        500
+      );
+    }
+
+    throw error;
+  }
 }
 
 /**

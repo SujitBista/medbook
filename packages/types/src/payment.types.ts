@@ -40,7 +40,7 @@ export interface CreatePaymentInput {
 export interface CreatePaymentIntentInput {
   amount: number;
   currency?: string;
-  appointmentId: string;
+  appointmentId?: string; // Optional - appointments can be created after payment
   patientId: string;
   doctorId: string;
   metadata?: Record<string, unknown>;
