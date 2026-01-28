@@ -48,11 +48,12 @@ export async function createPaymentIntent(
       return;
     }
 
-    if (!appointmentId) {
-      const error = createValidationError("Appointment ID is required");
-      next(error);
-      return;
-    }
+    // Appointment ID is optional - appointments can be created after payment
+    // if (!appointmentId) {
+    //   const error = createValidationError("Appointment ID is required");
+    //   next(error);
+    //   return;
+    // }
 
     if (!patientId) {
       const error = createValidationError("Patient ID is required");
@@ -78,7 +79,7 @@ export async function createPaymentIntent(
     const input: CreatePaymentIntentInput = {
       amount: Math.round(Number(amount) * 100), // Convert to cents
       currency: currency || "usd",
-      appointmentId,
+      ...(appointmentId && appointmentId.trim() !== "" && { appointmentId }),
       patientId,
       doctorId,
       metadata,

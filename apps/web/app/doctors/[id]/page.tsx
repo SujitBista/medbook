@@ -472,15 +472,47 @@ export default function DoctorDetailPage() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(input),
+        body: JSON.stringify({
+          ...input,
+          paymentIntentId: piId, // Include payment intent ID for validation
+        }),
       });
 
       const data: AppointmentCreateResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.error?.message || "Failed to book appointment. Please try again."
-        );
+        const errorMessage =
+          data.error?.message ||
+          "Failed to book appointment. Please try again.";
+
+        // If payment is required, redirect to payment page instead of showing error
+        if (
+          errorMessage.includes("Payment is required") &&
+          selectedSlot &&
+          selectedSlot.id &&
+          selectedSlot.availabilityId
+        ) {
+          const paymentUrl = new URL("/payment", window.location.origin);
+          paymentUrl.searchParams.set("doctorId", doctorId);
+          paymentUrl.searchParams.set("slotId", selectedSlot.id);
+          paymentUrl.searchParams.set(
+            "availabilityId",
+            selectedSlot.availabilityId
+          );
+          paymentUrl.searchParams.set(
+            "startTime",
+            selectedSlot.startTime.toISOString()
+          );
+          paymentUrl.searchParams.set(
+            "endTime",
+            selectedSlot.endTime.toISOString()
+          );
+          paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+          window.location.href = paymentUrl.toString();
+          return;
+        }
+
+        throw new Error(errorMessage);
       }
 
       // Update payment with appointment ID
@@ -507,11 +539,39 @@ export default function DoctorDetailPage() {
       await mutateSlots();
     } catch (err) {
       console.error("[DoctorDetail] Error booking appointment:", err);
-      setError(
+      const errorMessage =
         err instanceof Error
           ? err.message
-          : "Failed to book appointment. Please try again."
-      );
+          : "Failed to book appointment. Please try again.";
+
+      // If payment is required, redirect to payment page instead of showing error
+      if (
+        errorMessage.includes("Payment is required") &&
+        selectedSlot &&
+        selectedSlot.id &&
+        selectedSlot.availabilityId
+      ) {
+        const paymentUrl = new URL("/payment", window.location.origin);
+        paymentUrl.searchParams.set("doctorId", doctorId);
+        paymentUrl.searchParams.set("slotId", selectedSlot.id);
+        paymentUrl.searchParams.set(
+          "availabilityId",
+          selectedSlot.availabilityId
+        );
+        paymentUrl.searchParams.set(
+          "startTime",
+          selectedSlot.startTime.toISOString()
+        );
+        paymentUrl.searchParams.set(
+          "endTime",
+          selectedSlot.endTime.toISOString()
+        );
+        paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+        window.location.href = paymentUrl.toString();
+        return;
+      }
+
+      setError(errorMessage);
     } finally {
       setBooking(false);
     }
@@ -540,9 +600,30 @@ export default function DoctorDetailPage() {
       return;
     }
 
-    // If payment is required but not completed, don't proceed
-    if (appointmentPrice && !paymentIntentId) {
-      setError("Payment is required to complete booking");
+    // If payment is required, redirect to payment page instead of creating appointment directly
+    if (
+      appointmentPrice &&
+      selectedSlot &&
+      selectedSlot.id &&
+      selectedSlot.availabilityId
+    ) {
+      const paymentUrl = new URL("/payment", window.location.origin);
+      paymentUrl.searchParams.set("doctorId", doctorId);
+      paymentUrl.searchParams.set("slotId", selectedSlot.id);
+      paymentUrl.searchParams.set(
+        "availabilityId",
+        selectedSlot.availabilityId
+      );
+      paymentUrl.searchParams.set(
+        "startTime",
+        selectedSlot.startTime.toISOString()
+      );
+      paymentUrl.searchParams.set(
+        "endTime",
+        selectedSlot.endTime.toISOString()
+      );
+      paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+      window.location.href = paymentUrl.toString();
       return;
     }
 
@@ -564,9 +645,38 @@ export default function DoctorDetailPage() {
       const data: AppointmentCreateResponse = await response.json();
 
       if (!response.ok || !data.success) {
-        throw new Error(
-          data.error?.message || "Failed to book appointment. Please try again."
-        );
+        const errorMessage =
+          data.error?.message ||
+          "Failed to book appointment. Please try again.";
+
+        // If payment is required, redirect to payment page instead of showing error
+        if (
+          errorMessage.includes("Payment is required") &&
+          selectedSlot &&
+          selectedSlot.id &&
+          selectedSlot.availabilityId
+        ) {
+          const paymentUrl = new URL("/payment", window.location.origin);
+          paymentUrl.searchParams.set("doctorId", doctorId);
+          paymentUrl.searchParams.set("slotId", selectedSlot.id);
+          paymentUrl.searchParams.set(
+            "availabilityId",
+            selectedSlot.availabilityId
+          );
+          paymentUrl.searchParams.set(
+            "startTime",
+            selectedSlot.startTime.toISOString()
+          );
+          paymentUrl.searchParams.set(
+            "endTime",
+            selectedSlot.endTime.toISOString()
+          );
+          paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+          window.location.href = paymentUrl.toString();
+          return;
+        }
+
+        throw new Error(errorMessage);
       }
 
       // If payment was made, confirm it with appointment ID
