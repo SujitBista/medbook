@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, Button } from "@medbook/ui";
 import Link from "next/link";
 import { useEffect, useState } from "react";

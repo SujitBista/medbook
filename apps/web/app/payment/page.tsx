@@ -42,7 +42,7 @@ function PaymentFormContent() {
       initializePayment();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status, session]);
+  }, [status, session?.user?.id]);
 
   const initializePayment = async () => {
     if (!doctorId || !slotId || !availabilityId || !startTime || !endTime) {
