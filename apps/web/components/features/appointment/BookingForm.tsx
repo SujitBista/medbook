@@ -126,6 +126,34 @@ export function BookingForm({
       return;
     }
 
+    // If payment is required, redirect to payment page
+    if (
+      appointmentPrice &&
+      selectedSlot &&
+      selectedSlot.id &&
+      selectedSlot.availabilityId
+    ) {
+      const paymentUrl = new URL("/payment", window.location.origin);
+      paymentUrl.searchParams.set("doctorId", doctorId);
+      paymentUrl.searchParams.set("slotId", selectedSlot.id);
+      paymentUrl.searchParams.set(
+        "availabilityId",
+        selectedSlot.availabilityId
+      );
+      paymentUrl.searchParams.set(
+        "startTime",
+        selectedSlot.startTime.toISOString()
+      );
+      paymentUrl.searchParams.set(
+        "endTime",
+        selectedSlot.endTime.toISOString()
+      );
+      paymentUrl.searchParams.set("returnUrl", `/doctors/${doctorId}`);
+
+      window.location.href = paymentUrl.toString();
+      return;
+    }
+
     // If payment is required and not completed, don't submit yet
     if (showPayment && appointmentPrice && !paymentCompleted) {
       return;
@@ -328,38 +356,44 @@ export function BookingForm({
             </div>
           )}
 
-          {/* Only show booking button when authenticated and payment is completed or not required */}
-          {isAuthenticated &&
-            (!showPayment || paymentCompleted || !appointmentPrice) && (
-              <div className="pt-2">
-                <Button
-                  type="submit"
-                  variant="primary"
-                  disabled={loading || (showPayment && !paymentCompleted)}
-                  className="w-full"
-                >
-                  {loading
-                    ? "Booking..."
-                    : appointmentPrice
-                      ? "Pay & confirm appointment"
-                      : "Confirm appointment"}
-                </Button>
+          {/* Only show booking button when authenticated */}
+          {isAuthenticated && (
+            <div className="pt-2">
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={loading}
+                className="w-full"
+              >
+                {loading
+                  ? "Processing..."
+                  : appointmentPrice
+                    ? "Confirm appointment & pay"
+                    : "Confirm appointment"}
+              </Button>
+              {appointmentPrice && (
+                <p className="mt-2 text-xs text-center text-gray-500">
+                  You&apos;ll be redirected to complete payment
+                </p>
+              )}
+              {!appointmentPrice && (
                 <p className="mt-2 text-xs text-center text-gray-500">
                   You&apos;ll receive a confirmation email. No charges until
                   your visit.
                 </p>
-                <div className="mt-4 text-center">
-                  <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={loading}
-                    className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                  >
-                    Change time slot
-                  </button>
-                </div>
+              )}
+              <div className="mt-4 text-center">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={loading}
+                  className="text-xs text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  Change time slot
+                </button>
               </div>
-            )}
+            </div>
+          )}
         </form>
       ) : (
         <div className="text-center py-8">

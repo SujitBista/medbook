@@ -14,6 +14,7 @@ import {
 import { CreateDoctorInput, UpdateDoctorInput } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
+import { getOrCreateCommissionSettings } from "../services/commission.service";
 
 /**
  * Get all doctors with optional pagination and search
@@ -156,6 +157,41 @@ export async function getDoctorByUser(
     res.status(200).json({
       success: true,
       doctor,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get appointment price for a doctor (public endpoint)
+ * GET /api/v1/doctors/:id/price
+ */
+export async function getDoctorPrice(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      const error = createValidationError("Doctor ID is required");
+      next(error);
+      return;
+    }
+
+    // Verify doctor exists
+    await getDoctorById(id);
+
+    // Get or create commission settings (returns default if not set)
+    const settings = await getOrCreateCommissionSettings(id);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        appointmentPrice: settings.appointmentPrice,
+      },
     });
   } catch (error) {
     next(error);

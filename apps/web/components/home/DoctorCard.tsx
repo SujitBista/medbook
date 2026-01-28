@@ -1,5 +1,8 @@
+"use client";
+
 import { Card, Button } from "@medbook/ui";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 interface DoctorCardProps {
   id: string;
@@ -9,6 +12,7 @@ interface DoctorCardProps {
   rating: number;
   imageUrl?: string;
   bio?: string;
+  appointmentPrice?: number;
 }
 
 export function DoctorCard({
@@ -19,7 +23,28 @@ export function DoctorCard({
   rating,
   imageUrl,
   bio,
+  appointmentPrice: initialPrice,
 }: DoctorCardProps) {
+  const [appointmentPrice, setAppointmentPrice] = useState<number | undefined>(
+    initialPrice
+  );
+
+  // Fetch price if not provided
+  useEffect(() => {
+    if (appointmentPrice === undefined && id) {
+      fetch(`/api/doctors/${id}/price`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && data.data?.appointmentPrice) {
+            setAppointmentPrice(data.data.appointmentPrice);
+          }
+        })
+        .catch((err) => {
+          console.error("[DoctorCard] Error fetching price:", err);
+        });
+    }
+  }, [id, appointmentPrice]);
+
   const initials = name
     .split(" ")
     .map((n) => n[0])
@@ -82,6 +107,18 @@ export function DoctorCard({
         {/* Bio */}
         {bio && (
           <p className="text-sm text-gray-600 mb-4 line-clamp-2">{bio}</p>
+        )}
+
+        {/* Appointment Price */}
+        {appointmentPrice && (
+          <div className="mb-4">
+            <p className="text-lg font-semibold text-primary-600">
+              ${appointmentPrice.toFixed(2)}
+              <span className="text-sm font-normal text-gray-500 ml-1">
+                per visit
+              </span>
+            </p>
+          </div>
         )}
 
         {/* Action Buttons */}

@@ -3,7 +3,9 @@
 import { config } from "dotenv";
 
 // Load .env from the api package root (where package.json is located)
-config();
+// Load .env.local after .env so it can override values (higher priority)
+config(); // Loads .env
+config({ path: ".env.local" }); // Loads .env.local (overrides .env values)
 
 import { createApp } from "./app";
 import { env } from "./config/env";

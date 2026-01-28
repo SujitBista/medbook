@@ -749,6 +749,16 @@ export default function DoctorDetailPage() {
                       {doctor.specialization}
                     </p>
                   )}
+                  {appointmentPrice && (
+                    <div className="mt-3">
+                      <p className="text-2xl font-bold text-primary-600">
+                        ${appointmentPrice.toFixed(2)}
+                        <span className="text-base font-normal text-gray-500 ml-1">
+                          per visit
+                        </span>
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Doctor Details - Essential only */}

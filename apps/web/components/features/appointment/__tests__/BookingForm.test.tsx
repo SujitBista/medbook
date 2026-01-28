@@ -211,7 +211,7 @@ describe("BookingForm", () => {
       />
     );
 
-    const submitButton = screen.getByRole("button", { name: /Booking.../i });
+    const submitButton = screen.getByRole("button", { name: /Processing.../i });
     const changeSlotButton = screen.getByRole("button", {
       name: /Change time slot/i,
     });
@@ -266,7 +266,7 @@ describe("BookingForm", () => {
     expect(screen.getByText(/jane@example\.com/)).toBeInTheDocument();
   });
 
-  it("shows 'Pay & confirm appointment' button when appointment price is provided", () => {
+  it("shows 'Confirm appointment & pay' button when appointment price is provided", () => {
     render(
       <BookingForm
         doctorId="doctor-1"
@@ -279,7 +279,7 @@ describe("BookingForm", () => {
     );
 
     expect(
-      screen.getByRole("button", { name: /Pay & confirm appointment/i })
+      screen.getByRole("button", { name: /Confirm appointment & pay/i })
     ).toBeInTheDocument();
   });
 
@@ -298,7 +298,7 @@ describe("BookingForm", () => {
       screen.getByRole("button", { name: /Confirm appointment/i })
     ).toBeInTheDocument();
     expect(
-      screen.queryByRole("button", { name: /Pay & confirm appointment/i })
+      screen.queryByRole("button", { name: /Confirm appointment & pay/i })
     ).not.toBeInTheDocument();
   });
 

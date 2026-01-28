@@ -5,6 +5,8 @@
   "description": "Doctor Appointment Booking App - Monorepo",
   "scripts": {
     "dev": "turbo run dev",
+    "web:dev": "pnpm --filter web dev",
+    "api:dev": "pnpm --filter api dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
     "test": "DATABASE_URL=postgresql://postgres:postgres@localhost:5432/medbook_test TEST_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/medbook_test PGUSER=postgres PGPASSWORD=postgres PGDATABASE=medbook_test turbo run test",
