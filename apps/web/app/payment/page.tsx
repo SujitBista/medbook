@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, Button } from "@medbook/ui";
@@ -8,7 +8,7 @@ import { PaymentForm } from "@/components/features/payment/PaymentForm";
 import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import Link from "next/link";
 
-export default function PaymentPage() {
+function PaymentFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -41,6 +41,7 @@ export default function PaymentPage() {
     if (status === "authenticated" && session?.user?.id) {
       initializePayment();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [status, session]);
 
   const initializePayment = async () => {
@@ -310,5 +311,22 @@ export default function PaymentPage() {
         </div>
       </Card>
     </div>
+  );
+}
+
+export default function PaymentPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-screen items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto h-8 w-8 animate-spin rounded-full border-4 border-gray-300 border-t-blue-600"></div>
+            <p className="mt-4 text-gray-600">Loading payment...</p>
+          </div>
+        </div>
+      }
+    >
+      <PaymentFormContent />
+    </Suspense>
   );
 }
