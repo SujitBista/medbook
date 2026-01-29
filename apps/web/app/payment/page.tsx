@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, Button } from "@medbook/ui";
@@ -199,67 +199,79 @@ function PaymentFormContent() {
     }
   };
 
-  const handlePaymentSuccess = async (piId: string) => {
-    if (!session?.user?.id || !doctorId || !slotId || !availabilityId) {
-      setError("Missing required information to complete booking");
-      return;
-    }
-
-    try {
-      setError(null);
-
-      // Create the appointment with payment intent ID
-      // The backend will validate payment and create payment record if needed
-      const appointmentResponse = await fetch("/api/appointments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          patientId: session.user.id,
-          doctorId: doctorId,
-          availabilityId: availabilityId,
-          slotId: slotId,
-          startTime: startTime,
-          endTime: endTime,
-          paymentIntentId: piId, // Include payment intent ID for validation
-        }),
-      });
-
-      const appointmentData = await appointmentResponse.json();
-
-      if (!appointmentResponse.ok || !appointmentData.success) {
-        throw new Error(
-          appointmentData.error?.message ||
-            "Failed to book appointment. Please try again."
-        );
+  const handlePaymentSuccess = useCallback(
+    async (piId: string) => {
+      if (!session?.user?.id || !doctorId || !slotId || !availabilityId) {
+        setError("Missing required information to complete booking");
+        return;
       }
 
-      // Update payment with appointment ID
-      if (appointmentData.data.id) {
-        await fetch("/api/payments/confirm", {
+      try {
+        setError(null);
+
+        // Create the appointment with payment intent ID
+        // The backend will validate payment and create payment record if needed
+        const appointmentResponse = await fetch("/api/appointments", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            paymentIntentId: piId,
-            appointmentId: appointmentData.data.id,
+            patientId: session.user.id,
+            doctorId: doctorId,
+            availabilityId: availabilityId,
+            slotId: slotId,
+            startTime: startTime,
+            endTime: endTime,
+            paymentIntentId: piId, // Include payment intent ID for validation
           }),
         });
-      }
 
-      // Redirect to appointments page or return URL
-      router.push(returnUrl);
-    } catch (err) {
-      console.error("[PaymentPage] Error completing booking:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to complete booking. Please try again."
-      );
-    }
-  };
+        const appointmentData = await appointmentResponse.json();
+
+        if (!appointmentResponse.ok || !appointmentData.success) {
+          throw new Error(
+            appointmentData.error?.message ||
+              "Failed to book appointment. Please try again."
+          );
+        }
+
+        // Update payment with appointment ID
+        if (appointmentData.data.id) {
+          await fetch("/api/payments/confirm", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              paymentIntentId: piId,
+              appointmentId: appointmentData.data.id,
+            }),
+          });
+        }
+
+        // Redirect to appointments page or return URL
+        router.push(returnUrl);
+      } catch (err) {
+        console.error("[PaymentPage] Error completing booking:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to complete booking. Please try again."
+        );
+      }
+    },
+    [
+      session?.user?.id,
+      doctorId,
+      slotId,
+      availabilityId,
+      startTime,
+      endTime,
+      returnUrl,
+      router,
+    ]
+  );
 
   const handlePaymentError = (errorMessage: string) => {
     setError(errorMessage);

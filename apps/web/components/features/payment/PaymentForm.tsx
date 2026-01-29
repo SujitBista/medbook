@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -29,6 +29,9 @@ export function PaymentForm({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  // Only call onSuccess once per payment intent when status is "succeeded"
+  const successHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!stripe) {
@@ -40,7 +43,13 @@ export function PaymentForm({
       if (paymentIntent) {
         switch (paymentIntent.status) {
           case "succeeded":
-            onSuccess(paymentIntentId);
+            setMessage("Payment successful!");
+            setPaymentComplete(true);
+            setIsProcessing(false);
+            if (successHandledRef.current !== paymentIntentId) {
+              successHandledRef.current = paymentIntentId;
+              onSuccess(paymentIntentId);
+            }
             break;
           case "processing":
             setMessage("Your payment is processing.");
@@ -81,6 +90,8 @@ export function PaymentForm({
         setIsProcessing(false);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
         setMessage("Payment successful!");
+        setPaymentComplete(true);
+        setIsProcessing(false);
         onSuccess(paymentIntentId);
       } else {
         setMessage("Unexpected payment status");
@@ -133,17 +144,21 @@ export function PaymentForm({
         <Button
           type="submit"
           variant="primary"
-          disabled={!stripe || !elements || isProcessing}
+          disabled={!stripe || !elements || isProcessing || paymentComplete}
           className="flex-1"
         >
-          {isProcessing ? "Processing..." : `Pay $${amount.toFixed(2)}`}
+          {paymentComplete
+            ? "Redirecting..."
+            : isProcessing
+              ? "Processing..."
+              : `Pay $${amount.toFixed(2)}`}
         </Button>
         {onCancel && (
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isProcessing}
+            disabled={isProcessing || paymentComplete}
           >
             Cancel
           </Button>

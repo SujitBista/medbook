@@ -186,26 +186,4 @@ const env = {
   })(),
 } as const;
 
-// #region agent log
-if (typeof fetch !== "undefined") {
-  fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      location: "apps/web/lib/env.ts:135",
-      message: "API URL configured",
-      data: {
-        apiUrl: env.apiUrl,
-        nextAuthUrl: env.nextAuthUrl,
-        nextPublicApiUrl: process.env.NEXT_PUBLIC_API_URL || "not set",
-      },
-      timestamp: Date.now(),
-      sessionId: "debug-session",
-      runId: "run1",
-      hypothesisId: "B",
-    }),
-  }).catch(() => {});
-}
-// #endregion
-
 export { env };

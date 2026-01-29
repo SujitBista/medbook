@@ -14,31 +14,6 @@ export default async function middleware(req: NextRequest) {
   // Handle OPTIONS preflight requests BEFORE auth() to avoid 400 errors
   // This is critical - OPTIONS requests must be handled before any auth() wrapper
   if (req.method === "OPTIONS") {
-    // #region agent log
-    if (typeof fetch !== "undefined") {
-      fetch(
-        "http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            location: "apps/web/middleware.ts:16",
-            message: "OPTIONS preflight handled before auth",
-            data: {
-              method: req.method,
-              origin: req.headers.get("origin") || "none",
-              url: req.url,
-              pathname: req.nextUrl.pathname,
-            },
-            timestamp: Date.now(),
-            sessionId: "debug-session",
-            runId: "run1",
-            hypothesisId: "A",
-          }),
-        }
-      ).catch(() => {});
-    }
-    // #endregion
     return new NextResponse(null, {
       status: 204,
       headers: {
@@ -51,30 +26,6 @@ export default async function middleware(req: NextRequest) {
       },
     });
   }
-
-  // For non-OPTIONS requests, get session and handle routing
-  // #region agent log
-  if (typeof fetch !== "undefined") {
-    fetch("http://127.0.0.1:7242/ingest/9fff1556-eb4e-4c8c-a035-40fce4d2fa93", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        location: "apps/web/middleware.ts:33",
-        message: "Middleware entry (non-OPTIONS)",
-        data: {
-          method: req.method,
-          pathname: req.nextUrl.pathname,
-          origin: req.headers.get("origin") || "none",
-          url: req.url,
-        },
-        timestamp: Date.now(),
-        sessionId: "debug-session",
-        runId: "run1",
-        hypothesisId: "C",
-      }),
-    }).catch(() => {});
-  }
-  // #endregion
 
   const session = await auth();
 
