@@ -221,6 +221,17 @@ export async function createAppointmentSlot(
     const appointmentPrice = commissionSettings?.appointmentPrice ?? 0;
     const requiresPayment = appointmentPrice > 0;
 
+    let payment: {
+      id: string;
+      appointmentId: string;
+      patientId: string;
+      doctorId: string;
+      status: string;
+    } | null = null;
+    let verifiedIntentForCreation:
+      | import("stripe").Stripe.PaymentIntent
+      | null = null;
+
     // If payment is required, verify payment intent is provided and valid
     if (requiresPayment) {
       if (!paymentIntentId) {
@@ -231,9 +242,12 @@ export async function createAppointmentSlot(
         return;
       }
 
-      // Verify payment exists and is confirmed, or create it if it doesn't exist
+      // Verify payment exists and is confirmed, or verify intent for creation after appointment
+      // Payment row cannot be created with empty appointmentId (FK constraint), so when no row
+      // exists we verify the Stripe intent and create the Payment after the appointment is created.
+
       try {
-        let payment = await query<{
+        payment = await query<{
           id: string;
           appointmentId: string;
           patientId: string;
@@ -252,7 +266,6 @@ export async function createAppointmentSlot(
           })
         );
 
-        // If payment doesn't exist, create it from the payment intent
         if (!payment) {
           const { getPaymentIntent } = await import("../utils/stripe");
           const stripePaymentIntent = await getPaymentIntent(paymentIntentId);
@@ -269,86 +282,63 @@ export async function createAppointmentSlot(
             return;
           }
 
-          // Create payment record
-          const newPayment = await query<{
-            id: string;
-            appointmentId: string;
-            patientId: string;
-            doctorId: string;
-            status: string;
-          }>((prisma) =>
-            prisma.payment.create({
-              data: {
-                appointmentId: "", // Will be set after appointment creation
-                patientId: patientId,
-                doctorId: doctorId,
-                amount: stripePaymentIntent.amount / 100, // Convert from cents
-                currency: stripePaymentIntent.currency,
-                status:
-                  stripePaymentIntent.status === "succeeded"
-                    ? "COMPLETED"
-                    : stripePaymentIntent.status === "processing"
-                      ? "PROCESSING"
-                      : "PENDING",
-                stripePaymentIntentId: paymentIntentId,
-                stripeChargeId:
-                  stripePaymentIntent.latest_charge &&
-                  typeof stripePaymentIntent.latest_charge === "object"
-                    ? stripePaymentIntent.latest_charge.id
-                    : typeof stripePaymentIntent.latest_charge === "string"
-                      ? stripePaymentIntent.latest_charge
-                      : null,
-                refundedAmount: 0,
-                metadata: {},
-              },
-              select: {
-                id: true,
-                appointmentId: true,
-                patientId: true,
-                doctorId: true,
-                status: true,
-              },
-            })
-          );
-          payment = newPayment;
-        }
+          // Validate intent metadata matches request (intent was created for this patient/doctor)
+          const meta = stripePaymentIntent.metadata as Record<string, string>;
+          if (meta?.patientId && meta.patientId !== patientId) {
+            const error = createValidationError(
+              "Payment does not match patient. Please use your own payment."
+            );
+            next(error);
+            return;
+          }
+          if (meta?.doctorId && meta.doctorId !== doctorId) {
+            const error = createValidationError(
+              "Payment does not match doctor. Please pay for the correct appointment."
+            );
+            next(error);
+            return;
+          }
 
-        // Verify payment matches patient and doctor
-        if (payment.patientId !== patientId) {
-          const error = createValidationError(
-            "Payment does not match patient. Please use your own payment."
-          );
-          next(error);
-          return;
-        }
+          // Store intent; Payment row will be created after appointment (FK requires real appointmentId)
+          verifiedIntentForCreation = stripePaymentIntent;
+        } else {
+          // Verify payment matches patient and doctor
+          if (payment.patientId !== patientId) {
+            const error = createValidationError(
+              "Payment does not match patient. Please use your own payment."
+            );
+            next(error);
+            return;
+          }
 
-        if (payment.doctorId !== doctorId) {
-          const error = createValidationError(
-            "Payment does not match doctor. Please pay for the correct appointment."
-          );
-          next(error);
-          return;
-        }
+          if (payment.doctorId !== doctorId) {
+            const error = createValidationError(
+              "Payment does not match doctor. Please pay for the correct appointment."
+            );
+            next(error);
+            return;
+          }
 
-        // Verify payment is confirmed (COMPLETED or PROCESSING)
-        if (payment.status !== "COMPLETED" && payment.status !== "PROCESSING") {
-          const error = createValidationError(
-            "Payment is not confirmed. Please complete payment before booking."
-          );
-          next(error);
-          return;
-        }
+          // Verify payment is confirmed (COMPLETED or PROCESSING)
+          if (
+            payment.status !== "COMPLETED" &&
+            payment.status !== "PROCESSING"
+          ) {
+            const error = createValidationError(
+              "Payment is not confirmed. Please complete payment before booking."
+            );
+            next(error);
+            return;
+          }
 
-        // Verify appointment hasn't been created yet (appointmentId should be empty or match)
-        // If appointmentId exists and doesn't match, it means payment was already used
-        if (payment.appointmentId && payment.appointmentId.trim() !== "") {
-          // Allow if it's the same appointment (for idempotency)
-          // But we're creating a new one, so this shouldn't happen
-          const error = createValidationError(
-            "Payment has already been used for another appointment."
-          );
-          next(error);
-          return;
+          // Verify appointment hasn't been created yet (appointmentId should be empty or match)
+          if (payment.appointmentId && payment.appointmentId.trim() !== "") {
+            const error = createValidationError(
+              "Payment has already been used for another appointment."
+            );
+            next(error);
+            return;
+          }
         }
       } catch (err) {
         console.error("[AppointmentController] Error validating payment:", err);
@@ -379,9 +369,40 @@ export async function createAppointmentSlot(
 
       const appointment = await createAppointment(input);
 
-      // If payment was required and provided, update payment with appointment ID
+      // If payment was required and provided, create or update payment with appointment ID
       if (requiresPayment && paymentIntentId) {
         try {
+          if (verifiedIntentForCreation) {
+            // Payment row did not exist; create it now that we have a valid appointmentId (FK)
+            const stripePaymentIntent = verifiedIntentForCreation;
+            await query((prisma) =>
+              prisma.payment.create({
+                data: {
+                  appointmentId: appointment.id,
+                  patientId,
+                  doctorId,
+                  amount: stripePaymentIntent.amount / 100,
+                  currency: stripePaymentIntent.currency,
+                  status:
+                    stripePaymentIntent.status === "succeeded"
+                      ? "COMPLETED"
+                      : stripePaymentIntent.status === "processing"
+                        ? "PROCESSING"
+                        : "PENDING",
+                  stripePaymentIntentId: paymentIntentId,
+                  stripeChargeId:
+                    stripePaymentIntent.latest_charge &&
+                    typeof stripePaymentIntent.latest_charge === "object"
+                      ? stripePaymentIntent.latest_charge.id
+                      : typeof stripePaymentIntent.latest_charge === "string"
+                        ? stripePaymentIntent.latest_charge
+                        : null,
+                  refundedAmount: 0,
+                  metadata: {},
+                },
+              })
+            );
+          }
           const { confirmPayment } = await import(
             "../services/payment.service"
           );
@@ -391,7 +412,7 @@ export async function createAppointmentSlot(
           });
         } catch (err) {
           console.error(
-            "[AppointmentController] Error updating payment with appointment ID:",
+            "[AppointmentController] Error creating/updating payment with appointment ID:",
             err
           );
           // Don't fail the appointment creation, but log the error
@@ -452,9 +473,39 @@ export async function createAppointmentSlot(
 
     const appointment = await createAppointment(input);
 
-    // If payment was required and provided, update payment with appointment ID
+    // If payment was required and provided, create or update payment with appointment ID
     if (requiresPayment && paymentIntentId) {
       try {
+        if (verifiedIntentForCreation) {
+          const stripePaymentIntent = verifiedIntentForCreation;
+          await query((prisma) =>
+            prisma.payment.create({
+              data: {
+                appointmentId: appointment.id,
+                patientId,
+                doctorId,
+                amount: stripePaymentIntent.amount / 100,
+                currency: stripePaymentIntent.currency,
+                status:
+                  stripePaymentIntent.status === "succeeded"
+                    ? "COMPLETED"
+                    : stripePaymentIntent.status === "processing"
+                      ? "PROCESSING"
+                      : "PENDING",
+                stripePaymentIntentId: paymentIntentId,
+                stripeChargeId:
+                  stripePaymentIntent.latest_charge &&
+                  typeof stripePaymentIntent.latest_charge === "object"
+                    ? stripePaymentIntent.latest_charge.id
+                    : typeof stripePaymentIntent.latest_charge === "string"
+                      ? stripePaymentIntent.latest_charge
+                      : null,
+                refundedAmount: 0,
+                metadata: {},
+              },
+            })
+          );
+        }
         const { confirmPayment } = await import("../services/payment.service");
         await confirmPayment({
           paymentIntentId,
@@ -462,7 +513,7 @@ export async function createAppointmentSlot(
         });
       } catch (err) {
         console.error(
-          "[AppointmentController] Error updating payment with appointment ID:",
+          "[AppointmentController] Error creating/updating payment with appointment ID:",
           err
         );
         // Don't fail the appointment creation, but log the error

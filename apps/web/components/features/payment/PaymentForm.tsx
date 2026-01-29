@@ -38,29 +38,32 @@ export function PaymentForm({
       return;
     }
 
-    // Check if payment intent requires action
+    // Check if payment intent requires action (e.g. on mount or return from 3DS)
     stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
-      if (paymentIntent) {
-        switch (paymentIntent.status) {
-          case "succeeded":
-            setMessage("Payment successful!");
-            setPaymentComplete(true);
-            setIsProcessing(false);
-            if (successHandledRef.current !== paymentIntentId) {
-              successHandledRef.current = paymentIntentId;
-              onSuccess(paymentIntentId);
-            }
-            break;
-          case "processing":
-            setMessage("Your payment is processing.");
-            break;
-          case "requires_payment_method":
-            setMessage("Your payment was not successful, please try again.");
-            break;
-          default:
-            setMessage("Something went wrong.");
-            break;
-        }
+      if (!paymentIntent) return;
+      // Don't overwrite with error if we already handled success (avoids race where
+      // retrievePaymentIntent returns stale status after confirmPayment succeeded)
+      if (successHandledRef.current === paymentIntentId) return;
+
+      switch (paymentIntent.status) {
+        case "succeeded":
+          setMessage("Payment successful!");
+          setPaymentComplete(true);
+          setIsProcessing(false);
+          if (successHandledRef.current !== paymentIntentId) {
+            successHandledRef.current = paymentIntentId;
+            onSuccess(paymentIntentId);
+          }
+          break;
+        case "processing":
+          setMessage("Your payment is processing.");
+          break;
+        case "requires_payment_method":
+          setMessage("Your payment was not successful, please try again.");
+          break;
+        default:
+          setMessage("Something went wrong.");
+          break;
       }
     });
   }, [stripe, clientSecret, paymentIntentId, onSuccess]);
@@ -89,6 +92,7 @@ export function PaymentForm({
         onError(error.message || "Payment failed");
         setIsProcessing(false);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        successHandledRef.current = paymentIntentId;
         setMessage("Payment successful!");
         setPaymentComplete(true);
         setIsProcessing(false);
