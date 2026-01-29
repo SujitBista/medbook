@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   PaymentElement,
   useStripe,
@@ -29,29 +29,41 @@ export function PaymentForm({
   const elements = useElements();
   const [isProcessing, setIsProcessing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
+  const [paymentComplete, setPaymentComplete] = useState(false);
+  // Only call onSuccess once per payment intent when status is "succeeded"
+  const successHandledRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!stripe) {
       return;
     }
 
-    // Check if payment intent requires action
+    // Check if payment intent requires action (e.g. on mount or return from 3DS)
     stripe.retrievePaymentIntent(clientSecret).then(({ paymentIntent }) => {
-      if (paymentIntent) {
-        switch (paymentIntent.status) {
-          case "succeeded":
+      if (!paymentIntent) return;
+      // Don't overwrite with error if we already handled success (avoids race where
+      // retrievePaymentIntent returns stale status after confirmPayment succeeded)
+      if (successHandledRef.current === paymentIntentId) return;
+
+      switch (paymentIntent.status) {
+        case "succeeded":
+          setMessage("Payment successful!");
+          setPaymentComplete(true);
+          setIsProcessing(false);
+          if (successHandledRef.current !== paymentIntentId) {
+            successHandledRef.current = paymentIntentId;
             onSuccess(paymentIntentId);
-            break;
-          case "processing":
-            setMessage("Your payment is processing.");
-            break;
-          case "requires_payment_method":
-            setMessage("Your payment was not successful, please try again.");
-            break;
-          default:
-            setMessage("Something went wrong.");
-            break;
-        }
+          }
+          break;
+        case "processing":
+          setMessage("Your payment is processing.");
+          break;
+        case "requires_payment_method":
+          setMessage("Your payment was not successful, please try again.");
+          break;
+        default:
+          setMessage("Something went wrong.");
+          break;
       }
     });
   }, [stripe, clientSecret, paymentIntentId, onSuccess]);
@@ -80,7 +92,10 @@ export function PaymentForm({
         onError(error.message || "Payment failed");
         setIsProcessing(false);
       } else if (paymentIntent && paymentIntent.status === "succeeded") {
+        successHandledRef.current = paymentIntentId;
         setMessage("Payment successful!");
+        setPaymentComplete(true);
+        setIsProcessing(false);
         onSuccess(paymentIntentId);
       } else {
         setMessage("Unexpected payment status");
@@ -133,17 +148,21 @@ export function PaymentForm({
         <Button
           type="submit"
           variant="primary"
-          disabled={!stripe || !elements || isProcessing}
+          disabled={!stripe || !elements || isProcessing || paymentComplete}
           className="flex-1"
         >
-          {isProcessing ? "Processing..." : `Pay $${amount.toFixed(2)}`}
+          {paymentComplete
+            ? "Redirecting..."
+            : isProcessing
+              ? "Processing..."
+              : `Pay $${amount.toFixed(2)}`}
         </Button>
         {onCancel && (
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
-            disabled={isProcessing}
+            disabled={isProcessing || paymentComplete}
           >
             Cancel
           </Button>

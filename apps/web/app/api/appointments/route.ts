@@ -244,10 +244,16 @@ export async function POST(req: NextRequest) {
 
     const body = await req.json();
 
+    // Use session user as patient; do not trust client-supplied patientId
+    const bodyWithPatient = {
+      ...body,
+      patientId: session.user.id,
+    };
+
     // Generate token for backend API
     const token = generateBackendToken(session.user.id, session.user.role);
 
-    console.log("[Appointments] Creating appointment:", body);
+    console.log("[Appointments] Creating appointment:", bodyWithPatient);
 
     // Call backend API
     const response = await fetch(`${env.apiUrl}/appointments`, {
@@ -256,7 +262,7 @@ export async function POST(req: NextRequest) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(body),
+      body: JSON.stringify(bodyWithPatient),
     });
 
     const data = await response.json();

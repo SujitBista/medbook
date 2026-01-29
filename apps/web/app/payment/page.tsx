@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useCallback, useRef, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Card, Button } from "@medbook/ui";
@@ -12,6 +12,7 @@ function PaymentFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
+  const isCompletingRef = useRef(false);
 
   const [amount, setAmount] = useState<number | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
@@ -199,67 +200,157 @@ function PaymentFormContent() {
     }
   };
 
-  const handlePaymentSuccess = async (piId: string) => {
-    if (!session?.user?.id || !doctorId || !slotId || !availabilityId) {
-      setError("Missing required information to complete booking");
-      return;
-    }
-
-    try {
-      setError(null);
-
-      // Create the appointment with payment intent ID
-      // The backend will validate payment and create payment record if needed
-      const appointmentResponse = await fetch("/api/appointments", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          patientId: session.user.id,
-          doctorId: doctorId,
-          availabilityId: availabilityId,
-          slotId: slotId,
-          startTime: startTime,
-          endTime: endTime,
-          paymentIntentId: piId, // Include payment intent ID for validation
-        }),
-      });
-
-      const appointmentData = await appointmentResponse.json();
-
-      if (!appointmentResponse.ok || !appointmentData.success) {
-        throw new Error(
-          appointmentData.error?.message ||
-            "Failed to book appointment. Please try again."
-        );
+  const handlePaymentSuccess = useCallback(
+    async (piId: string) => {
+      if (isCompletingRef.current) {
+        if (process.env.NODE_ENV === "development") {
+          console.log("[PaymentPage] Ignoring duplicate handlePaymentSuccess");
+        }
+        return;
+      }
+      if (!session?.user?.id || !doctorId || !slotId || !availabilityId) {
+        setError("Missing required information to complete booking");
+        return;
       }
 
-      // Update payment with appointment ID
-      if (appointmentData.data.id) {
-        await fetch("/api/payments/confirm", {
+      isCompletingRef.current = true;
+      try {
+        setError(null);
+
+        // Create the appointment with payment intent ID (patientId from session on server)
+        const appointmentResponse = await fetch("/api/appointments", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
+          credentials: "include",
           body: JSON.stringify({
+            doctorId: doctorId,
+            availabilityId: availabilityId,
+            slotId: slotId,
+            startTime: startTime,
+            endTime: endTime,
             paymentIntentId: piId,
-            appointmentId: appointmentData.data.id,
           }),
         });
-      }
 
-      // Redirect to appointments page or return URL
-      router.push(returnUrl);
-    } catch (err) {
-      console.error("[PaymentPage] Error completing booking:", err);
-      setError(
-        err instanceof Error
-          ? err.message
-          : "Failed to complete booking. Please try again."
-      );
-    }
-  };
+        const appointmentStatus = appointmentResponse.status;
+        const appointmentStatusText = appointmentResponse.statusText;
+        const responseText = await appointmentResponse.text();
+
+        let appointmentData: {
+          success?: boolean;
+          data?: { id?: string };
+          error?: { message?: string };
+        };
+        try {
+          appointmentData =
+            responseText.length > 0 ? JSON.parse(responseText) : {};
+        } catch (parseErr) {
+          console.error(
+            "[PaymentPage] POST /api/appointments parse failed:",
+            parseErr
+          );
+          console.error("[PaymentPage] Response text:", responseText);
+          throw new Error(
+            `Booking failed (${appointmentStatus} ${appointmentStatusText}). Invalid response from server.`
+          );
+        }
+
+        if (!appointmentResponse.ok) {
+          const msg =
+            appointmentData?.error?.message ||
+            responseText ||
+            `${appointmentStatus} ${appointmentStatusText}`;
+          console.error("[PaymentPage] POST /api/appointments not ok:", {
+            status: appointmentStatus,
+            statusText: appointmentStatusText,
+            body: appointmentData,
+            responseText,
+          });
+          throw new Error(msg);
+        }
+
+        if (!appointmentData.success) {
+          const msg =
+            appointmentData?.error?.message ||
+            "Booking was not successful. Please try again.";
+          throw new Error(msg);
+        }
+
+        // Update payment with appointment ID
+        if (appointmentData.data?.id) {
+          const confirmResponse = await fetch("/api/payments/confirm", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              paymentIntentId: piId,
+              appointmentId: appointmentData.data.id,
+            }),
+          });
+
+          const confirmStatus = confirmResponse.status;
+          const confirmStatusText = confirmResponse.statusText;
+          const confirmText = await confirmResponse.text();
+
+          let confirmData: {
+            success?: boolean;
+            error?: { message?: string };
+          } = {};
+          try {
+            confirmData = confirmText.length > 0 ? JSON.parse(confirmText) : {};
+          } catch (confirmParseErr) {
+            console.error(
+              "[PaymentPage] POST /api/payments/confirm parse failed:",
+              confirmParseErr
+            );
+            console.error("[PaymentPage] Confirm response text:", confirmText);
+            // Don't block redirect; booking succeeded
+          }
+
+          if (!confirmResponse.ok) {
+            console.error(
+              "[PaymentPage] POST /api/payments/confirm failed:",
+              confirmStatus,
+              confirmStatusText,
+              confirmData,
+              confirmText
+            );
+            // Don't throw; booking is already created
+          } else if (confirmData?.success === false) {
+            console.error(
+              "[PaymentPage] POST /api/payments/confirm success=false:",
+              confirmData
+            );
+          }
+        }
+
+        router.push(returnUrl);
+      } catch (err) {
+        console.error("[PaymentPage] Error completing booking:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to complete booking. Please try again."
+        );
+      } finally {
+        isCompletingRef.current = false;
+      }
+    },
+    [
+      session?.user?.id,
+      doctorId,
+      slotId,
+      availabilityId,
+      startTime,
+      endTime,
+      returnUrl,
+      router,
+    ]
+  );
 
   const handlePaymentError = (errorMessage: string) => {
     setError(errorMessage);
