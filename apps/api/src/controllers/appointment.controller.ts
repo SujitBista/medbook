@@ -375,7 +375,7 @@ export async function createAppointmentSlot(
           if (verifiedIntentForCreation) {
             // Payment row did not exist; create it now that we have a valid appointmentId (FK)
             const stripePaymentIntent = verifiedIntentForCreation;
-            await query((prisma) =>
+            const createdPayment = await query<{ id: string }>((prisma) =>
               prisma.payment.create({
                 data: {
                   appointmentId: appointment.id,
@@ -400,6 +400,14 @@ export async function createAppointmentSlot(
                   refundedAmount: 0,
                   metadata: {},
                 },
+                select: { id: true },
+              })
+            );
+            // Link appointment to payment immediately so appointments section shows paid even if confirmPayment fails
+            await query((prisma) =>
+              prisma.appointment.update({
+                where: { id: appointment.id },
+                data: { paymentId: createdPayment.id },
               })
             );
           }
@@ -478,7 +486,7 @@ export async function createAppointmentSlot(
       try {
         if (verifiedIntentForCreation) {
           const stripePaymentIntent = verifiedIntentForCreation;
-          await query((prisma) =>
+          const createdPayment = await query<{ id: string }>((prisma) =>
             prisma.payment.create({
               data: {
                 appointmentId: appointment.id,
@@ -503,6 +511,14 @@ export async function createAppointmentSlot(
                 refundedAmount: 0,
                 metadata: {},
               },
+              select: { id: true },
+            })
+          );
+          // Link appointment to payment immediately so appointments section shows paid even if confirmPayment fails
+          await query((prisma) =>
+            prisma.appointment.update({
+              where: { id: appointment.id },
+              data: { paymentId: createdPayment.id },
             })
           );
         }
