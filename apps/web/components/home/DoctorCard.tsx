@@ -4,6 +4,27 @@ import { Card, Button } from "@medbook/ui";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+/** Serialize price fetches across all DoctorCards to avoid 429 Too Many Requests */
+let priceFetchChain: Promise<void> = Promise.resolve();
+
+function fetchPriceSerialized(
+  id: string
+): Promise<{ success?: boolean; data?: { appointmentPrice?: number } }> {
+  return new Promise((resolve) => {
+    priceFetchChain = priceFetchChain
+      .then(() => fetch(`/api/doctors/${id}/price`).then((res) => res.json()))
+      .then(
+        (data: { success?: boolean; data?: { appointmentPrice?: number } }) => {
+          resolve(data);
+        }
+      )
+      .catch((err) => {
+        console.error("[DoctorCard] Error fetching price:", err);
+        resolve({});
+      });
+  });
+}
+
 interface DoctorCardProps {
   id: string;
   name: string;
@@ -29,20 +50,20 @@ export function DoctorCard({
     initialPrice
   );
 
-  // Fetch price if not provided
+  // Fetch price if not provided (serialized to avoid 429)
   useEffect(() => {
-    if (appointmentPrice === undefined && id) {
-      fetch(`/api/doctors/${id}/price`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && data.data?.appointmentPrice) {
-            setAppointmentPrice(data.data.appointmentPrice);
-          }
-        })
-        .catch((err) => {
-          console.error("[DoctorCard] Error fetching price:", err);
-        });
-    }
+    if (appointmentPrice !== undefined || !id) return;
+    let mounted = true;
+    fetchPriceSerialized(id).then((data) => {
+      const price =
+        data?.success && data?.data?.appointmentPrice != null
+          ? data.data.appointmentPrice
+          : undefined;
+      if (mounted && price !== undefined) setAppointmentPrice(price);
+    });
+    return () => {
+      mounted = false;
+    };
   }, [id, appointmentPrice]);
 
   const initials = name
