@@ -10,6 +10,12 @@ export enum AppointmentStatus {
   COMPLETED = "COMPLETED",
 }
 
+/** Payment info included when appointment has a linked payment (e.g. from Stripe) */
+export interface AppointmentPaymentInfo {
+  status: string; // COMPLETED, PENDING, PROCESSING, REFUNDED, etc.
+  amount: number;
+}
+
 export interface Appointment {
   id: string;
   patientId: string;
@@ -22,6 +28,8 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   isArchived?: boolean; // Whether the appointment has been archived (expired appointments)
+  /** Present when appointment has a linked payment (e.g. paid via Stripe) */
+  payment?: AppointmentPaymentInfo;
   createdAt: Date;
   updatedAt: Date;
 }

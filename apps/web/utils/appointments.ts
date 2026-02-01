@@ -37,21 +37,36 @@ export function createDoctorLookup(doctors: Doctor[]): Record<string, Doctor> {
   return lookup;
 }
 
+/** API payment status to display status mapping */
+const PAYMENT_STATUS_DISPLAY: Record<string, PaymentInfo["status"]> = {
+  COMPLETED: "Paid",
+  PENDING: "Pending",
+  PROCESSING: "Pending",
+  FAILED: "Pending",
+  REFUNDED: "Paid", // show as Paid with amount 0 or separate if needed
+  PARTIALLY_REFUNDED: "Partial",
+};
+
 /**
- * Generates mock payment info based on appointment ID
+ * Returns payment info for display. Uses real payment from API when present (e.g. after Stripe success).
+ * Falls back to Pending/0 when no payment is linked.
+ * @param appointmentId Used only when no real payment (fallback not used for amount)
+ * @param payment Optional payment from appointment API (status, amount)
  */
-export function getPaymentInfo(appointmentId: string): PaymentInfo {
-  const paymentTypes: PaymentInfo["status"][] = [
-    "Paid",
-    "Pending",
-    "Insurance",
-    "Partial",
-  ];
-  const amounts = [50, 75, 100, 125, 150, 200];
-  const hash = appointmentId.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
+export function getPaymentInfo(
+  appointmentId: string,
+  payment?: { status: string; amount: number } | null
+): PaymentInfo {
+  if (payment) {
+    const displayStatus = PAYMENT_STATUS_DISPLAY[payment.status] ?? "Pending";
+    return {
+      status: displayStatus,
+      amount: Number(payment.amount) || 0,
+    };
+  }
   return {
-    status: paymentTypes[hash % paymentTypes.length],
-    amount: amounts[hash % amounts.length],
+    status: "Pending",
+    amount: 0,
   };
 }
 

@@ -311,10 +311,15 @@ export async function confirmPayment(
     throw createValidationError("Appointment ID does not match payment");
   }
 
-  // Confirm payment with Stripe
+  // Confirm payment with Stripe (idempotent: no-op if already succeeded)
   const confirmedIntent = await confirmPaymentIntent(paymentIntentId);
 
-  // Update payment status
+  // Sync status, amount, and charge from Stripe (source of truth)
+  const amountFromStripe =
+    confirmedIntent.amount_received != null
+      ? confirmedIntent.amount_received / 100
+      : Number(payment.amount);
+
   const updatedPayment = await query<{
     id: string;
     appointmentId: string;
@@ -340,6 +345,7 @@ export async function confirmPayment(
             : confirmedIntent.status === "processing"
               ? PrismaPaymentStatus.PROCESSING
               : PrismaPaymentStatus.FAILED,
+        amount: amountFromStripe,
         stripeChargeId: confirmedIntent.latest_charge
           ? typeof confirmedIntent.latest_charge === "string"
             ? confirmedIntent.latest_charge

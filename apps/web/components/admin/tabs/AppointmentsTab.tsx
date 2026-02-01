@@ -126,7 +126,7 @@ export function AppointmentsTab({
           (endDate.getTime() - startDate.getTime()) / 60000
         );
         const doctor = doctorLookup[apt.doctorId];
-        const payment = getPaymentInfo(apt.id);
+        const payment = getPaymentInfo(apt.id, apt.payment);
         const visitType = getVisitType(apt.id);
 
         return [
@@ -686,7 +686,10 @@ export function AppointmentsTab({
                       const isUpcoming = appointmentDate > new Date();
                       const isPast = appointmentDate < new Date();
                       const doctor = doctorLookup[appointment.doctorId];
-                      const payment = getPaymentInfo(appointment.id);
+                      const payment = getPaymentInfo(
+                        appointment.id,
+                        appointment.payment
+                      );
                       const visitType = getVisitType(appointment.id);
 
                       const rowBgClass =

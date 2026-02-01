@@ -90,6 +90,12 @@ export async function getAppointmentById(
           email: true;
         };
       };
+      payment: {
+        select: {
+          status: true;
+          amount: true;
+        };
+      };
     };
   }> | null>((prisma) =>
     prisma.appointment.findUnique({
@@ -98,6 +104,12 @@ export async function getAppointmentById(
         patient: {
           select: {
             email: true,
+          },
+        },
+        payment: {
+          select: {
+            status: true,
+            amount: true,
           },
         },
       },
@@ -120,6 +132,12 @@ export async function getAppointmentById(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
+    ...(appointment.payment && {
+      payment: {
+        status: appointment.payment.status,
+        amount: Number(appointment.payment.amount),
+      },
+    }),
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   };
@@ -166,6 +184,12 @@ export async function getAppointmentsByPatientId(
             email: true;
           };
         };
+        payment: {
+          select: {
+            status: true;
+            amount: true;
+          };
+        };
       };
     }>[]
   >((prisma) =>
@@ -175,6 +199,12 @@ export async function getAppointmentsByPatientId(
         patient: {
           select: {
             email: true,
+          },
+        },
+        payment: {
+          select: {
+            status: true,
+            amount: true,
           },
         },
       },
@@ -196,6 +226,12 @@ export async function getAppointmentsByPatientId(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
+    ...(appointment.payment && {
+      payment: {
+        status: appointment.payment.status,
+        amount: Number(appointment.payment.amount),
+      },
+    }),
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   }));
@@ -242,6 +278,12 @@ export async function getAppointmentsByDoctorId(
             email: true;
           };
         };
+        payment: {
+          select: {
+            status: true;
+            amount: true;
+          };
+        };
       };
     }>[]
   >((prisma) =>
@@ -251,6 +293,12 @@ export async function getAppointmentsByDoctorId(
         patient: {
           select: {
             email: true,
+          },
+        },
+        payment: {
+          select: {
+            status: true,
+            amount: true,
           },
         },
       },
@@ -272,6 +320,12 @@ export async function getAppointmentsByDoctorId(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
+    ...(appointment.payment && {
+      payment: {
+        status: appointment.payment.status,
+        amount: Number(appointment.payment.amount),
+      },
+    }),
     createdAt: appointment.createdAt,
     updatedAt: appointment.updatedAt,
   }));
