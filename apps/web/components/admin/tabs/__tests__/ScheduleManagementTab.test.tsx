@@ -147,19 +147,19 @@ describe("ScheduleManagementTab", () => {
     // Wait for doctor to be selected and button to appear
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Add New Schedule/i })
+        screen.getByRole("button", { name: /Create schedule/i })
       ).toBeInTheDocument();
     });
 
     // Click "Add New Schedule" button (use getByRole to be more specific)
     const addScheduleButton = screen.getByRole("button", {
-      name: /Add New Schedule/i,
+      name: /Create schedule/i,
     });
     await user.click(addScheduleButton);
 
     // Wait for form to appear
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Date to schedule/i)).toBeInTheDocument();
     });
 
     // Set a future date
@@ -167,7 +167,7 @@ describe("ScheduleManagementTab", () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-    const dateInput = screen.getByLabelText(/Select Date/i);
+    const dateInput = screen.getByLabelText(/Date to schedule/i);
     await user.clear(dateInput);
     await user.type(dateInput, tomorrowStr);
 
@@ -176,7 +176,7 @@ describe("ScheduleManagementTab", () => {
 
     // Now switch to second doctor
     const doctorInput2 = screen.getByPlaceholderText(
-      /Type to search for another doctor/i
+      /Search for another doctor/i
     );
     await user.click(doctorInput2);
     await user.clear(doctorInput2);
@@ -198,18 +198,18 @@ describe("ScheduleManagementTab", () => {
 
     // Click "Add New Schedule" again (use getByRole to be more specific)
     const addScheduleButton2 = screen.getByRole("button", {
-      name: /Add New Schedule/i,
+      name: /Create schedule/i,
     });
     await user.click(addScheduleButton2);
 
     // Wait for form to appear
     await waitFor(() => {
-      const dateInputAfterSwitch = screen.getByLabelText(/Select Date/i);
+      const dateInputAfterSwitch = screen.getByLabelText(/Date to schedule/i);
       expect(dateInputAfterSwitch).toBeInTheDocument();
     });
 
     // Verify that the date input is cleared (should be empty or have today's date minimum)
-    const dateInputAfterSwitch = screen.getByLabelText(/Select Date/i);
+    const dateInputAfterSwitch = screen.getByLabelText(/Date to schedule/i);
     // The date should be cleared - it should not have the previous doctor's date
     expect(dateInputAfterSwitch).not.toHaveValue(tomorrowStr);
   });
@@ -282,12 +282,12 @@ describe("ScheduleManagementTab", () => {
     // Switch to second doctor immediately
     await waitFor(() => {
       expect(
-        screen.getByRole("button", { name: /Add New Schedule/i })
+        screen.getByRole("button", { name: /Create schedule/i })
       ).toBeInTheDocument();
     });
 
     const doctorInput2 = screen.getByPlaceholderText(
-      /Type to search for another doctor/i
+      /Search for another doctor/i
     );
     await user.click(doctorInput2);
     await user.clear(doctorInput2);
@@ -308,13 +308,13 @@ describe("ScheduleManagementTab", () => {
 
     // Add new schedule for second doctor (use getByRole to be more specific)
     const addScheduleButton = screen.getByRole("button", {
-      name: /Add New Schedule/i,
+      name: /Create schedule/i,
     });
     await user.click(addScheduleButton);
 
     // Wait for form
     await waitFor(() => {
-      expect(screen.getByLabelText(/Select Date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/Date to schedule/i)).toBeInTheDocument();
     });
 
     // Set a future date for the second doctor
@@ -322,7 +322,7 @@ describe("ScheduleManagementTab", () => {
     tomorrow.setDate(tomorrow.getDate() + 1);
     const tomorrowStr = tomorrow.toISOString().split("T")[0];
 
-    const dateInput = screen.getByLabelText(/Select Date/i);
+    const dateInput = screen.getByLabelText(/Date to schedule/i);
     await user.type(dateInput, tomorrowStr);
 
     // Verify date is set correctly
