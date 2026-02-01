@@ -129,13 +129,18 @@ export function AppointmentsTab({
         const payment = getPaymentInfo(apt.id, apt.payment);
         const visitType = getVisitType(apt.id);
 
+        const doctorName =
+          doctor?.userFirstName || doctor?.userLastName
+            ? `Dr. ${doctor.userFirstName || ""} ${doctor.userLastName || ""}`.trim()
+            : doctor?.userEmail || apt.doctorId;
+
         return [
           apt.id,
           startDate.toLocaleDateString(),
           startDate.toLocaleTimeString(),
           apt.status,
           apt.patientEmail || "N/A",
-          doctor?.userEmail || doctor?.specialization || apt.doctorId,
+          doctorName,
           duration.toString(),
           visitType,
           payment.status,
@@ -199,7 +204,7 @@ export function AppointmentsTab({
 
       // Table headers
       doc.setFontSize(10);
-      const headers = ["ID", "Date", "Time", "Status", "Patient", "Doctor"];
+      const headers = ["No.", "Date", "Time", "Status", "Patient", "Doctor"];
       const colWidths = [25, 30, 25, 25, 40, 35];
       let x = margin;
 
@@ -224,8 +229,12 @@ export function AppointmentsTab({
 
         const startDate = new Date(apt.startTime);
         const doctor = doctorLookup[apt.doctorId];
+        const doctorName =
+          doctor?.userFirstName || doctor?.userLastName
+            ? `Dr. ${doctor.userFirstName || ""} ${doctor.userLastName || ""}`.trim()
+            : doctor?.userEmail || apt.doctorId.slice(0, 8);
         const rowData = [
-          apt.id.slice(0, 8),
+          (index + 1).toString(),
           startDate.toLocaleDateString(),
           startDate.toLocaleTimeString([], {
             hour: "2-digit",
@@ -233,11 +242,7 @@ export function AppointmentsTab({
           }),
           apt.status,
           (apt.patientEmail || "N/A").substring(0, 20),
-          (
-            doctor?.userEmail ||
-            doctor?.specialization ||
-            apt.doctorId.slice(0, 8)
-          ).substring(0, 20),
+          doctorName.substring(0, 20),
         ];
 
         x = margin;
@@ -553,8 +558,11 @@ export function AppointmentsTab({
                   <option value="ALL">All Doctors</option>
                   {doctors.map((doctor) => (
                     <option key={doctor.id} value={doctor.id}>
-                      {doctor.specialization
-                        ? `Dr. (${doctor.specialization})`
+                      {doctor.userFirstName || doctor.userLastName
+                        ? `Dr. ${doctor.userFirstName || ""} ${doctor.userLastName || ""}`.trim() +
+                          (doctor.specialization
+                            ? ` (${doctor.specialization})`
+                            : "")
                         : doctor.userEmail}
                     </option>
                   ))}
@@ -655,7 +663,7 @@ export function AppointmentsTab({
                   <thead className="bg-gray-50">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                        ID
+                        No.
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                         Patient
@@ -681,7 +689,10 @@ export function AppointmentsTab({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-200 bg-white">
-                    {paginatedAppointments.map((appointment) => {
+                    {paginatedAppointments.map((appointment, index) => {
+                      // Calculate row number based on pagination
+                      const rowNumber =
+                        (appointmentPage - 1) * appointmentPageSize + index + 1;
                       const appointmentDate = new Date(appointment.startTime);
                       const isUpcoming = appointmentDate > new Date();
                       const isPast = appointmentDate < new Date();
@@ -744,10 +755,10 @@ export function AppointmentsTab({
                         >
                           <td className="whitespace-nowrap px-4 py-3">
                             <span
-                              className="font-mono text-xs text-gray-600"
-                              title={appointment.id}
+                              className="text-sm font-medium text-gray-700"
+                              title={`Appointment ID: ${appointment.id}`}
                             >
-                              {appointment.id.slice(0, 8)}
+                              {rowNumber}
                             </span>
                           </td>
                           <td className="whitespace-nowrap px-4 py-3">
@@ -765,9 +776,9 @@ export function AppointmentsTab({
                                 className="group flex items-center gap-1 text-sm font-medium text-blue-600 hover:text-blue-800"
                               >
                                 <span>
-                                  {doctor.specialization
-                                    ? `Dr. (${doctor.specialization})`
-                                    : doctor.userEmail}
+                                  {doctor.userFirstName || doctor.userLastName
+                                    ? `Dr. ${doctor.userFirstName || ""} ${doctor.userLastName || ""}`.trim()
+                                    : doctor.userEmail || "Unknown Doctor"}
                                 </span>
                                 <svg
                                   className="h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100"
