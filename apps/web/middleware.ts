@@ -87,8 +87,18 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/", req.url));
   }
 
-  // If accessing auth routes with session, redirect to home
+  // If accessing auth routes with session, redirect based on role
   if (isAuthRoute && session) {
+    const role = session.user?.role;
+    if (role === "ADMIN") {
+      return NextResponse.redirect(new URL("/admin", req.url));
+    }
+    if (role === "DOCTOR") {
+      return NextResponse.redirect(new URL("/dashboard/doctor", req.url));
+    }
+    if (role === "PATIENT") {
+      return NextResponse.redirect(new URL("/dashboard/patient", req.url));
+    }
     return NextResponse.redirect(new URL("/", req.url));
   }
 
