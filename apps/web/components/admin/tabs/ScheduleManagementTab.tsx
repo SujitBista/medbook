@@ -82,6 +82,9 @@ export function ScheduleManagementTab({
   const [scheduleFormErrors, setScheduleFormErrors] = useState<
     Record<string, string>
   >({});
+  const [scheduleHelperNote, setScheduleHelperNote] = useState<string | null>(
+    null
+  );
   const [scheduleSubmitting, setScheduleSubmitting] = useState(false);
   const [deletingScheduleId, setDeletingScheduleId] = useState<string | null>(
     null
@@ -470,6 +473,21 @@ export function ScheduleManagementTab({
     selectedDoctorForSchedule?.id,
   ]);
 
+  // Past slot starts for today (to show as disabled in preview when date is today)
+  const pastPreviewSlotStarts = useMemo(() => {
+    const today = formatDateLocal(new Date());
+    if (!selectedDates.includes(today)) return new Set<string>();
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const past = new Set<string>();
+    previewSlots.forEach((slot) => {
+      const [h, m] = slot.start.split(":").map(Number);
+      const slotMinutes = (h ?? 0) * 60 + (m ?? 0);
+      if (slotMinutes <= nowMinutes) past.add(slot.start);
+    });
+    return past;
+  }, [selectedDates, previewSlots]);
+
   // Generate individual slots for selection
   const individualSlots = useMemo(() => {
     if (!slotTemplate) return [];
@@ -508,6 +526,21 @@ export function ScheduleManagementTab({
 
     return slots;
   }, [slotTemplate]);
+
+  // Past individual slot keys for today (to show as disabled when date is today)
+  const pastIndividualSlotKeys = useMemo(() => {
+    const today = formatDateLocal(new Date());
+    if (!selectedDates.includes(today)) return new Set<string>();
+    const now = new Date();
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    const past = new Set<string>();
+    individualSlots.forEach((slot) => {
+      const [h, m] = slot.start.split(":").map(Number);
+      const slotMinutes = (h ?? 0) * 60 + (m ?? 0);
+      if (slotMinutes <= nowMinutes) past.add(slot.key);
+    });
+    return past;
+  }, [selectedDates, individualSlots]);
 
   // Format time for display (12-hour format)
   const formatTimeDisplay = (time24: string): string => {
@@ -616,6 +649,7 @@ export function ScheduleManagementTab({
       validTo: undefined,
     });
     setScheduleFormErrors({});
+    setScheduleHelperNote(null);
     // Clear all date/time selection state
     setSelectedDates([]);
     setUseDateRange(false);
@@ -783,9 +817,10 @@ export function ScheduleManagementTab({
           return;
         }
 
-        // Validate that all selected dates are in the future
+        // Block only dates that are entirely in the past (before today)
         const now = new Date();
         const today = formatDateLocal(now);
+        const nowDateTime = now.getTime();
         const invalidDates = datesToSchedule.filter((date) => date < today);
         if (invalidDates.length > 0) {
           setScheduleFormErrors({
@@ -795,119 +830,103 @@ export function ScheduleManagementTab({
           return;
         }
 
-        // Validate that the selected date/time combinations are in the future
-        const nowDateTime = now.getTime();
-        for (const date of datesToSchedule) {
-          if (schedulingMode === "timeRange") {
-            const startDateTime = localToUtcDate(`${date}T${timeRangeStart}`);
-            if (startDateTime.getTime() < nowDateTime) {
-              setScheduleFormErrors({
-                dates: `Cannot create a schedule for ${date} at ${timeRangeStart} - this time has already passed`,
-              });
-              return;
-            }
-          } else {
-            // For individual slots, validate each selected slot
-            for (const slotKey of selectedIndividualSlots) {
-              const slot = individualSlots.find((s) => s.key === slotKey);
-              if (slot) {
-                const startDateTime = localToUtcDate(`${date}T${slot.start}`);
-                if (startDateTime.getTime() < nowDateTime) {
-                  setScheduleFormErrors({
-                    dates: `Cannot create a schedule for ${date} at ${slot.start} - this time has already passed`,
-                  });
-                  return;
-                }
-              }
-            }
-          }
-        }
-
-        const promises: Promise<Response>[] = [];
+        // Slot-level: build only future slots (for today, filter out past; for future dates, include all)
+        type PayloadItem = {
+          payload: CreateAvailabilityInput;
+          url: string;
+          method: string;
+        };
+        const toSend: PayloadItem[] = [];
+        let totalSlotsBeforeFilter = 0;
 
         if (schedulingMode === "timeRange") {
+          totalSlotsBeforeFilter = datesToSchedule.length;
           for (const date of datesToSchedule) {
-            const startDateTime = localToUtcDate(`${date}T${timeRangeStart}`);
+            let startDateTime = localToUtcDate(`${date}T${timeRangeStart}`);
             const endDateTime = localToUtcDate(`${date}T${timeRangeEnd}`);
-
-            const payload: CreateAvailabilityInput = {
-              doctorId: selectedDoctorForSchedule.id,
-              startTime: startDateTime,
-              endTime: endDateTime,
-              isRecurring: false,
-            };
-
-            const url =
-              editingScheduleId && datesToSchedule.length === 1
-                ? `/api/availability/${editingScheduleId}`
-                : "/api/availability";
-            const method =
-              editingScheduleId && datesToSchedule.length === 1
-                ? "PUT"
-                : "POST";
-
-            promises.push(
-              fetch(url, {
-                method,
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(payload),
-              })
-            );
-          }
-        } else {
-          if (selectedIndividualSlots.size === 0) {
-            setScheduleFormErrors({
-              slots: "Please select at least one time slot",
-            });
-            return;
-          }
-
-          for (const date of datesToSchedule) {
-            for (const slotKey of selectedIndividualSlots) {
-              const slot = individualSlots.find((s) => s.key === slotKey);
-              if (!slot) continue;
-
-              const startDateTime = localToUtcDate(`${date}T${slot.start}`);
-              const endDateTime = localToUtcDate(`${date}T${slot.end}`);
-
-              const payload: CreateAvailabilityInput = {
+            if (date === today && startDateTime.getTime() < nowDateTime) {
+              startDateTime = new Date(nowDateTime);
+            }
+            if (startDateTime.getTime() >= endDateTime.getTime()) continue;
+            toSend.push({
+              payload: {
                 doctorId: selectedDoctorForSchedule.id,
                 startTime: startDateTime,
                 endTime: endDateTime,
                 isRecurring: false,
-              };
-
-              const url =
-                editingScheduleId &&
-                datesToSchedule.length === 1 &&
-                selectedIndividualSlots.size === 1
+              },
+              url:
+                editingScheduleId && datesToSchedule.length === 1
                   ? `/api/availability/${editingScheduleId}`
-                  : "/api/availability";
-              const method =
-                editingScheduleId &&
-                datesToSchedule.length === 1 &&
-                selectedIndividualSlots.size === 1
+                  : "/api/availability",
+              method:
+                editingScheduleId && datesToSchedule.length === 1
                   ? "PUT"
-                  : "POST";
-
-              promises.push(
-                fetch(url, {
-                  method,
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify(payload),
-                })
-              );
+                  : "POST",
+            });
+          }
+        } else {
+          for (const date of datesToSchedule) {
+            for (const slotKey of selectedIndividualSlots) {
+              const slot = individualSlots.find((s) => s.key === slotKey);
+              if (!slot) continue;
+              totalSlotsBeforeFilter += 1; // count every (date, slot) before filter
+              const startDateTime = localToUtcDate(`${date}T${slot.start}`);
+              if (date === today && startDateTime.getTime() <= nowDateTime) {
+                continue;
+              }
+              const endDateTime = localToUtcDate(`${date}T${slot.end}`);
+              toSend.push({
+                payload: {
+                  doctorId: selectedDoctorForSchedule.id,
+                  startTime: startDateTime,
+                  endTime: endDateTime,
+                  isRecurring: false,
+                },
+                url:
+                  editingScheduleId &&
+                  datesToSchedule.length === 1 &&
+                  selectedIndividualSlots.size === 1
+                    ? `/api/availability/${editingScheduleId}`
+                    : "/api/availability",
+                method:
+                  editingScheduleId &&
+                  datesToSchedule.length === 1 &&
+                  selectedIndividualSlots.size === 1
+                    ? "PUT"
+                    : "POST",
+              });
             }
           }
         }
 
-        if (promises.length === 0) {
-          throw new Error("No schedules to create");
+        if (toSend.length === 0) {
+          setScheduleFormErrors({
+            dates:
+              "All selected time slots are in the past. Please choose a later time.",
+          });
+          return;
         }
+
+        if (toSend.length < totalSlotsBeforeFilter) {
+          setScheduleHelperNote("Past time slots were skipped automatically.");
+          setScheduleFormErrors((prev) => {
+            const next = { ...prev };
+            delete next.dates;
+            return next;
+          });
+        } else {
+          setScheduleHelperNote(null);
+        }
+
+        const promises: Promise<Response>[] = toSend.map(
+          ({ payload, url, method }) =>
+            fetch(url, {
+              method,
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            })
+        );
 
         const responses = await Promise.all(promises);
         const results = await Promise.all(
@@ -1872,15 +1891,30 @@ export function ScheduleManagementTab({
                                     </p>
                                     <div className="max-h-44 overflow-y-auto">
                                       <div className="flex flex-wrap gap-2">
-                                        {previewSlots.map((slot, idx) => (
-                                          <span
-                                            key={idx}
-                                            className="inline-flex items-center rounded-full bg-blue-100 px-3 py-1 text-xs font-medium text-blue-800"
-                                          >
-                                            {formatTimeDisplay(slot.start)} –{" "}
-                                            {formatTimeDisplay(slot.end)}
-                                          </span>
-                                        ))}
+                                        {previewSlots.map((slot, idx) => {
+                                          const isPast =
+                                            pastPreviewSlotStarts.has(
+                                              slot.start
+                                            );
+                                          return (
+                                            <span
+                                              key={idx}
+                                              className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                                                isPast
+                                                  ? "bg-gray-200 text-gray-500 opacity-70"
+                                                  : "bg-blue-100 text-blue-800"
+                                              }`}
+                                              title={
+                                                isPast
+                                                  ? "Past time – will be skipped"
+                                                  : undefined
+                                              }
+                                            >
+                                              {formatTimeDisplay(slot.start)} –{" "}
+                                              {formatTimeDisplay(slot.end)}
+                                            </span>
+                                          );
+                                        })}
                                       </div>
                                       {previewSlots.length > 12 && (
                                         <p className="mt-2 text-xs text-blue-700">
@@ -1902,34 +1936,50 @@ export function ScheduleManagementTab({
                                 </p>
                                 <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
                                   <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                                    {individualSlots.map((slot) => (
-                                      <label
-                                        key={slot.key}
-                                        className="flex items-center rounded border p-2 hover:bg-gray-50"
-                                      >
-                                        <input
-                                          type="checkbox"
-                                          checked={selectedIndividualSlots.has(
-                                            slot.key
-                                          )}
-                                          onChange={(e) => {
-                                            const newSet = new Set(
-                                              selectedIndividualSlots
-                                            );
-                                            if (e.target.checked) {
-                                              newSet.add(slot.key);
-                                            } else {
-                                              newSet.delete(slot.key);
-                                            }
-                                            setSelectedIndividualSlots(newSet);
-                                          }}
-                                          className="mr-2"
-                                        />
-                                        <span className="text-sm">
-                                          {formatTimeDisplay(slot.start)}
-                                        </span>
-                                      </label>
-                                    ))}
+                                    {individualSlots.map((slot) => {
+                                      const isPast = pastIndividualSlotKeys.has(
+                                        slot.key
+                                      );
+                                      return (
+                                        <label
+                                          key={slot.key}
+                                          className={`flex items-center rounded border p-2 ${
+                                            isPast
+                                              ? "cursor-default bg-gray-100 opacity-70"
+                                              : "hover:bg-gray-50"
+                                          }`}
+                                          title={
+                                            isPast
+                                              ? "Past time – will be skipped"
+                                              : undefined
+                                          }
+                                        >
+                                          <input
+                                            type="checkbox"
+                                            checked={selectedIndividualSlots.has(
+                                              slot.key
+                                            )}
+                                            onChange={(e) => {
+                                              const newSet = new Set(
+                                                selectedIndividualSlots
+                                              );
+                                              if (e.target.checked) {
+                                                newSet.add(slot.key);
+                                              } else {
+                                                newSet.delete(slot.key);
+                                              }
+                                              setSelectedIndividualSlots(
+                                                newSet
+                                              );
+                                            }}
+                                            className="mr-2"
+                                          />
+                                          <span className="text-sm">
+                                            {formatTimeDisplay(slot.start)}
+                                          </span>
+                                        </label>
+                                      );
+                                    })}
                                   </div>
                                 </div>
                                 {selectedIndividualSlots.size > 0 && (
@@ -1947,6 +1997,12 @@ export function ScheduleManagementTab({
                         )}
                       </div>
                     </div>
+
+                    {scheduleHelperNote && !scheduleFormData.isRecurring && (
+                      <p className="px-1 text-sm text-gray-600">
+                        {scheduleHelperNote}
+                      </p>
+                    )}
 
                     <div className="sticky bottom-0 flex shrink-0 gap-2 border-t border-gray-200 bg-white py-4 pt-4">
                       <Button

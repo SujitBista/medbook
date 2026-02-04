@@ -186,6 +186,14 @@ export async function createAvailabilitySlot(
 
     const availability = await createAvailability(input);
 
+    if (availability === null) {
+      res.status(200).json({
+        success: true,
+        skipped: true,
+      });
+      return;
+    }
+
     res.status(201).json({
       success: true,
       availability,
