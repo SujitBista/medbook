@@ -296,12 +296,12 @@ function validateTimeSlot(startTime: Date, endTime: Date): void {
 /**
  * Creates a new availability
  * @param input Availability creation input
- * @returns Created availability data
+ * @returns Created availability data, or null if one-time slot was in the past (defensive skip)
  * @throws AppError if validation fails, doctor not found, or overlap detected
  */
 export async function createAvailability(
   input: CreateAvailabilityInput
-): Promise<Availability> {
+): Promise<Availability | null> {
   const {
     doctorId,
     startTime,
@@ -341,12 +341,14 @@ export async function createAvailability(
       );
     }
   } else {
-    // For one-time schedules, validate that startTime is not in the past
+    // For one-time schedules: defensively skip past slots (do not create, do not error)
     const now = new Date();
     if (startTime < now) {
-      throw createValidationError(
-        "Cannot create a schedule for a time that has already passed"
-      );
+      logger.debug("Skipping one-time availability in the past", {
+        doctorId,
+        startTime: startTime.toISOString(),
+      });
+      return null;
     }
   }
 

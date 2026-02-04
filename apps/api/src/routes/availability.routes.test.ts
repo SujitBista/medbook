@@ -444,7 +444,7 @@ describe("POST /api/v1/availability", () => {
     expect(response.body.error.message).toContain("Doctor not found");
   });
 
-  it("should reject one-time availability with past start time", async () => {
+  it("should skip one-time availability with past start time (return 200 skipped)", async () => {
     const doctor = await createTestDoctor();
     createdDoctorIds.push(doctor.id);
     createdUserIds.push(doctor.userId);
@@ -460,10 +460,11 @@ describe("POST /api/v1/availability", () => {
         startTime: pastStartTime.toISOString(),
         endTime: pastEndTime.toISOString(),
       })
-      .expect(400);
+      .expect(200);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.error.message).toContain("already passed");
+    expect(response.body.success).toBe(true);
+    expect(response.body.skipped).toBe(true);
+    expect(response.body.availability).toBeUndefined();
   });
 
   it("should reject recurring availability with past validFrom", async () => {
