@@ -24,6 +24,10 @@ import {
   getCommissionSettings,
   createCommissionSettingsForDoctor,
   updateCommissionSettingsForDoctor,
+  createSchedulingException,
+  listSchedulingExceptions,
+  deleteSchedulingException,
+  getSchedulingException,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -133,5 +137,29 @@ router.put(
   "/doctors/:doctorId/commission-settings",
   updateCommissionSettingsForDoctor
 );
+
+/**
+ * POST /api/v1/admin/scheduling/exceptions
+ * Create schedule exception(s)
+ */
+router.post("/scheduling/exceptions", createSchedulingException);
+
+/**
+ * GET /api/v1/admin/scheduling/exceptions
+ * List schedule exceptions (optional query: doctorId, startDate, endDate, type)
+ */
+router.get("/scheduling/exceptions", listSchedulingExceptions);
+
+/**
+ * GET /api/v1/admin/scheduling/exceptions/:id
+ * Get schedule exception by ID
+ */
+router.get("/scheduling/exceptions/:id", getSchedulingException);
+
+/**
+ * DELETE /api/v1/admin/scheduling/exceptions/:id
+ * Delete schedule exception
+ */
+router.delete("/scheduling/exceptions/:id", deleteSchedulingException);
 
 export default router;

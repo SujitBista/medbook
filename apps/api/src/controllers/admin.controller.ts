@@ -32,7 +32,14 @@ import {
   UpdateDoctorInput,
   CreateCommissionSettingsInput,
   UpdateCommissionSettingsInput,
+  ScheduleExceptionType,
 } from "@medbook/types";
+import {
+  createScheduleException,
+  listScheduleExceptions,
+  deleteScheduleException,
+  getScheduleExceptionById,
+} from "../services/exception.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
 
@@ -653,6 +660,169 @@ export async function updateCommissionSettingsForDoctor(
     res.status(200).json({
       success: true,
       data: settings,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Create schedule exception(s) (admin only)
+ * POST /api/v1/admin/scheduling/exceptions
+ */
+export async function createSchedulingException(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    if (!req.user?.id) {
+      const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    const body = req.body;
+    const scope = body.scope as "ALL_DOCTORS" | "SELECTED_DOCTORS" | undefined;
+    const doctorIds = body.doctorIds as string[] | undefined;
+    const dateFrom = body.dateFrom as string | undefined;
+    const dateTo = body.dateTo as string | undefined;
+    const isFullDay = body.isFullDay as boolean | undefined;
+    const startTime = body.startTime as string | null | undefined;
+    const endTime = body.endTime as string | null | undefined;
+    const type = body.type as ScheduleExceptionType | undefined;
+    const reason = body.reason as string | undefined;
+    const label = body.label as string | null | undefined;
+
+    if (!scope || !dateFrom) {
+      const error = createValidationError("scope and dateFrom are required");
+      next(error);
+      return;
+    }
+
+    if (
+      type !== ScheduleExceptionType.AVAILABLE &&
+      type !== ScheduleExceptionType.UNAVAILABLE
+    ) {
+      const error = createValidationError(
+        "type must be AVAILABLE or UNAVAILABLE"
+      );
+      next(error);
+      return;
+    }
+
+    const created = await createScheduleException(
+      {
+        scope,
+        doctorIds,
+        dateFrom,
+        dateTo,
+        isFullDay,
+        startTime,
+        endTime,
+        type,
+        reason:
+          reason ??
+          (type === ScheduleExceptionType.UNAVAILABLE
+            ? "HOLIDAY"
+            : "EXTRA_HOURS"),
+        label,
+      },
+      req.user.id
+    );
+
+    res.status(201).json({
+      success: true,
+      data: created,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * List schedule exceptions (admin only)
+ * GET /api/v1/admin/scheduling/exceptions
+ */
+export async function listSchedulingExceptions(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const doctorId = req.query.doctorId as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+    const type = req.query.type as ScheduleExceptionType | undefined;
+
+    const exceptions = await listScheduleExceptions({
+      doctorId,
+      startDate,
+      endDate,
+      type,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: exceptions,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete schedule exception (admin only)
+ * DELETE /api/v1/admin/scheduling/exceptions/:id
+ */
+export async function deleteSchedulingException(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      const error = createValidationError("Exception ID is required");
+      next(error);
+      return;
+    }
+
+    await deleteScheduleException(id);
+
+    res.status(200).json({
+      success: true,
+      message: "Schedule exception deleted",
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get schedule exception by ID (admin only)
+ * GET /api/v1/admin/scheduling/exceptions/:id
+ */
+export async function getSchedulingException(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+
+    if (!id) {
+      const error = createValidationError("Exception ID is required");
+      next(error);
+      return;
+    }
+
+    const exception = await getScheduleExceptionById(id);
+
+    res.status(200).json({
+      success: true,
+      data: exception,
     });
   } catch (error) {
     next(error);

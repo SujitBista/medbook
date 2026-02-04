@@ -6,6 +6,7 @@ import type {
   Availability,
   CreateAvailabilityInput,
   SlotTemplate,
+  ScheduleException,
 } from "@medbook/types";
 import type { Doctor } from "@/app/admin/types";
 import {
@@ -116,6 +117,9 @@ export function ScheduleManagementTab({
   const [selectedIndividualSlots, setSelectedIndividualSlots] = useState<
     Set<string>
   >(new Set());
+  const [scheduleExceptions, setScheduleExceptions] = useState<
+    ScheduleException[]
+  >([]);
 
   // Autocomplete state for doctor selection
   const [doctorSearchQuery, setDoctorSearchQuery] = useState("");
@@ -337,6 +341,134 @@ export function ScheduleManagementTab({
       generateSlotPreview();
     }
   }, [schedulingMode, generateSlotPreview]);
+
+  // Fetch schedule exceptions for selected doctor and date range (for preview)
+  const datesForExceptionFetch = useMemo(() => {
+    if (useDateRange && dateRangeStart && dateRangeEnd) {
+      return generateDateRange(dateRangeStart, dateRangeEnd);
+    }
+    return selectedDates;
+  }, [useDateRange, dateRangeStart, dateRangeEnd, selectedDates]);
+
+  useEffect(() => {
+    if (!selectedDoctorForSchedule || datesForExceptionFetch.length === 0) {
+      setScheduleExceptions([]);
+      return;
+    }
+    const startDate = datesForExceptionFetch[0];
+    const endDate = datesForExceptionFetch[datesForExceptionFetch.length - 1];
+    const params = new URLSearchParams({
+      doctorId: selectedDoctorForSchedule.id,
+      startDate,
+      endDate: endDate ?? startDate,
+    });
+    fetch(`/api/admin/scheduling/exceptions?${params}`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((data) => setScheduleExceptions(data.data ?? []))
+      .catch(() => setScheduleExceptions([]));
+  }, [
+    selectedDoctorForSchedule?.id,
+    datesForExceptionFetch.length,
+    datesForExceptionFetch.join(","),
+  ]);
+
+  // Effective slot count accounting for exceptions (per-day and total)
+  const effectiveSlotPreview = useMemo(() => {
+    if (!slotTemplate || datesForExceptionFetch.length === 0) return null;
+    const baseSlots = previewSlots;
+    const duration = slotTemplate.durationMinutes;
+    const buffer = slotTemplate.bufferMinutes;
+    const unavailable = scheduleExceptions.filter(
+      (e) => e.type === "UNAVAILABLE"
+    );
+    const extraHours = scheduleExceptions.filter((e) => e.type === "AVAILABLE");
+
+    const countForDate = (
+      dateStr: string
+    ): { base: number; effective: number } => {
+      const base =
+        schedulingMode === "timeRange"
+          ? baseSlots.length
+          : selectedIndividualSlots.size;
+      if (base === 0) return { base: 0, effective: 0 };
+      let removed = 0;
+      for (const ex of unavailable) {
+        if (
+          ex.doctorId != null &&
+          ex.doctorId !== selectedDoctorForSchedule?.id
+        )
+          continue;
+        const exFrom = formatDateLocal(ex.dateFrom);
+        const exTo = formatDateLocal(ex.dateTo);
+        if (dateStr < exFrom || dateStr > exTo) continue;
+        if (ex.startTime == null || ex.endTime == null) {
+          removed += base;
+          break;
+        }
+        const [esh, esm] = ex.startTime.split(":").map(Number);
+        const [eeh, eem] = ex.endTime.split(":").map(Number);
+        const exStartM = (esh ?? 0) * 60 + (esm ?? 0);
+        const exEndM = (eeh ?? 0) * 60 + (eem ?? 0);
+        if (schedulingMode === "timeRange") {
+          baseSlots.forEach((slot) => {
+            const [sh, sm] = slot.start.split(":").map(Number);
+            const slotStartM = (sh ?? 0) * 60 + (sm ?? 0);
+            if (slotStartM < exEndM && slotStartM + duration > exStartM)
+              removed++;
+          });
+        } else {
+          selectedIndividualSlots.forEach((key) => {
+            const [sh, sm] = key.split(":").map(Number);
+            const slotStartM = (sh ?? 0) * 60 + (sm ?? 0);
+            if (slotStartM < exEndM && slotStartM + duration > exStartM)
+              removed++;
+          });
+        }
+      }
+      let added = 0;
+      for (const ex of extraHours) {
+        if (!ex.startTime || !ex.endTime) continue;
+        if (
+          ex.doctorId != null &&
+          ex.doctorId !== selectedDoctorForSchedule?.id
+        )
+          continue;
+        const exFrom = formatDateLocal(ex.dateFrom);
+        const exTo = formatDateLocal(ex.dateTo);
+        if (dateStr < exFrom || dateStr > exTo) continue;
+        const [esh, esm] = ex.startTime.split(":").map(Number);
+        const [eeh, eem] = ex.endTime.split(":").map(Number);
+        const exStartM = (esh ?? 0) * 60 + (esm ?? 0);
+        const exEndM = (eeh ?? 0) * 60 + (eem ?? 0);
+        let cur = exStartM;
+        while (cur + duration <= exEndM) {
+          added++;
+          cur += duration + buffer;
+        }
+      }
+      const effective = Math.max(0, base - removed) + added;
+      return { base, effective };
+    };
+
+    let totalBase = 0;
+    let totalEffective = 0;
+    const perDay: { date: string; base: number; effective: number }[] = [];
+    for (const dateStr of datesForExceptionFetch) {
+      const { base, effective } = countForDate(dateStr);
+      totalBase += base;
+      totalEffective += effective;
+      perDay.push({ date: dateStr, base, effective });
+    }
+    return { totalBase, totalEffective, perDay };
+  }, [
+    slotTemplate,
+    previewSlots,
+    selectedIndividualSlots,
+    schedulingMode,
+    scheduleExceptions,
+    datesForExceptionFetch,
+    selectedDoctorForSchedule?.id,
+  ]);
 
   // Generate individual slots for selection
   const individualSlots = useMemo(() => {
@@ -1721,6 +1853,22 @@ export function ScheduleManagementTab({
                                       Slot preview — you’ll create{" "}
                                       {previewSlots.length} bookable slot
                                       {previewSlots.length !== 1 ? "s" : ""}
+                                      {effectiveSlotPreview &&
+                                        datesForExceptionFetch.length > 0 && (
+                                          <span className="font-normal text-blue-800">
+                                            {" "}
+                                            →{" "}
+                                            {
+                                              effectiveSlotPreview.totalEffective
+                                            }{" "}
+                                            effective across{" "}
+                                            {datesForExceptionFetch.length} date
+                                            {datesForExceptionFetch.length !== 1
+                                              ? "s"
+                                              : ""}{" "}
+                                            (after exceptions)
+                                          </span>
+                                        )}
                                     </p>
                                     <div className="max-h-44 overflow-y-auto">
                                       <div className="flex flex-wrap gap-2">

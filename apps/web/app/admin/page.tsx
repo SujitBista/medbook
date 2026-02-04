@@ -10,6 +10,7 @@ import { DashboardTab } from "@/components/admin/tabs/DashboardTab";
 import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
+import { ExceptionsTab } from "@/components/admin/tabs/ExceptionsTab";
 import { AppointmentsTab } from "@/components/admin/tabs/AppointmentsTab";
 import { CommissionsTab } from "@/components/admin/tabs/CommissionsTab";
 import { SettingsTab } from "@/components/admin/tabs/SettingsTab";
@@ -288,6 +289,17 @@ function AdminDashboardContent() {
       {/* Schedule Management Tab */}
       {activeTab === "schedule-management" && (
         <ScheduleManagementTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }}
+        />
+      )}
+
+      {/* Special Availability (Exceptions) Tab */}
+      {activeTab === "exceptions" && (
+        <ExceptionsTab
           onError={setError}
           onSuccess={(message) => {
             setSuccessMessage(message);

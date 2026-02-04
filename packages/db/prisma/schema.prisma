@@ -28,6 +28,7 @@ model User {
   doctor Doctor?
   patientAppointments Appointment[] @relation("PatientAppointments")
   patientPayments Payment[] @relation("PatientPayments")
+  scheduleExceptionsCreated ScheduleException[]
 
   @@map("users")
 }
@@ -58,6 +59,7 @@ model Doctor {
   commissionSettings DoctorCommissionSettings?
   payments Payment[]
   commissions Commission[]
+  scheduleExceptions ScheduleException[]
 
   @@map("doctors")
 }
@@ -285,4 +287,33 @@ model DoctorCommissionSettings {
   doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
 
   @@map("doctor_commission_settings")
+}
+
+// One-time scheduling exceptions: holiday/closure (unavailable) or extra hours (available)
+model ScheduleException {
+  id         String   @id @default(uuid())
+  doctorId   String?  // null = applies to all doctors (scope ALL_DOCTORS)
+  dateFrom   DateTime // YYYY-MM-DD start
+  dateTo     DateTime // YYYY-MM-DD end (same as dateFrom for single day)
+  startTime  String?  // HH:mm, null = full day
+  endTime    String?  // HH:mm, null = full day
+  type       ScheduleExceptionType // AVAILABLE (extra hours) or UNAVAILABLE (holiday/closure)
+  reason     String   // HOLIDAY, LEAVE, EXTRA_HOURS, or custom label
+  label      String?  // Optional human-readable reason (e.g. "Health camp")
+  createdById String
+  createdAt  DateTime @default(now())
+
+  // Relations
+  doctor Doctor? @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  createdBy User @relation(fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([doctorId])
+  @@index([dateFrom, dateTo])
+  @@index([type])
+  @@map("schedule_exceptions")
+}
+
+enum ScheduleExceptionType {
+  AVAILABLE   // Extra hours
+  UNAVAILABLE // Holiday / closure
 }
