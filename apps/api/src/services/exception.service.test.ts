@@ -2,7 +2,7 @@
  * Unit tests for exception service helpers and validation
  */
 
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { countDaysInclusive, validateTimeRange } from "./exception.service";
 import { createScheduleException } from "./exception.service";
 import { ScheduleExceptionType } from "@medbook/types";
