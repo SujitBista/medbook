@@ -13,6 +13,8 @@ import {
   Availability,
   AppointmentStatus,
 } from "@medbook/types";
+import type { ScheduleException } from "@medbook/types";
+import { ScheduleExceptionType } from "@medbook/types";
 import {
   createNotFoundError,
   createValidationError,
@@ -20,6 +22,7 @@ import {
 } from "../utils/errors";
 import { logger } from "../utils/logger";
 import { getAvailabilityById } from "./availability.service";
+import { getScheduleExceptionsForSlotGeneration } from "./exception.service";
 
 /**
  * Gets or creates default slot template for a doctor
@@ -574,7 +577,7 @@ export async function getSlotsByDoctorId(
     );
   }
 
-  return slots.map((slot) => ({
+  const mappedSlots = slots.map((slot) => ({
     id: slot.id,
     doctorId: slot.doctorId,
     availabilityId: slot.availabilityId ?? undefined,
@@ -584,6 +587,199 @@ export async function getSlotsByDoctorId(
     createdAt: slot.createdAt,
     updatedAt: slot.updatedAt,
   }));
+
+  // Apply schedule exceptions: remove slots in UNAVAILABLE windows
+  const effectiveEndDate =
+    endDate ?? new Date(startDate.getTime() + 365 * 24 * 60 * 60 * 1000);
+  const exceptions = await getScheduleExceptionsForSlotGeneration(
+    [doctorId],
+    startDate,
+    effectiveEndDate
+  );
+  const unavailable = exceptions.filter(
+    (e) => e.type === ScheduleExceptionType.UNAVAILABLE
+  );
+  const filtered = mappedSlots.filter((slot) => {
+    return !unavailable.some((ex) =>
+      slotBlockedByException(slot, ex, doctorId)
+    );
+  });
+
+  return filtered;
+}
+
+/**
+ * Returns true if the slot is blocked by an UNAVAILABLE exception (full-day or partial overlap).
+ * Exported for use in tests.
+ */
+export function slotBlockedByException(
+  slot: { startTime: Date; endTime: Date },
+  ex: ScheduleException,
+  doctorId: string
+): boolean {
+  if (ex.doctorId != null && ex.doctorId !== doctorId) return false;
+  const slotStart = slot.startTime.getTime();
+  const slotEnd = slot.endTime.getTime();
+  const slotDate = new Date(slot.startTime);
+  slotDate.setHours(0, 0, 0, 0);
+  const exFrom = new Date(ex.dateFrom);
+  exFrom.setHours(0, 0, 0, 0);
+  const exTo = new Date(ex.dateTo);
+  exTo.setHours(23, 59, 59, 999);
+  if (slotDate < exFrom || slotDate > exTo) return false;
+  if (ex.startTime == null || ex.endTime == null) return true; // full-day
+  const [sh, sm] = ex.startTime.split(":").map(Number);
+  const [eh, em] = ex.endTime.split(":").map(Number);
+  const exStart = new Date(slotDate);
+  exStart.setHours(sh ?? 0, sm ?? 0, 0, 0);
+  const exEnd = new Date(slotDate);
+  exEnd.setHours(eh ?? 0, em ?? 0, 0, 0);
+  const exStartMs = exStart.getTime();
+  const exEndMs = exEnd.getTime();
+  return slotStart < exEndMs && slotEnd > exStartMs;
+}
+
+/**
+ * Generates and persists slots for an EXTRA_HOURS (AVAILABLE) schedule exception.
+ * Called when creating an AVAILABLE exception.
+ */
+export async function generateSlotsForScheduleException(
+  ex: ScheduleException
+): Promise<number> {
+  if (
+    ex.type !== ScheduleExceptionType.AVAILABLE ||
+    !ex.startTime ||
+    !ex.endTime
+  ) {
+    return 0;
+  }
+
+  const doctorIds: string[] =
+    ex.doctorId != null
+      ? [ex.doctorId]
+      : await query<{ id: string }[]>((prisma) =>
+          prisma.doctor.findMany({ select: { id: true } })
+        ).then((rows) => rows.map((r) => r.id));
+
+  if (doctorIds.length === 0) return 0;
+
+  let totalCreated = 0;
+  const [sh, sm] = ex.startTime.split(":").map(Number);
+  const [eh, em] = ex.endTime.split(":").map(Number);
+
+  const exFrom = new Date(ex.dateFrom);
+  exFrom.setHours(0, 0, 0, 0);
+  const exTo = new Date(ex.dateTo);
+  exTo.setHours(23, 59, 59, 999);
+
+  for (const doctorId of doctorIds) {
+    const template = await getOrCreateSlotTemplate(doctorId);
+    const durationMs = template.durationMinutes * 60 * 1000;
+    const bufferMs = template.bufferMinutes * 60 * 1000;
+
+    const current = new Date(exFrom);
+    while (current <= exTo) {
+      const slotStart = new Date(current);
+      slotStart.setHours(sh ?? 0, sm ?? 0, 0, 0);
+      const slotEndDay = new Date(current);
+      slotEndDay.setHours(eh ?? 0, em ?? 0, 0, 0);
+      const dayEndMs = slotEndDay.getTime();
+
+      while (slotStart.getTime() + durationMs <= dayEndMs) {
+        const slotEnd = new Date(slotStart.getTime() + durationMs);
+        if (slotStart >= new Date()) {
+          const existing = await query<{ id: string } | null>((prisma) =>
+            prisma.slot.findFirst({
+              where: {
+                doctorId,
+                startTime: slotStart,
+                endTime: slotEnd,
+              },
+            })
+          );
+          if (!existing) {
+            await query((prisma) =>
+              prisma.slot.create({
+                data: {
+                  doctorId,
+                  availabilityId: null,
+                  startTime: new Date(slotStart),
+                  endTime: new Date(slotEnd),
+                  status: SlotStatus.AVAILABLE,
+                },
+              })
+            );
+            totalCreated++;
+          }
+        }
+        slotStart.setTime(slotEnd.getTime() + bufferMs);
+      }
+      current.setDate(current.getDate() + 1);
+    }
+  }
+
+  if (totalCreated > 0) {
+    logger.info("Generated slots for EXTRA_HOURS exception", {
+      exceptionDateFrom: ex.dateFrom,
+      exceptionDateTo: ex.dateTo,
+      totalCreated,
+    });
+  }
+  return totalCreated;
+}
+
+/**
+ * Deletes slots that fall within an exception's date and time range (for the exception's doctor(s)).
+ * Called when deleting a schedule exception. Only removes slots with availabilityId null (created from exceptions).
+ */
+export async function deleteSlotsForScheduleException(
+  ex: ScheduleException
+): Promise<number> {
+  const doctorIds: string[] =
+    ex.doctorId != null
+      ? [ex.doctorId]
+      : await query<{ id: string }[]>((prisma) =>
+          prisma.doctor.findMany({ select: { id: true } })
+        ).then((rows) => rows.map((r) => r.id));
+
+  if (doctorIds.length === 0) return 0;
+
+  const [sh, sm] = (ex.startTime ?? "00:00").split(":").map(Number);
+  const [eh, em] = (ex.endTime ?? "23:59").split(":").map(Number);
+
+  let totalDeleted = 0;
+  const current = new Date(ex.dateFrom);
+  current.setHours(0, 0, 0, 0);
+  const exTo = new Date(ex.dateTo);
+  exTo.setHours(23, 59, 59, 999);
+
+  while (current <= exTo) {
+    const dayStart = new Date(current);
+    dayStart.setHours(sh ?? 0, sm ?? 0, 0, 0);
+    const dayEnd = new Date(current);
+    dayEnd.setHours(eh ?? 0, em ?? 0, 0, 0);
+
+    const result = await query<{ count: number }>((prisma) =>
+      prisma.slot.deleteMany({
+        where: {
+          doctorId: { in: doctorIds },
+          availabilityId: null,
+          startTime: { gte: dayStart },
+          endTime: { lte: dayEnd },
+        },
+      })
+    );
+    totalDeleted += result.count;
+    current.setDate(current.getDate() + 1);
+  }
+
+  if (totalDeleted > 0) {
+    logger.info("Deleted slots for removed schedule exception", {
+      count: totalDeleted,
+      exceptionId: ex.id,
+    });
+  }
+  return totalDeleted;
 }
 
 /**

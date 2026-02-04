@@ -193,6 +193,31 @@ export async function cleanupTestData(): Promise<void> {
       }
 
       try {
+        // Delete schedule exceptions (references users, doctors)
+        await prisma.scheduleException.deleteMany({
+          where: {
+            OR: [
+              {
+                createdBy: {
+                  email: { startsWith: "test-" },
+                },
+              },
+              {
+                createdBy: {
+                  email: { endsWith: "@example.com" },
+                },
+              },
+            ],
+          },
+        });
+      } catch (error) {
+        console.warn(
+          "[cleanupTestData] Failed to delete schedule exceptions:",
+          error
+        );
+      }
+
+      try {
         // Finally delete users
         // Delete users with emails starting with "test-" OR emails ending with "@example.com"
         // This covers both unique test emails and hardcoded test emails used in tests

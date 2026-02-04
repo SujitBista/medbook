@@ -7,6 +7,7 @@ import {
   UsersIcon,
   UserGroupIcon,
   CalendarIcon,
+  CalendarDaysIcon,
   ClockIcon,
   CurrencyDollarIcon,
   Cog6ToothIcon,
@@ -55,6 +56,12 @@ const navItems: NavItem[] = [
     label: "Schedule Management",
     href: "/admin?tab=schedule-management",
     icon: ClockIcon,
+  },
+  {
+    id: "exceptions",
+    label: "Special Availability",
+    href: "/admin?tab=exceptions",
+    icon: CalendarDaysIcon,
   },
   {
     id: "commissions",
