@@ -35,12 +35,12 @@ export default async function Home() {
           ></div>
         </div>
 
-        <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
+        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 sm:py-16 lg:py-20">
           <div className="text-center">
             <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl lg:text-7xl">
               Find & Book the Right Doctor — At the Right Time
             </h1>
-            <p className="mt-8 text-lg leading-8 text-gray-700 sm:text-xl max-w-3xl mx-auto font-medium">
+            <p className="mt-5 text-lg leading-8 text-gray-700 sm:text-xl max-w-3xl mx-auto font-medium">
               Book appointments, manage records, and get doctor guidance +
               health awareness to avoid unnecessary treatment.
             </p>
@@ -49,20 +49,26 @@ export default async function Home() {
             <HeroSearch />
 
             {/* How it works — 4 steps matching real flow: search → doctors → profile/slot → confirm & pay */}
-            <div className="mt-12 mx-auto max-w-4xl">
-              <h2 className="text-lg font-semibold text-gray-900 text-center mb-6">
+            <div className="mt-10 mx-auto max-w-4xl">
+              <h2 className="text-lg font-semibold text-gray-900 text-center mb-8">
                 How it works
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
-                <div className="flex flex-col items-center">
+              <div className="relative grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-6 text-center">
+                {/* Faint connector line (desktop only) */}
+                <div
+                  className="hidden lg:block absolute top-[26px] left-[12.5%] right-[12.5%] h-px bg-gray-200"
+                  aria-hidden
+                />
+
+                <div className="relative flex flex-col items-center">
                   <span
-                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    className="mb-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary-600 px-2 text-sm font-bold text-white"
                     aria-hidden
                   >
                     1
                   </span>
                   <div
-                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
+                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600 transition-opacity"
                     style={{ backgroundColor: "#e0f2fe" }}
                     aria-hidden
                   >
@@ -80,16 +86,16 @@ export default async function Home() {
                       />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     Choose a specialty
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Search on home or browse doctors
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    Search or browse
                   </p>
                 </div>
-                <div className="flex flex-col items-center">
+                <div className="relative flex flex-col items-center">
                   <span
-                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    className="mb-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary-600 px-2 text-sm font-bold text-white"
                     aria-hidden
                   >
                     2
@@ -113,16 +119,16 @@ export default async function Home() {
                       />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     Pick a doctor
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    View profile and see availability
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    View profile
                   </p>
                 </div>
-                <div className="flex flex-col items-center">
+                <div className="relative flex flex-col items-center">
                   <span
-                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    className="mb-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary-600 px-2 text-sm font-bold text-white"
                     aria-hidden
                   >
                     3
@@ -146,16 +152,16 @@ export default async function Home() {
                       />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     Select a time
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Choose an available slot
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    Pick a slot
                   </p>
                 </div>
-                <div className="flex flex-col items-center">
+                <div className="relative flex flex-col items-center">
                   <span
-                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    className="mb-3 inline-flex h-8 min-w-8 items-center justify-center rounded-full bg-primary-600 px-2 text-sm font-bold text-white"
                     aria-hidden
                   >
                     4
@@ -179,15 +185,23 @@ export default async function Home() {
                       />
                     </svg>
                   </div>
-                  <p className="text-sm font-medium text-gray-900">
+                  <p className="text-sm font-semibold text-gray-900">
                     Confirm & pay
                   </p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    Sign in, pay if required, done
+                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
+                    Sign in, done
                   </p>
                 </div>
               </div>
+
+              {/* Trust reassurance line */}
+              <p className="mt-8 text-xs sm:text-sm text-gray-400 text-center leading-relaxed">
+                Secure booking. No hidden charges. Verified hospitals only.
+              </p>
             </div>
+
+            {/* Smooth transition: divider + extra spacing before next section */}
+            <div className="mt-16 sm:mt-20 pt-8 sm:pt-10 border-t border-gray-100" />
 
             {/* Why MedBook value cards */}
             <LandingValueCards />
