@@ -27,7 +27,9 @@ describe("HeroSearch", () => {
       screen.getByPlaceholderText(/Search by doctor name or specialty/i)
     ).toBeInTheDocument();
     expect(screen.getByPlaceholderText(/Location/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Search/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Find & Book Doctor/i })
+    ).toBeInTheDocument();
   });
 
   it("allows typing in search input", async () => {
@@ -60,7 +62,9 @@ describe("HeroSearch", () => {
       /Search by doctor name or specialty/i
     );
     const locationInput = screen.getByPlaceholderText(/Location/i);
-    const submitButton = screen.getByRole("button", { name: /Search/i });
+    const submitButton = screen.getByRole("button", {
+      name: /Find & Book Doctor/i,
+    });
 
     await user.type(searchInput, "Cardiologist");
     await user.type(locationInput, "New York");
@@ -78,7 +82,9 @@ describe("HeroSearch", () => {
     const searchInput = screen.getByPlaceholderText(
       /Search by doctor name or specialty/i
     );
-    const submitButton = screen.getByRole("button", { name: /Search/i });
+    const submitButton = screen.getByRole("button", {
+      name: /Find & Book Doctor/i,
+    });
 
     await user.type(searchInput, "Dermatologist");
     await user.click(submitButton);
@@ -91,7 +97,9 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const locationInput = screen.getByPlaceholderText(/Location/i);
-    const submitButton = screen.getByRole("button", { name: /Search/i });
+    const submitButton = screen.getByRole("button", {
+      name: /Find & Book Doctor/i,
+    });
 
     await user.type(locationInput, "Boston");
     await user.click(submitButton);
@@ -103,7 +111,9 @@ describe("HeroSearch", () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
-    const submitButton = screen.getByRole("button", { name: /Search/i });
+    const submitButton = screen.getByRole("button", {
+      name: /Find & Book Doctor/i,
+    });
     await user.click(submitButton);
 
     expect(mockPush).toHaveBeenCalledWith("/doctors");
@@ -114,7 +124,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const form = screen
-      .getByRole("button", { name: /Search/i })
+      .getByRole("button", { name: /Find & Book Doctor/i })
       .closest("form");
     if (!form) throw new Error("Form not found");
 
@@ -131,7 +141,9 @@ describe("HeroSearch", () => {
       /Search by doctor name or specialty/i
     );
     await user.type(searchInput, "Test");
-    await user.click(screen.getByRole("button", { name: /Search/i }));
+    await user.click(
+      screen.getByRole("button", { name: /Find & Book Doctor/i })
+    );
 
     expect(mockPush).toHaveBeenCalled();
   });

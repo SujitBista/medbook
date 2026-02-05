@@ -10,6 +10,8 @@ import {
   Testimonials,
   AppBenefits,
   Blog,
+  LandingValueCards,
+  DoctorAwarenessPreview,
 } from "@/components/home/sections";
 import { Footer } from "@/components/layout/Footer";
 
@@ -36,32 +38,24 @@ export default async function Home() {
         <div className="relative mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-32">
           <div className="text-center">
             <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl lg:text-7xl">
-              Find & Book the Best
-              <span className="block text-primary-600 mt-2">
-                Doctors Near You
-              </span>
+              Find & Book the Right Doctor — At the Right Time
             </h1>
             <p className="mt-8 text-lg leading-8 text-gray-700 sm:text-xl max-w-3xl mx-auto font-medium">
-              Connect with qualified healthcare professionals instantly. Book
-              appointments, manage your health records, and get the care you
-              deserve—all in one place.
+              Book appointments, manage records, and get doctor guidance +
+              health awareness to avoid unnecessary treatment.
             </p>
 
-            {/* Search Bar */}
+            {/* Primary CTA: search (Find & Book Doctor) is the main action; no standalone Book Now to avoid competing CTAs */}
             <HeroSearch />
 
-            {/* CTA Buttons */}
+            {/* Why MedBook value cards */}
+            <LandingValueCards />
+
+            {/* Doctor Awareness preview */}
+            <DoctorAwarenessPreview />
+
+            {/* Secondary CTAs: dashboard / get started — outline style so primary remains the search above */}
             <div className="mt-12 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
-              <Link href="/doctors" className="w-full sm:w-auto no-underline">
-                <Button
-                  variant="primary"
-                  size="lg"
-                  className="bg-primary-600 hover:bg-primary-700 text-white shadow-lg hover:shadow-xl transition-all w-full sm:w-auto px-8 py-6 text-base font-semibold min-w-[160px]"
-                  style={{ backgroundColor: "#0284c7", color: "#ffffff" }}
-                >
-                  Book Now
-                </Button>
-              </Link>
               {session?.user?.role === "PATIENT" && (
                 <Link
                   href="/dashboard/patient"
@@ -77,7 +71,10 @@ export default async function Home() {
                 </Link>
               )}
               {!session && (
-                <Link href="/register">
+                <Link
+                  href="/register"
+                  className="w-full sm:w-auto no-underline"
+                >
                   <Button
                     variant="outline"
                     size="lg"
@@ -94,25 +91,25 @@ export default async function Home() {
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 <div className="text-4xl font-bold text-gray-900">10K+</div>
                 <div className="text-sm text-gray-700 mt-2 font-medium">
-                  Active Patients
+                  patients guided toward better health decisions
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 <div className="text-4xl font-bold text-gray-900">500+</div>
                 <div className="text-sm text-gray-700 mt-2 font-medium">
-                  Verified Doctors
+                  verified doctors focused on ethical care
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 <div className="text-4xl font-bold text-gray-900">50+</div>
                 <div className="text-sm text-gray-700 mt-2 font-medium">
-                  Specialties
+                  specialties with preventive guidance
                 </div>
               </div>
               <div className="bg-gray-50 rounded-xl p-6 border border-gray-200">
                 <div className="text-4xl font-bold text-gray-900">24/7</div>
                 <div className="text-sm text-gray-700 mt-2 font-medium">
-                  Available
+                  access to care & health information
                 </div>
               </div>
             </div>
