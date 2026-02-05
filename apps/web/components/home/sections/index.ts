@@ -4,3 +4,5 @@ export { TopDoctors } from "./TopDoctors";
 export { Testimonials } from "./Testimonials";
 export { AppBenefits } from "./AppBenefits";
 export { Blog } from "./Blog";
+export { LandingValueCards } from "./LandingValueCards";
+export { DoctorAwarenessPreview } from "./DoctorAwarenessPreview";
