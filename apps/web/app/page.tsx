@@ -48,13 +48,19 @@ export default async function Home() {
             {/* Primary CTA: search (Find & Book Doctor) is the main action; no standalone Book Now to avoid competing CTAs */}
             <HeroSearch />
 
-            {/* How it works — compact 3-step row for first-time users */}
-            <div className="mt-12 mx-auto max-w-3xl">
+            {/* How it works — 4 steps matching real flow: search → doctors → profile/slot → confirm & pay */}
+            <div className="mt-12 mx-auto max-w-4xl">
               <h2 className="text-lg font-semibold text-gray-900 text-center mb-6">
                 How it works
               </h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-center">
                 <div className="flex flex-col items-center">
+                  <span
+                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    aria-hidden
+                  >
+                    1
+                  </span>
                   <div
                     className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
                     style={{ backgroundColor: "#e0f2fe" }}
@@ -77,8 +83,50 @@ export default async function Home() {
                   <p className="text-sm font-medium text-gray-900">
                     Choose a specialty
                   </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Search on home or browse doctors
+                  </p>
                 </div>
                 <div className="flex flex-col items-center">
+                  <span
+                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    aria-hidden
+                  >
+                    2
+                  </span>
+                  <div
+                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
+                    style={{ backgroundColor: "#e0f2fe" }}
+                    aria-hidden
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Pick a doctor
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    View profile and see availability
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <span
+                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    aria-hidden
+                  >
+                    3
+                  </span>
                   <div
                     className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
                     style={{ backgroundColor: "#e0f2fe" }}
@@ -99,10 +147,19 @@ export default async function Home() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-gray-900">
-                    Pick a doctor & time
+                    Select a time
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Choose an available slot
                   </p>
                 </div>
                 <div className="flex flex-col items-center">
+                  <span
+                    className="mb-2 inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-primary-600 px-2 text-xs font-bold text-white"
+                    aria-hidden
+                  >
+                    4
+                  </span>
                   <div
                     className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
                     style={{ backgroundColor: "#e0f2fe" }}
@@ -123,7 +180,10 @@ export default async function Home() {
                     </svg>
                   </div>
                   <p className="text-sm font-medium text-gray-900">
-                    Confirm appointment
+                    Confirm & pay
+                  </p>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Sign in, pay if required, done
                   </p>
                 </div>
               </div>
