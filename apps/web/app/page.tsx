@@ -48,6 +48,87 @@ export default async function Home() {
             {/* Primary CTA: search (Find & Book Doctor) is the main action; no standalone Book Now to avoid competing CTAs */}
             <HeroSearch />
 
+            {/* How it works — compact 3-step row for first-time users */}
+            <div className="mt-12 mx-auto max-w-3xl">
+              <h2 className="text-lg font-semibold text-gray-900 text-center mb-6">
+                How it works
+              </h2>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 text-center">
+                <div className="flex flex-col items-center">
+                  <div
+                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
+                    style={{ backgroundColor: "#e0f2fe" }}
+                    aria-hidden
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Choose a specialty
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div
+                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
+                    style={{ backgroundColor: "#e0f2fe" }}
+                    aria-hidden
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Pick a doctor & time
+                  </p>
+                </div>
+                <div className="flex flex-col items-center">
+                  <div
+                    className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full text-primary-600"
+                    style={{ backgroundColor: "#e0f2fe" }}
+                    aria-hidden
+                  >
+                    <svg
+                      className="h-5 w-5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-gray-900">
+                    Confirm appointment
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Why MedBook value cards */}
             <LandingValueCards />
 
