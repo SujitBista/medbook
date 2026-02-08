@@ -17,6 +17,7 @@ import {
   formatTimeLocal,
   localToUtcDate,
 } from "@/app/admin/utils/date.utils";
+import { PickSlotsSelector } from "./PickSlotsSelector";
 
 interface ScheduleManagementTabProps {
   onError: (error: string) => void;
@@ -1929,69 +1930,16 @@ export function ScheduleManagementTab({
 
                             {/* Individual Slots Mode */}
                             {schedulingMode === "individual" && (
-                              <div className="space-y-4">
-                                <p className="text-sm text-gray-600">
-                                  Pick specific times (each slot is{" "}
-                                  {slotTemplate?.durationMinutes || 30} min)
-                                </p>
-                                <div className="max-h-60 overflow-y-auto rounded-md border border-gray-200 p-4">
-                                  <div className="grid grid-cols-2 gap-2 md:grid-cols-4">
-                                    {individualSlots.map((slot) => {
-                                      const isPast = pastIndividualSlotKeys.has(
-                                        slot.key
-                                      );
-                                      return (
-                                        <label
-                                          key={slot.key}
-                                          className={`flex items-center rounded border p-2 ${
-                                            isPast
-                                              ? "cursor-default bg-gray-100 opacity-70"
-                                              : "hover:bg-gray-50"
-                                          }`}
-                                          title={
-                                            isPast
-                                              ? "Past time – will be skipped"
-                                              : undefined
-                                          }
-                                        >
-                                          <input
-                                            type="checkbox"
-                                            checked={selectedIndividualSlots.has(
-                                              slot.key
-                                            )}
-                                            onChange={(e) => {
-                                              const newSet = new Set(
-                                                selectedIndividualSlots
-                                              );
-                                              if (e.target.checked) {
-                                                newSet.add(slot.key);
-                                              } else {
-                                                newSet.delete(slot.key);
-                                              }
-                                              setSelectedIndividualSlots(
-                                                newSet
-                                              );
-                                            }}
-                                            className="mr-2"
-                                          />
-                                          <span className="text-sm">
-                                            {formatTimeDisplay(slot.start)}
-                                          </span>
-                                        </label>
-                                      );
-                                    })}
-                                  </div>
-                                </div>
-                                {selectedIndividualSlots.size > 0 && (
-                                  <p className="text-sm text-gray-600">
-                                    {selectedIndividualSlots.size} slot
-                                    {selectedIndividualSlots.size > 1
-                                      ? "s"
-                                      : ""}{" "}
-                                    selected
-                                  </p>
-                                )}
-                              </div>
+                              <PickSlotsSelector
+                                slots={individualSlots}
+                                selectedSlots={selectedIndividualSlots}
+                                onChange={setSelectedIndividualSlots}
+                                pastSlotKeys={pastIndividualSlotKeys}
+                                slotDurationMinutes={
+                                  slotTemplate?.durationMinutes ?? 30
+                                }
+                                isLoading={slotTemplateLoading}
+                              />
                             )}
                           </>
                         )}
