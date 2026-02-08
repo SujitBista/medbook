@@ -20,7 +20,7 @@ const valueCards = [
 
 export function LandingValueCards() {
   return (
-    <section className="mt-16 sm:mt-20" aria-labelledby="why-medbook-heading">
+    <section className="mt-10 sm:mt-12" aria-labelledby="why-medbook-heading">
       <h2
         id="why-medbook-heading"
         className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl text-center mb-10"
