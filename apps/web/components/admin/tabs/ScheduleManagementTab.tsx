@@ -1938,6 +1938,7 @@ export function ScheduleManagementTab({
                                 slotDurationMinutes={
                                   slotTemplate?.durationMinutes ?? 30
                                 }
+                                isLoading={slotTemplateLoading}
                               />
                             )}
                           </>

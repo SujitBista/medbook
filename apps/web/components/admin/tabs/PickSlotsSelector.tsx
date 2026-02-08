@@ -22,6 +22,8 @@ export interface PickSlotsSelectorProps {
   pastSlotKeys: Set<string>;
   /** Slot duration in minutes (for summary hours) */
   slotDurationMinutes: number;
+  /** Optional: true when slot template is still loading */
+  isLoading?: boolean;
 }
 
 function formatTimeDisplay(time24: string): string {
@@ -44,6 +46,7 @@ export function PickSlotsSelector({
   onChange,
   pastSlotKeys,
   slotDurationMinutes,
+  isLoading = false,
 }: PickSlotsSelectorProps) {
   const [showAll24Hours, setShowAll24Hours] = useState(false);
 
@@ -115,6 +118,21 @@ export function PickSlotsSelector({
   const groupsToRender: (keyof GroupedSlots)[] = showAll24Hours
     ? ["morning", "afternoon", "evening", "night"]
     : ["morning", "afternoon", "evening"];
+
+  if (isLoading || slots.length === 0) {
+    return (
+      <div className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Pick specific times (each slot is {slotDurationMinutes} min)
+        </p>
+        <div className="rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          {isLoading
+            ? "Loading slot template…"
+            : "No time slots available. Ensure a doctor is selected and their slot template has loaded."}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -217,12 +235,20 @@ export function PickSlotsSelector({
         </div>
       </div>
 
-      {/* Summary */}
+      {/* Summary with selected times */}
       {summary.count > 0 && (
-        <p className="text-sm text-gray-600">
-          {summary.count} slot{summary.count !== 1 ? "s" : ""} selected
-          {summary.hours > 0 && ` (${summary.hours.toFixed(1)} hours)`}
-        </p>
+        <div className="space-y-1">
+          <p className="text-sm text-gray-600">
+            {summary.count} slot{summary.count !== 1 ? "s" : ""} selected
+            {summary.hours > 0 && ` (${summary.hours.toFixed(1)} hours)`}
+          </p>
+          <p className="text-xs text-gray-500">
+            {Array.from(selectedSlots)
+              .sort()
+              .map((k) => formatTimeDisplay(k))
+              .join(", ")}
+          </p>
+        </div>
       )}
     </div>
   );
