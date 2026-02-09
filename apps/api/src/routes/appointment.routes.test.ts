@@ -1030,11 +1030,15 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
 
     expect(response.body.success).toBe(true);
     expect(response.body.data).toBeDefined();
-    expect(response.body.data.status).toBe("CANCELLED");
+    expect(response.body.data.appointment).toBeDefined();
+    expect(response.body.data.appointment.status).toBe("CANCELLED");
+    expect(response.body.data.refundDecision).toBeDefined();
+    expect(response.body.data.refundDecision.eligible).toBe(true);
+    expect(response.body.data.refundDecision.type).toBe("FULL");
     expect(response.body.message).toBe("Appointment cancelled successfully");
   });
 
-  it("should reject patient cancellation less than 24 hours before appointment", async () => {
+  it("should allow patient to cancel less than 24 hours before with no refund", async () => {
     const patient = await createTestUser({ role: "PATIENT" });
     createdUserIds.push(patient.id);
 
@@ -1042,7 +1046,6 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
     createdDoctorIds.push(doctor.id);
     createdUserIds.push(doctor.userId);
 
-    // Create appointment 12 hours from now (within 24-hour restriction)
     const startTime = new Date(Date.now() + 12 * 60 * 60 * 1000);
     const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
 
@@ -1061,11 +1064,12 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
       .post(`/api/v1/appointments/${appointment.id}/cancel`)
       .set(headers)
       .send({ reason: "Emergency" })
-      .expect(400);
+      .expect(200);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toBeDefined();
-    expect(response.body.error.message).toContain("24 hours");
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.appointment.status).toBe("CANCELLED");
+    expect(response.body.data.refundDecision.eligible).toBe(false);
+    expect(response.body.data.refundDecision.type).toBe("NONE");
   });
 
   it("should allow doctor to cancel appointment at any time", async () => {
@@ -1098,8 +1102,10 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
       .expect(200);
 
     expect(response.body.success).toBe(true);
-    expect(response.body.data).toBeDefined();
-    expect(response.body.data.status).toBe("CANCELLED");
+    expect(response.body.data.appointment).toBeDefined();
+    expect(response.body.data.appointment.status).toBe("CANCELLED");
+    expect(response.body.data.refundDecision.eligible).toBe(true);
+    expect(response.body.data.refundDecision.type).toBe("FULL");
   });
 
   it("should allow admin to cancel appointment at any time", async () => {
@@ -1135,11 +1141,12 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
       .expect(200);
 
     expect(response.body.success).toBe(true);
-    expect(response.body.data).toBeDefined();
-    expect(response.body.data.status).toBe("CANCELLED");
+    expect(response.body.data.appointment).toBeDefined();
+    expect(response.body.data.appointment.status).toBe("CANCELLED");
+    expect(response.body.data.refundDecision.eligible).toBe(true);
   });
 
-  it("should reject cancellation of already cancelled appointment", async () => {
+  it("should return current state when cancelling already cancelled appointment (idempotent)", async () => {
     const patient = await createTestUser({ role: "PATIENT" });
     createdUserIds.push(patient.id);
 
@@ -1165,11 +1172,11 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
       .post(`/api/v1/appointments/${appointment.id}/cancel`)
       .set(headers)
       .send({})
-      .expect(400);
+      .expect(200);
 
-    expect(response.body.success).toBe(false);
-    expect(response.body.error).toBeDefined();
-    expect(response.body.error.message).toContain("already cancelled");
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.appointment.status).toBe("CANCELLED");
+    expect(response.body.data.refundDecision).toBeDefined();
   });
 
   it("should reject cancellation of completed appointment", async () => {
@@ -1203,6 +1210,47 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
     expect(response.body.error.message).toContain("completed");
+  });
+
+  it("should return same result on second cancel (double cancel, refund once)", async () => {
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const startTime = new Date(Date.now() + 48 * 60 * 60 * 1000);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      startTime,
+      endTime,
+      status: "PENDING",
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(patient.id, patient.role as UserRole);
+
+    const first = await agent
+      .post(`/api/v1/appointments/${appointment.id}/cancel`)
+      .set(headers)
+      .send({ reason: "First cancel" })
+      .expect(200);
+
+    expect(first.body.data.appointment.status).toBe("CANCELLED");
+
+    const second = await agent
+      .post(`/api/v1/appointments/${appointment.id}/cancel`)
+      .set(headers)
+      .send({ reason: "Second cancel" })
+      .expect(200);
+
+    expect(second.body.success).toBe(true);
+    expect(second.body.data.appointment.status).toBe("CANCELLED");
+    expect(second.body.data.refundDecision).toBeDefined();
   });
 
   it("should return 404 if appointment not found", async () => {
@@ -1300,8 +1348,8 @@ describe("POST /api/v1/appointments/:id/cancel", () => {
       .expect(200);
 
     expect(response.body.success).toBe(true);
-    expect(response.body.data.notes).toContain("Original notes");
-    expect(response.body.data.notes).toContain(
+    expect(response.body.data.appointment.notes).toContain("Original notes");
+    expect(response.body.data.appointment.notes).toContain(
       "Cancellation reason: Family emergency"
     );
   });

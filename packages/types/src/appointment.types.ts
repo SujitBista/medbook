@@ -6,8 +6,17 @@
 export enum AppointmentStatus {
   PENDING = "PENDING",
   CONFIRMED = "CONFIRMED",
+  BOOKED = "BOOKED",
   CANCELLED = "CANCELLED",
   COMPLETED = "COMPLETED",
+  NO_SHOW = "NO_SHOW",
+}
+
+/** Who cancelled the appointment (for refund policy audit) */
+export enum CancelledBy {
+  PATIENT = "PATIENT",
+  DOCTOR = "DOCTOR",
+  ADMIN = "ADMIN",
 }
 
 /** Payment info included when appointment has a linked payment (e.g. from Stripe) */
@@ -28,6 +37,9 @@ export interface Appointment {
   status: AppointmentStatus;
   notes?: string;
   isArchived?: boolean; // Whether the appointment has been archived (expired appointments)
+  cancelledBy?: CancelledBy;
+  cancelledAt?: Date;
+  cancelReason?: string;
   /** Present when appointment has a linked payment (e.g. paid via Stripe) */
   payment?: AppointmentPaymentInfo;
   createdAt: Date;
@@ -53,13 +65,38 @@ export interface UpdateAppointmentInput {
 
 /**
  * Input for cancelling an appointment
- * Includes user role for role-based cancellation rules
+ * Includes user role for role-based cancellation rules (set from auth in API)
  */
 export interface CancelAppointmentInput {
   appointmentId: string;
   userId: string;
   userRole: "PATIENT" | "DOCTOR" | "ADMIN";
   reason?: string;
+}
+
+/**
+ * Refund eligibility result from cancellation policy
+ */
+export interface RefundDecision {
+  eligible: boolean;
+  type: "FULL" | "NONE";
+  reason: string;
+}
+
+/** Payment summary returned after cancel (for UI) */
+export interface CancelPaymentSummary {
+  paymentId?: string;
+  status?: string;
+  refundedAmount?: number;
+  refundId?: string;
+  refundFailed?: boolean;
+}
+
+/** Result of POST /appointments/:id/cancel */
+export interface CancelAppointmentResult {
+  appointment: Appointment;
+  refundDecision: RefundDecision;
+  paymentSummary?: CancelPaymentSummary;
 }
 
 /**

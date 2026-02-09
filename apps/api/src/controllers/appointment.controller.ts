@@ -615,10 +615,9 @@ export async function updateAppointmentSlot(
 /**
  * Cancel appointment
  * POST /api/v1/appointments/:id/cancel
- * Applies role-based cancellation rules:
- * - Patients: Can cancel their own appointments at least 24 hours in advance
- * - Doctors: Can cancel appointments assigned to them at any time
- * - Admins: Can cancel any appointment at any time
+ * Authorization: patient own, doctor own, admin any.
+ * Applies refund policy (doctor/admin full refund; patient >=24h full, <24h none).
+ * Idempotent: second cancel returns current state without double refund.
  */
 export async function cancelAppointmentSlot(
   req: AuthenticatedRequest,
@@ -641,7 +640,6 @@ export async function cancelAppointmentSlot(
       return;
     }
 
-    // Validate user role - ensure it's one of the valid roles
     const userRole = req.user.role;
     const validRoles: UserRole[] = [
       UserRole.PATIENT,
@@ -654,8 +652,34 @@ export async function cancelAppointmentSlot(
       return;
     }
 
-    // Type assertion is safe here because we've validated the role above
-    // CancelAppointmentInput expects string literals, but UserRole enum values match
+    const appointmentForAuth = await getAppointmentById(id);
+
+    if (
+      userRole === UserRole.PATIENT &&
+      appointmentForAuth.patientId !== req.user.id
+    ) {
+      const error = createValidationError(
+        "You can only cancel your own appointments"
+      );
+      next(error);
+      return;
+    }
+    if (userRole === UserRole.DOCTOR) {
+      const doctorByUser = await query<{ id: string } | null>((prisma) =>
+        prisma.doctor.findUnique({
+          where: { userId: req.user!.id },
+          select: { id: true },
+        })
+      );
+      if (!doctorByUser || appointmentForAuth.doctorId !== doctorByUser.id) {
+        const error = createValidationError(
+          "You can only cancel appointments for your own schedule"
+        );
+        next(error);
+        return;
+      }
+    }
+
     const input: CancelAppointmentInput = {
       appointmentId: id,
       userId: req.user.id,
@@ -663,11 +687,11 @@ export async function cancelAppointmentSlot(
       reason,
     };
 
-    const appointment = await cancelAppointment(input);
+    const result = await cancelAppointment(input);
 
     res.status(200).json({
       success: true,
-      data: appointment,
+      data: result,
       message: "Appointment cancelled successfully",
     });
   } catch (error) {
