@@ -345,7 +345,14 @@ export default function AppointmentDetailPage() {
   const handleStatusUpdate = async (newStatus: AppointmentStatus) => {
     if (!appointment) return;
 
-    // Enforce time-based rules so disabled buttons don't trigger API; show message if user bypasses UI
+    // Mirror backend: no transitions from terminal states
+    if (isTerminal) {
+      setError(
+        `Appointment is already ${appointment.status}; no further changes allowed.`
+      );
+      return;
+    }
+    // Enforce time-based and rule-based guards (mirror backend)
     if (newStatus === AppointmentStatus.CONFIRMED && !canConfirm) {
       setError(
         isPast
@@ -354,13 +361,19 @@ export default function AppointmentDetailPage() {
       );
       return;
     }
-    if (newStatus === AppointmentStatus.COMPLETED && !canComplete) {
-      setError(
-        isFuture
-          ? "You can complete only after the appointment starts."
-          : "Cannot complete this appointment."
-      );
-      return;
+    if (newStatus === AppointmentStatus.COMPLETED) {
+      if (appointment.status === AppointmentStatus.PENDING) {
+        setError("Cannot complete an unconfirmed appointment.");
+        return;
+      }
+      if (!canComplete) {
+        setError(
+          hasStarted
+            ? "Cannot complete this appointment."
+            : "Cannot complete an appointment that hasn&apos;t started."
+        );
+        return;
+      }
     }
 
     try {
@@ -403,7 +416,7 @@ export default function AppointmentDetailPage() {
     }
   };
 
-  // Time-based state for status actions (use ISO timestamps from server; avoid comparing formatted strings).
+  // Time-based derived state (mirror backend rules: now, appointmentStart, appointmentEnd).
   const startAt = appointment
     ? new Date(appointment.startTime)
     : (null as Date | null);
@@ -412,24 +425,33 @@ export default function AppointmentDetailPage() {
     : (null as Date | null);
   const now = new Date();
   const isPast = startAt && endAt ? now > endAt : false;
+  const hasStarted = startAt ? now >= startAt : false;
+  const hasEnded = startAt && endAt ? now > endAt : false;
   const isFuture = startAt ? now < startAt : false;
   const isInProgress =
     startAt && endAt ? now >= startAt && now <= endAt : false;
 
+  // Terminal states: no further transitions allowed (mirror backend).
+  const isTerminal =
+    appointment &&
+    (appointment.status === AppointmentStatus.CANCELLED ||
+      appointment.status === AppointmentStatus.COMPLETED ||
+      appointment.status === AppointmentStatus.NO_SHOW);
+
+  // Valid transitions only (mirror backend exactly).
   const canConfirm =
     appointment &&
-    !isPast &&
-    appointment.status !== AppointmentStatus.CANCELLED &&
-    appointment.status !== AppointmentStatus.COMPLETED;
+    !isTerminal &&
+    (appointment.status === AppointmentStatus.PENDING ||
+      appointment.status === AppointmentStatus.BOOKED) &&
+    !isPast;
   const canComplete =
     appointment &&
-    !isFuture &&
-    appointment.status !== AppointmentStatus.CANCELLED &&
-    appointment.status !== AppointmentStatus.COMPLETED;
-  const canCancelStatus =
-    appointment &&
-    appointment.status !== AppointmentStatus.CANCELLED &&
-    appointment.status !== AppointmentStatus.COMPLETED;
+    !isTerminal &&
+    (appointment.status === AppointmentStatus.CONFIRMED ||
+      appointment.status === AppointmentStatus.BOOKED) &&
+    hasStarted;
+  const canCancelStatus = appointment && !isTerminal;
 
   const canCancel =
     appointment &&
@@ -721,7 +743,8 @@ export default function AppointmentDetailPage() {
                     </>
                   )}
 
-                  {appointment.status === AppointmentStatus.CONFIRMED && (
+                  {(appointment.status === AppointmentStatus.CONFIRMED ||
+                    appointment.status === AppointmentStatus.BOOKED) && (
                     <>
                       <Button
                         variant="primary"
@@ -733,9 +756,10 @@ export default function AppointmentDetailPage() {
                       >
                         Mark as Completed
                       </Button>
-                      {!canComplete && isFuture && (
+                      {!canComplete && !hasStarted && (
                         <p className="text-xs text-gray-500 mt-0.5">
-                          You can complete only after the appointment starts.
+                          Cannot complete an appointment that hasn&apos;t
+                          started.
                         </p>
                       )}
                     </>
@@ -788,117 +812,138 @@ export default function AppointmentDetailPage() {
                 </>
               )}
 
-              {/* Admin Actions — Confirm/Complete disabled by appointment time; Cancel disabled only when already CANCELLED/COMPLETED */}
+              {/* Admin Actions — mirror backend: no changes from terminal; time-based rules for Confirm/Complete */}
               {isAdmin && (
                 <>
                   <div className="space-y-2">
                     <p className="text-sm font-medium text-gray-700">
                       Update Status:
                     </p>
-                    <div className="space-y-1">
-                      {appointment.status !== AppointmentStatus.PENDING && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() =>
-                            handleStatusUpdate(AppointmentStatus.PENDING)
-                          }
-                          disabled={updating}
-                        >
-                          Set to Pending
-                        </Button>
-                      )}
-                      {appointment.status !== AppointmentStatus.CONFIRMED && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() =>
-                              handleStatusUpdate(AppointmentStatus.CONFIRMED)
-                            }
-                            disabled={updating || !canConfirm}
-                          >
-                            Set to Confirmed
-                          </Button>
-                          {!canConfirm && isPast && (
-                            <p className="text-xs text-gray-500">
-                              Cannot confirm a past appointment.
-                            </p>
-                          )}
-                        </>
-                      )}
-                      {appointment.status !== AppointmentStatus.COMPLETED && (
-                        <>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full"
-                            onClick={() =>
-                              handleStatusUpdate(AppointmentStatus.COMPLETED)
-                            }
-                            disabled={updating || !canComplete}
-                          >
-                            Set to Completed
-                          </Button>
-                          {!canComplete && isFuture && (
-                            <p className="text-xs text-gray-500">
-                              You can complete only after the appointment
-                              starts.
-                            </p>
-                          )}
-                        </>
-                      )}
-                      {appointment.status !== AppointmentStatus.CANCELLED && (
-                        <>
-                          {!showCancelConfirm ? (
+                    {isTerminal ? (
+                      <p className="text-xs text-gray-500">
+                        This appointment is closed; no status changes allowed.
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                        {appointment.status !== AppointmentStatus.PENDING &&
+                          appointment.status !== AppointmentStatus.BOOKED && (
                             <Button
                               variant="outline"
                               size="sm"
                               className="w-full"
-                              onClick={() => setShowCancelConfirm(true)}
+                              onClick={() =>
+                                handleStatusUpdate(AppointmentStatus.PENDING)
+                              }
                               disabled={updating}
                             >
-                              Set to Cancelled
+                              Set to Pending
                             </Button>
-                          ) : (
-                            <div className="space-y-2">
-                              <p className="text-sm text-gray-600">
-                                Are you sure you want to cancel this
-                                appointment?
-                              </p>
-                              <p className="text-sm font-medium text-gray-800">
-                                {getCancelRefundMessage(
-                                  "ADMIN",
-                                  appointment.startTime
-                                )}
-                              </p>
-                              <div className="flex gap-2">
-                                <Button
-                                  variant="outline"
-                                  size="sm"
-                                  className="flex-1"
-                                  onClick={() => setShowCancelConfirm(false)}
-                                  disabled={updating}
-                                >
-                                  No
-                                </Button>
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  className="flex-1"
-                                  onClick={handleCancel}
-                                  disabled={updating}
-                                >
-                                  Yes, Cancel
-                                </Button>
-                              </div>
-                            </div>
                           )}
-                        </>
-                      )}
-                    </div>
+                        {appointment.status !== AppointmentStatus.CONFIRMED && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                handleStatusUpdate(AppointmentStatus.CONFIRMED)
+                              }
+                              disabled={updating || !canConfirm}
+                            >
+                              Set to Confirmed
+                            </Button>
+                            {!canConfirm && isPast && (
+                              <p className="text-xs text-gray-500">
+                                Cannot confirm a past appointment.
+                              </p>
+                            )}
+                          </>
+                        )}
+                        {appointment.status !== AppointmentStatus.COMPLETED && (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() =>
+                                handleStatusUpdate(AppointmentStatus.COMPLETED)
+                              }
+                              disabled={
+                                updating ||
+                                (appointment.status ===
+                                AppointmentStatus.PENDING
+                                  ? true
+                                  : !canComplete)
+                              }
+                            >
+                              Set to Completed
+                            </Button>
+                            {appointment.status ===
+                              AppointmentStatus.PENDING && (
+                              <p className="text-xs text-gray-500">
+                                Cannot complete an unconfirmed appointment.
+                              </p>
+                            )}
+                            {appointment.status !== AppointmentStatus.PENDING &&
+                              !canComplete &&
+                              !hasStarted && (
+                                <p className="text-xs text-gray-500">
+                                  Cannot complete an appointment that
+                                  hasn&apos;t started.
+                                </p>
+                              )}
+                          </>
+                        )}
+                        {appointment.status !== AppointmentStatus.CANCELLED && (
+                          <>
+                            {!showCancelConfirm ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                onClick={() => setShowCancelConfirm(true)}
+                                disabled={updating}
+                              >
+                                Set to Cancelled
+                              </Button>
+                            ) : (
+                              <div className="space-y-2">
+                                <p className="text-sm text-gray-600">
+                                  Are you sure you want to cancel this
+                                  appointment?
+                                </p>
+                                <p className="text-sm font-medium text-gray-800">
+                                  {getCancelRefundMessage(
+                                    "ADMIN",
+                                    appointment.startTime
+                                  )}
+                                </p>
+                                <div className="flex gap-2">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={() => setShowCancelConfirm(false)}
+                                    disabled={updating}
+                                  >
+                                    No
+                                  </Button>
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    className="flex-1"
+                                    onClick={handleCancel}
+                                    disabled={updating}
+                                  >
+                                    Yes, Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </>
               )}

@@ -694,8 +694,26 @@ export function AppointmentsTab({
                       const rowNumber =
                         (appointmentPage - 1) * appointmentPageSize + index + 1;
                       const appointmentDate = new Date(appointment.startTime);
-                      const isUpcoming = appointmentDate > new Date();
-                      const isPast = appointmentDate < new Date();
+                      const appointmentEnd = new Date(appointment.endTime);
+                      const now = new Date();
+                      const isUpcoming = appointmentDate > now;
+                      const isPast = appointmentDate < now;
+                      const hasStarted = now >= appointmentDate;
+                      const isPastEnd = now > appointmentEnd;
+                      const isTerminal =
+                        appointment.status === AppointmentStatus.CANCELLED ||
+                        appointment.status === AppointmentStatus.COMPLETED ||
+                        appointment.status === AppointmentStatus.NO_SHOW;
+                      const canConfirm =
+                        !isTerminal &&
+                        (appointment.status === AppointmentStatus.PENDING ||
+                          appointment.status === AppointmentStatus.BOOKED) &&
+                        !isPastEnd;
+                      const canComplete =
+                        !isTerminal &&
+                        (appointment.status === AppointmentStatus.CONFIRMED ||
+                          appointment.status === AppointmentStatus.BOOKED) &&
+                        hasStarted;
                       const doctor = doctorLookup[appointment.doctorId];
                       const payment = getPaymentInfo(
                         appointment.id,
@@ -865,10 +883,9 @@ export function AppointmentsTab({
                                   />
                                 </svg>
                               </a>
-                              {appointment.status !==
-                                AppointmentStatus.CONFIRMED &&
+                              {!isTerminal &&
                                 appointment.status !==
-                                  AppointmentStatus.CANCELLED && (
+                                  AppointmentStatus.CONFIRMED && (
                                   <button
                                     onClick={() =>
                                       updateAppointmentStatus(
@@ -877,10 +894,15 @@ export function AppointmentsTab({
                                       )
                                     }
                                     disabled={
-                                      updatingAppointmentId === appointment.id
+                                      updatingAppointmentId ===
+                                        appointment.id || !canConfirm
                                     }
                                     className="rounded p-1.5 text-blue-500 hover:bg-blue-50 hover:text-blue-700 disabled:opacity-50"
-                                    title="Confirm appointment"
+                                    title={
+                                      canConfirm
+                                        ? "Confirm appointment"
+                                        : "Cannot confirm a past appointment"
+                                    }
                                   >
                                     <svg
                                       className="h-4 w-4"
@@ -897,38 +919,45 @@ export function AppointmentsTab({
                                     </svg>
                                   </button>
                                 )}
-                              {appointment.status ===
-                                AppointmentStatus.CONFIRMED && (
-                                <button
-                                  onClick={() =>
-                                    updateAppointmentStatus(
-                                      appointment.id,
-                                      AppointmentStatus.COMPLETED
-                                    )
-                                  }
-                                  disabled={
-                                    updatingAppointmentId === appointment.id
-                                  }
-                                  className="rounded p-1.5 text-green-500 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
-                                  title="Mark as completed"
-                                >
-                                  <svg
-                                    className="h-4 w-4"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                    stroke="currentColor"
+                              {!isTerminal &&
+                                (appointment.status ===
+                                  AppointmentStatus.CONFIRMED ||
+                                  appointment.status ===
+                                    AppointmentStatus.BOOKED) && (
+                                  <button
+                                    onClick={() =>
+                                      updateAppointmentStatus(
+                                        appointment.id,
+                                        AppointmentStatus.COMPLETED
+                                      )
+                                    }
+                                    disabled={
+                                      updatingAppointmentId ===
+                                        appointment.id || !canComplete
+                                    }
+                                    className="rounded p-1.5 text-green-500 hover:bg-green-50 hover:text-green-700 disabled:opacity-50"
+                                    title={
+                                      canComplete
+                                        ? "Mark as completed"
+                                        : "Cannot complete an appointment that hasn't started"
+                                    }
                                   >
-                                    <path
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      strokeWidth={2}
-                                      d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                                    />
-                                  </svg>
-                                </button>
-                              )}
-                              {appointment.status !==
-                                AppointmentStatus.CANCELLED && (
+                                    <svg
+                                      className="h-4 w-4"
+                                      fill="none"
+                                      viewBox="0 0 24 24"
+                                      stroke="currentColor"
+                                    >
+                                      <path
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth={2}
+                                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
+                                      />
+                                    </svg>
+                                  </button>
+                                )}
+                              {!isTerminal && (
                                 <button
                                   onClick={() =>
                                     updateAppointmentStatus(

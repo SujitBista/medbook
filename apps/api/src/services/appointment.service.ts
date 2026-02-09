@@ -1054,11 +1054,22 @@ export async function updateAppointment(
   const finalStatus =
     status ?? (existingAppointment.status as AppointmentStatus);
 
-  // Status transition rules based on appointment time (use ISO timestamps; no formatted strings).
-  // - Cannot set to CONFIRMED if the appointment window has ended (past).
-  // - Cannot set to COMPLETED if the appointment hasn't started yet (future).
-  // - CANCELLED is allowed anytime before COMPLETED.
-  if (status !== undefined) {
+  // Status transition rules. Terminal states: no further transitions allowed.
+  // Allowed: PENDING/CONFIRMED/BOOKED → CANCELLED; PENDING → CONFIRMED when now ≤ end; CONFIRMED/BOOKED → COMPLETED when now ≥ start.
+  const TERMINAL_STATUSES: AppointmentStatus[] = [
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.NO_SHOW,
+  ];
+  const currentStatus = existingAppointment.status as AppointmentStatus;
+
+  if (status !== undefined && status !== currentStatus) {
+    if (TERMINAL_STATUSES.includes(currentStatus)) {
+      throw createValidationError(
+        `Appointment is already ${currentStatus}; no further changes allowed.`
+      );
+    }
+
     const now = new Date();
     const startAt = new Date(finalStartTime);
     const endAt = new Date(finalEndTime);
@@ -1068,7 +1079,13 @@ export async function updateAppointment(
         throw createValidationError("Cannot confirm a past appointment.");
       }
     }
+
     if (status === AppointmentStatus.COMPLETED) {
+      if (currentStatus === AppointmentStatus.PENDING) {
+        throw createValidationError(
+          "Cannot complete an unconfirmed appointment."
+        );
+      }
       if (now < startAt) {
         throw createValidationError(
           "Cannot complete an appointment that hasn't started."
