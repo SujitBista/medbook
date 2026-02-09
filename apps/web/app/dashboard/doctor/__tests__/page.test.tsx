@@ -529,7 +529,7 @@ describe("DoctorDashboardPage", () => {
         },
         { timeout: 2000 }
       );
-    });
+    }, 12000); // Allow 12s total for CI (waitFor timeouts sum to 10s)
 
     it("should retry fetching when retry button is clicked", async () => {
       const user = userEvent.setup();

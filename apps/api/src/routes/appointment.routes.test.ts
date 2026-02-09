@@ -871,6 +871,115 @@ describe("PUT /api/v1/appointments/:id", () => {
     expect(response.body.success).toBe(false);
     expect(response.body.error).toBeDefined();
   });
+
+  it("should reject CONFIRMED when appointment is in the past (past appointment => confirm not available)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const pastStart = new Date(Date.now() - 2 * 60 * 60 * 1000);
+    const pastEnd = new Date(Date.now() - 1 * 60 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "PENDING",
+      startTime: pastStart,
+      endTime: pastEnd,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "CONFIRMED" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toBe(
+      "Cannot confirm a past appointment."
+    );
+  });
+
+  it("should reject COMPLETED when appointment is in the future (future appointment => complete not available)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const futureStart = new Date(Date.now() + 1 * 60 * 60 * 1000);
+    const futureEnd = new Date(Date.now() + 2 * 60 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "CONFIRMED",
+      startTime: futureStart,
+      endTime: futureEnd,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "COMPLETED" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toBe(
+      "Cannot complete an appointment that hasn't started."
+    );
+  });
+
+  it("should allow COMPLETED when appointment has started (in-progress => complete allowed)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const pastStart = new Date(Date.now() - 30 * 60 * 1000);
+    const futureEnd = new Date(Date.now() + 30 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "CONFIRMED",
+      startTime: pastStart,
+      endTime: futureEnd,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "COMPLETED" })
+      .expect(200);
+
+    expect(response.body.success).toBe(true);
+    expect(response.body.data).toBeDefined();
+    expect(response.body.data.status).toBe("COMPLETED");
+  });
 });
 
 describe("POST /api/v1/appointments/:id/cancel", () => {
