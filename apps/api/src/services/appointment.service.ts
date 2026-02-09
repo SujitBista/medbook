@@ -39,6 +39,7 @@ import {
 } from "./reminder.service";
 import { isAppError } from "../utils/errors";
 import { triggerN8nWebhookAsync } from "../utils/n8n";
+import { assertValidStatusTransition } from "./appointment-status.validation";
 
 /**
  * Helper to get doctor details for email notifications
@@ -1054,27 +1055,15 @@ export async function updateAppointment(
   const finalStatus =
     status ?? (existingAppointment.status as AppointmentStatus);
 
-  // Status transition rules based on appointment time (use ISO timestamps; no formatted strings).
-  // - Cannot set to CONFIRMED if the appointment window has ended (past).
-  // - Cannot set to COMPLETED if the appointment hasn't started yet (future).
-  // - CANCELLED is allowed anytime before COMPLETED.
   if (status !== undefined) {
     const now = new Date();
-    const startAt = new Date(finalStartTime);
-    const endAt = new Date(finalEndTime);
-
-    if (status === AppointmentStatus.CONFIRMED) {
-      if (now > endAt) {
-        throw createValidationError("Cannot confirm a past appointment.");
-      }
-    }
-    if (status === AppointmentStatus.COMPLETED) {
-      if (now < startAt) {
-        throw createValidationError(
-          "Cannot complete an appointment that hasn't started."
-        );
-      }
-    }
+    assertValidStatusTransition({
+      currentStatus: existingAppointment.status as AppointmentStatus,
+      nextStatus: status,
+      appointmentStart: finalStartTime,
+      appointmentEnd: finalEndTime,
+      now,
+    });
   }
 
   // Validate time slot if times are being updated
