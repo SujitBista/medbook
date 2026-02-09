@@ -39,6 +39,7 @@ import {
 } from "./reminder.service";
 import { isAppError } from "../utils/errors";
 import { triggerN8nWebhookAsync } from "../utils/n8n";
+import { assertValidStatusTransition } from "./appointment-status.validation";
 
 /**
  * Helper to get doctor details for email notifications
