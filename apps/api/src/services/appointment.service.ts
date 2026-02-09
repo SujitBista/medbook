@@ -11,6 +11,7 @@ import {
   CancelAppointmentInput,
   RescheduleAppointmentInput,
   AppointmentStatus,
+  CancelledBy,
   SlotStatus,
   CANCELLATION_RULES,
   CancelAppointmentResult,
@@ -136,7 +137,9 @@ export async function getAppointmentById(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
-    cancelledBy: appointment.cancelledBy ?? undefined,
+    cancelledBy: (appointment.cancelledBy ?? undefined) as
+      | CancelledBy
+      | undefined,
     cancelledAt: appointment.cancelledAt ?? undefined,
     cancelReason: appointment.cancelReason ?? undefined,
     ...(appointment.payment && {
@@ -1250,23 +1253,38 @@ function validateCancellationRules(
   }
 }
 
+/** Minimal appointment shape for cancel result; accepts Prisma payload with full or partial payment */
+interface AppointmentForCancelResult {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  availabilityId: string | null;
+  slotId: string | null;
+  paymentId: string | null;
+  startTime: Date;
+  endTime: Date;
+  status: string;
+  notes: string | null;
+  isArchived: boolean;
+  cancelledBy: string | null;
+  cancelledAt: Date | null;
+  cancelReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  patient: { email: string };
+  payment?: {
+    id: string;
+    status: string;
+    refundedAmount?: unknown;
+    refundId?: string | null;
+  } | null;
+}
+
 /**
  * Build appointment + refundDecision + paymentSummary for cancel response
  */
 function toCancelResult(
-  appointment: Prisma.AppointmentGetPayload<{
-    include: {
-      patient: { select: { email: true } };
-      payment?: {
-        select: {
-          id: true;
-          status: true;
-          refundedAmount: true;
-          refundId: true;
-        };
-      };
-    };
-  }>,
+  appointment: AppointmentForCancelResult,
   refundDecision: { eligible: boolean; type: "FULL" | "NONE"; reason: string },
   payment?: {
     id: string;
@@ -1287,7 +1305,9 @@ function toCancelResult(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
-    cancelledBy: appointment.cancelledBy ?? undefined,
+    cancelledBy: (appointment.cancelledBy ?? undefined) as
+      | CancelledBy
+      | undefined,
     cancelledAt: appointment.cancelledAt ?? undefined,
     cancelReason: appointment.cancelReason ?? undefined,
     createdAt: appointment.createdAt,
@@ -1374,10 +1394,7 @@ export async function cancelAppointment(
 
   validateCancellationRules(existingAppointment, userRole, userId);
 
-  if (
-    existingAppointment.slotId &&
-    existingAppointment.status !== AppointmentStatus.CANCELLED
-  ) {
+  if (existingAppointment.slotId) {
     await updateSlotStatus(existingAppointment.slotId, SlotStatus.AVAILABLE);
     logger.info("Slot freed due to appointment cancellation", {
       slotId: existingAppointment.slotId,
