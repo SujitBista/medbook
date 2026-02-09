@@ -13,7 +13,11 @@ import {
   AppointmentStatus,
   SlotStatus,
   CANCELLATION_RULES,
+  CancelAppointmentResult,
+  CancelPaymentSummary,
 } from "@medbook/types";
+import { computeRefundDecision } from "./refund-policy.service";
+import { processRefund } from "../utils/stripe";
 import {
   createNotFoundError,
   createValidationError,
@@ -132,6 +136,9 @@ export async function getAppointmentById(
     status: appointment.status as AppointmentStatus,
     notes: appointment.notes ?? undefined,
     isArchived: appointment.isArchived ?? false,
+    cancelledBy: appointment.cancelledBy ?? undefined,
+    cancelledAt: appointment.cancelledAt ?? undefined,
+    cancelReason: appointment.cancelReason ?? undefined,
     ...(appointment.payment && {
       payment: {
         status: appointment.payment.status,
@@ -1235,12 +1242,7 @@ function validateCancellationRules(
         throw createValidationError("Cannot cancel past appointments");
       }
 
-      // Check if cancellation is within allowed time window
-      if (hoursUntilAppointment < CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE) {
-        throw createValidationError(
-          `Appointments must be cancelled at least ${CANCELLATION_RULES.PATIENT_MIN_HOURS_BEFORE} hours in advance`
-        );
-      }
+      // Allow cancellation at any time; refund policy (24h) is applied in cancelAppointment
       break;
 
     default:
@@ -1249,22 +1251,84 @@ function validateCancellationRules(
 }
 
 /**
- * Cancels an appointment with role-based rules
+ * Build appointment + refundDecision + paymentSummary for cancel response
+ */
+function toCancelResult(
+  appointment: Prisma.AppointmentGetPayload<{
+    include: {
+      patient: { select: { email: true } };
+      payment?: {
+        select: {
+          id: true;
+          status: true;
+          refundedAmount: true;
+          refundId: true;
+        };
+      };
+    };
+  }>,
+  refundDecision: { eligible: boolean; type: "FULL" | "NONE"; reason: string },
+  payment?: {
+    id: string;
+    status: string;
+    refundedAmount: unknown;
+    refundId: string | null;
+  } | null
+): CancelAppointmentResult {
+  const appointmentData: Appointment = {
+    id: appointment.id,
+    patientId: appointment.patientId,
+    patientEmail: appointment.patient.email,
+    doctorId: appointment.doctorId,
+    availabilityId: appointment.availabilityId ?? undefined,
+    slotId: appointment.slotId ?? undefined,
+    startTime: appointment.startTime,
+    endTime: appointment.endTime,
+    status: appointment.status as AppointmentStatus,
+    notes: appointment.notes ?? undefined,
+    isArchived: appointment.isArchived ?? false,
+    cancelledBy: appointment.cancelledBy ?? undefined,
+    cancelledAt: appointment.cancelledAt ?? undefined,
+    cancelReason: appointment.cancelReason ?? undefined,
+    createdAt: appointment.createdAt,
+    updatedAt: appointment.updatedAt,
+  };
+  let paymentSummary: CancelPaymentSummary | undefined;
+  if (payment) {
+    paymentSummary = {
+      paymentId: payment.id,
+      status: payment.status,
+      refundedAmount: Number(payment.refundedAmount),
+      refundId: payment.refundId ?? undefined,
+    };
+  }
+  return { appointment: appointmentData, refundDecision, paymentSummary };
+}
+
+/**
+ * Cancels an appointment with role-based rules and applies refund policy.
+ * Idempotent: if already CANCELLED, returns current state without issuing a second refund.
  * @param input Cancellation input including user info and appointment ID
- * @returns Cancelled appointment data
+ * @returns Cancelled appointment, refund decision, and payment summary
  * @throws AppError if cancellation is not allowed or appointment not found
  */
 export async function cancelAppointment(
   input: CancelAppointmentInput
-): Promise<Appointment> {
+): Promise<CancelAppointmentResult> {
   const { appointmentId, userId, userRole, reason } = input;
+  const cancelledAt = new Date();
 
-  // Check if appointment exists
   const existingAppointment = await query<Prisma.AppointmentGetPayload<{
     include: {
-      patient: {
+      patient: { select: { email: true } };
+      payment: {
         select: {
-          email: true;
+          id: true;
+          status: true;
+          amount: true;
+          refundedAmount: true;
+          refundId: true;
+          stripeChargeId: true;
         };
       };
     };
@@ -1272,11 +1336,8 @@ export async function cancelAppointment(
     prisma.appointment.findUnique({
       where: { id: appointmentId },
       include: {
-        patient: {
-          select: {
-            email: true,
-          },
-        },
+        patient: { select: { email: true } },
+        payment: true,
       },
     })
   );
@@ -1285,10 +1346,34 @@ export async function cancelAppointment(
     throw createNotFoundError("Appointment");
   }
 
-  // Validate cancellation rules
+  // Idempotency: already cancelled — return current state, do not refund again
+  if (existingAppointment.status === AppointmentStatus.CANCELLED) {
+    const refundDecision = computeRefundDecision({
+      cancelledBy: (existingAppointment.cancelledBy ?? "PATIENT") as
+        | "PATIENT"
+        | "DOCTOR"
+        | "ADMIN",
+      cancelledAt:
+        existingAppointment.cancelledAt ?? existingAppointment.updatedAt,
+      appointmentStartTime: existingAppointment.startTime,
+    });
+    const payment = existingAppointment.payment;
+    return toCancelResult(
+      existingAppointment,
+      refundDecision,
+      payment
+        ? {
+            id: payment.id,
+            status: payment.status,
+            refundedAmount: payment.refundedAmount,
+            refundId: payment.refundId,
+          }
+        : null
+    );
+  }
+
   validateCancellationRules(existingAppointment, userRole, userId);
 
-  // If the appointment has a slot, free it
   if (
     existingAppointment.slotId &&
     existingAppointment.status !== AppointmentStatus.CANCELLED
@@ -1300,13 +1385,16 @@ export async function cancelAppointment(
     });
   }
 
-  // Update appointment status to CANCELLED
   const appointment = await query<
     Prisma.AppointmentGetPayload<{
       include: {
-        patient: {
+        patient: { select: { email: true } };
+        payment: {
           select: {
-            email: true;
+            id: true;
+            status: true;
+            refundedAmount: true;
+            refundId: true;
           };
         };
       };
@@ -1315,14 +1403,21 @@ export async function cancelAppointment(
     prisma.appointment.update({
       where: { id: appointmentId },
       include: {
-        patient: {
+        patient: { select: { email: true } },
+        payment: {
           select: {
-            email: true,
+            id: true,
+            status: true,
+            refundedAmount: true,
+            refundId: true,
           },
         },
       },
       data: {
         status: AppointmentStatus.CANCELLED,
+        cancelledBy: userRole as "PATIENT" | "DOCTOR" | "ADMIN",
+        cancelledAt,
+        cancelReason: reason ?? null,
         notes: reason
           ? existingAppointment.notes
             ? `${existingAppointment.notes}\n\nCancellation reason: ${reason}`
@@ -1332,57 +1427,122 @@ export async function cancelAppointment(
     })
   );
 
-  logger.info("Appointment cancelled", {
-    appointmentId,
-    cancelledBy: userId,
-    userRole,
-    reason,
+  const refundDecision = computeRefundDecision({
+    cancelledBy: userRole,
+    cancelledAt,
+    appointmentStartTime: existingAppointment.startTime,
   });
 
-  const result = {
-    id: appointment.id,
-    patientId: appointment.patientId,
-    patientEmail: appointment.patient.email,
-    doctorId: appointment.doctorId,
-    availabilityId: appointment.availabilityId ?? undefined,
-    slotId: appointment.slotId ?? undefined,
-    startTime: appointment.startTime,
-    endTime: appointment.endTime,
-    status: appointment.status as AppointmentStatus,
-    notes: appointment.notes ?? undefined,
-    createdAt: appointment.createdAt,
-    updatedAt: appointment.updatedAt,
-  };
+  let paymentSummary: CancelPaymentSummary | undefined;
+  const paymentRow = existingAppointment.payment;
 
-  // Send cancellation email (non-blocking)
+  if (
+    refundDecision.eligible &&
+    paymentRow &&
+    paymentRow.status !== "REFUNDED" &&
+    paymentRow.status !== "REFUND_FAILED" &&
+    paymentRow.stripeChargeId
+  ) {
+    try {
+      const stripeRefund = await processRefund(
+        paymentRow.stripeChargeId,
+        reason ?? "Appointment cancelled"
+      );
+      await query((prisma) =>
+        prisma.payment.update({
+          where: { id: paymentRow.id },
+          data: {
+            status: "REFUNDED",
+            refundedAmount: paymentRow.amount,
+            refundedAt: new Date(),
+            refundId: stripeRefund.id,
+            refundAmount: stripeRefund.amount,
+            refundReason: reason ?? "Appointment cancelled",
+          },
+        })
+      );
+      paymentSummary = {
+        paymentId: paymentRow.id,
+        status: "REFUNDED",
+        refundedAmount: Number(paymentRow.amount),
+        refundId: stripeRefund.id,
+      };
+      logger.info("Refund processed for cancellation", {
+        appointmentId,
+        paymentId: paymentRow.id,
+        refundId: stripeRefund.id,
+      });
+    } catch (refundError) {
+      logger.error("Stripe refund failed on cancellation", {
+        appointmentId,
+        paymentId: paymentRow.id,
+        error:
+          refundError instanceof Error
+            ? refundError.message
+            : String(refundError),
+      });
+      await query((prisma) =>
+        prisma.payment.update({
+          where: { id: paymentRow.id },
+          data: { status: "REFUND_FAILED" },
+        })
+      );
+      paymentSummary = {
+        paymentId: paymentRow.id,
+        status: "REFUND_FAILED",
+        refundFailed: true,
+      };
+    }
+  } else if (paymentRow) {
+    paymentSummary = {
+      paymentId: paymentRow.id,
+      status: paymentRow.status,
+      refundedAmount: Number(paymentRow.refundedAmount),
+      refundId: paymentRow.refundId ?? undefined,
+    };
+  }
+
+  logger.info("Appointment cancelled", {
+    appointmentId,
+    cancelledBy: userRole,
+    reason,
+    refundEligible: refundDecision.eligible,
+  });
+
+  const finalPayment =
+    paymentSummary != null
+      ? {
+          id: paymentSummary.paymentId!,
+          status: paymentSummary.status!,
+          refundedAmount: paymentSummary.refundedAmount ?? 0,
+          refundId: paymentSummary.refundId ?? null,
+        }
+      : appointment.payment
+        ? {
+            id: appointment.payment.id,
+            status: appointment.payment.status,
+            refundedAmount: Number(appointment.payment.refundedAmount),
+            refundId: appointment.payment.refundId,
+          }
+        : null;
+  const result = toCancelResult(appointment, refundDecision, finalPayment);
+
   getDoctorDetailsForEmail(appointment.doctorId)
     .then((doctor) => {
       if (doctor) {
-        const cancelledBy =
+        const cancelledByLabel =
           userRole === "PATIENT"
             ? "patient"
             : userRole === "DOCTOR"
               ? "doctor"
               : "admin";
-
-        logger.info("Sending cancellation email", {
-          patientEmail: appointment.patient.email,
-          doctorName: doctor.name,
-          cancelledBy,
-        });
-
         return sendAppointmentCancellationEmail({
           patientEmail: appointment.patient.email,
           doctorName: doctor.name,
           appointmentDate: appointment.startTime,
           appointmentEndTime: appointment.endTime,
           reason,
-          cancelledBy,
-        });
-      } else {
-        logger.warn("Cannot send cancellation email - doctor not found", {
-          appointmentId,
-          doctorId: appointment.doctorId,
+          cancelledBy: cancelledByLabel,
         });
       }
     })
@@ -1393,13 +1553,11 @@ export async function cancelAppointment(
       });
     });
 
-  // Cancel reminder (non-blocking)
   cancelReminder(appointmentId).catch((error) => {
     logger.error("Failed to cancel reminder", {
       appointmentId,
       error: error instanceof Error ? error.message : "Unknown error",
     });
-    // Don't fail cancellation if reminder cancellation fails
   });
 
   return result;

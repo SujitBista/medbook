@@ -99,6 +99,9 @@ model Appointment {
   status        AppointmentStatus  @default(PENDING)
   notes         String?
   isArchived    Boolean            @default(false)
+  cancelledBy   CancelledBy?       // Who cancelled (for refund policy audit)
+  cancelledAt   DateTime?         // When cancelled (UTC)
+  cancelReason  String?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
@@ -128,11 +131,19 @@ enum UserRole {
   ADMIN
 }
 
+enum CancelledBy {
+  PATIENT
+  DOCTOR
+  ADMIN
+}
+
 enum AppointmentStatus {
   PENDING
   CONFIRMED
+  BOOKED
   CANCELLED
   COMPLETED
+  NO_SHOW
 }
 
 model SlotTemplate {
@@ -215,6 +226,9 @@ model Payment {
   stripeChargeId        String?
   refundedAmount        Decimal       @default(0) @db.Decimal(10, 2)
   refundReason          String?
+  refundedAt            DateTime?
+  refundId              String?       // Stripe refund id
+  refundAmount          Int?         // Refund amount in smallest currency unit (e.g. cents)
   metadata              Json?
   createdAt             DateTime      @default(now())
   updatedAt             DateTime      @updatedAt
@@ -238,7 +252,10 @@ enum PaymentStatus {
   PROCESSING
   COMPLETED
   FAILED
+  PAID
+  REFUND_PENDING
   REFUNDED
+  REFUND_FAILED
   PARTIALLY_REFUNDED
 }
 

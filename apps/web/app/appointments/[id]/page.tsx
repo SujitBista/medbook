@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams } from "next/navigation";
-import { Button, Card } from "@medbook/ui";
+import { Button, Card, useToast } from "@medbook/ui";
 import {
   Appointment,
   AppointmentStatus,
@@ -12,6 +12,24 @@ import {
   SlotStatus,
   Payment,
 } from "@medbook/types";
+
+const REFUND_THRESHOLD_HOURS = 24;
+
+/** Refund message for cancel confirm modal (matches backend policy) */
+function getCancelRefundMessage(
+  role: string,
+  startTime: string | Date
+): string {
+  if (role === "DOCTOR" || role === "ADMIN") {
+    return "Cancel now: Full refund (doctor/clinic cancellation).";
+  }
+  const start = new Date(startTime).getTime();
+  const hoursUntil = (start - Date.now()) / (3600 * 1000);
+  if (hoursUntil >= REFUND_THRESHOLD_HOURS) {
+    return "Cancel now: Full refund (cancelled at least 24 hours before).";
+  }
+  return "Cancel now: No refund (within 24 hours of appointment).";
+}
 import { formatDateTime } from "@/components/features/appointment/utils";
 import { PaymentStatus } from "@/components/features/payment/PaymentStatus";
 import Link from "next/link";
@@ -55,6 +73,7 @@ export default function AppointmentDetailPage() {
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [rescheduleReason, setRescheduleReason] = useState("");
   const [payment, setPayment] = useState<Payment | null>(null);
+  const { showSuccess, showError } = useToast();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -277,15 +296,16 @@ export default function AppointmentDetailPage() {
       setUpdating(true);
       setError(null);
 
-      const response = await fetch(`/api/appointments/${appointmentId}`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          status: AppointmentStatus.CANCELLED,
-        }),
-      });
+      const response = await fetch(
+        `/api/appointments/${appointmentId}/cancel`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ reason: undefined }),
+        }
+      );
 
       const data = await response.json();
 
@@ -293,17 +313,30 @@ export default function AppointmentDetailPage() {
         throw new Error(data.error?.message || "Failed to cancel appointment");
       }
 
-      setAppointment(data.data);
+      const result = data.data as {
+        appointment: Appointment;
+        refundDecision?: { type: string; reason: string };
+        paymentSummary?: { refundFailed?: boolean };
+      };
+      setAppointment(result.appointment);
       setShowCancelConfirm(false);
-      setSuccessMessage("Appointment cancelled successfully");
-      setTimeout(() => setSuccessMessage(null), 5000);
+      const refundNote =
+        result.refundDecision?.type === "FULL"
+          ? " A full refund will be processed."
+          : result.paymentSummary?.refundFailed
+            ? " Refund could not be processed; please contact support."
+            : "";
+      setSuccessMessage("Appointment cancelled successfully." + refundNote);
+      setTimeout(() => setSuccessMessage(null), 6000);
+      showSuccess("Appointment cancelled successfully");
     } catch (err) {
       console.error("[AppointmentDetail] Error cancelling appointment:", err);
-      setError(
+      const message =
         err instanceof Error
           ? err.message
-          : "Failed to cancel appointment. Please try again."
-      );
+          : "Failed to cancel appointment. Please try again.";
+      setError(message);
+      showError(message);
     } finally {
       setUpdating(false);
     }
@@ -623,6 +656,12 @@ export default function AppointmentDetailPage() {
                           <p className="text-sm text-gray-600">
                             Are you sure you want to cancel this appointment?
                           </p>
+                          <p className="text-sm font-medium text-gray-800">
+                            {getCancelRefundMessage(
+                              session?.user?.role ?? "PATIENT",
+                              appointment.startTime
+                            )}
+                          </p>
                           <div className="flex gap-2">
                             <Button
                               variant="outline"
@@ -703,16 +742,48 @@ export default function AppointmentDetailPage() {
                   )}
 
                   {canCancelStatus && (
-                    <Button
-                      variant="outline"
-                      className="w-full"
-                      onClick={() =>
-                        handleStatusUpdate(AppointmentStatus.CANCELLED)
-                      }
-                      disabled={updating}
-                    >
-                      Cancel Appointment
-                    </Button>
+                    <>
+                      {!showCancelConfirm ? (
+                        <Button
+                          variant="outline"
+                          className="w-full"
+                          onClick={() => setShowCancelConfirm(true)}
+                          disabled={updating}
+                        >
+                          Cancel Appointment
+                        </Button>
+                      ) : (
+                        <div className="space-y-2">
+                          <p className="text-sm text-gray-600">
+                            Are you sure you want to cancel this appointment?
+                          </p>
+                          <p className="text-sm font-medium text-gray-800">
+                            {getCancelRefundMessage(
+                              session?.user?.role ?? "DOCTOR",
+                              appointment.startTime
+                            )}
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              className="flex-1"
+                              onClick={() => setShowCancelConfirm(false)}
+                              disabled={updating}
+                            >
+                              No
+                            </Button>
+                            <Button
+                              variant="primary"
+                              className="flex-1"
+                              onClick={handleCancel}
+                              disabled={updating}
+                            >
+                              Yes, Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </>
               )}
@@ -780,17 +851,52 @@ export default function AppointmentDetailPage() {
                         </>
                       )}
                       {appointment.status !== AppointmentStatus.CANCELLED && (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          className="w-full"
-                          onClick={() =>
-                            handleStatusUpdate(AppointmentStatus.CANCELLED)
-                          }
-                          disabled={updating}
-                        >
-                          Set to Cancelled
-                        </Button>
+                        <>
+                          {!showCancelConfirm ? (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="w-full"
+                              onClick={() => setShowCancelConfirm(true)}
+                              disabled={updating}
+                            >
+                              Set to Cancelled
+                            </Button>
+                          ) : (
+                            <div className="space-y-2">
+                              <p className="text-sm text-gray-600">
+                                Are you sure you want to cancel this
+                                appointment?
+                              </p>
+                              <p className="text-sm font-medium text-gray-800">
+                                {getCancelRefundMessage(
+                                  "ADMIN",
+                                  appointment.startTime
+                                )}
+                              </p>
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={() => setShowCancelConfirm(false)}
+                                  disabled={updating}
+                                >
+                                  No
+                                </Button>
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  className="flex-1"
+                                  onClick={handleCancel}
+                                  disabled={updating}
+                                >
+                                  Yes, Cancel
+                                </Button>
+                              </div>
+                            </div>
+                          )}
+                        </>
                       )}
                     </div>
                   </div>

@@ -7,7 +7,10 @@ export enum PaymentStatus {
   PROCESSING = "PROCESSING",
   COMPLETED = "COMPLETED",
   FAILED = "FAILED",
+  PAID = "PAID",
+  REFUND_PENDING = "REFUND_PENDING",
   REFUNDED = "REFUNDED",
+  REFUND_FAILED = "REFUND_FAILED",
   PARTIALLY_REFUNDED = "PARTIALLY_REFUNDED",
 }
 
@@ -23,6 +26,9 @@ export interface Payment {
   stripeChargeId?: string;
   refundedAmount: number;
   refundReason?: string;
+  refundedAt?: Date;
+  refundId?: string;
+  refundAmount?: number; // in smallest currency unit (e.g. cents)
   metadata?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
