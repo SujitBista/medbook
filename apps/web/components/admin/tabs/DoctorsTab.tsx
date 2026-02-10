@@ -74,12 +74,29 @@ export function DoctorsTab({
 
       if (!response.ok) {
         let errorMessage = "Failed to fetch doctors";
+        let responseData: {
+          error?: { message?: string; details?: { message?: string } };
+        } | null = null;
         try {
-          const data = await response.json();
-          errorMessage = data.error?.message || errorMessage;
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+          if (responseData?.error?.message) {
+            errorMessage = responseData.error.message;
+            if (
+              typeof responseData.error.details === "object" &&
+              responseData.error.details?.message
+            ) {
+              errorMessage = responseData.error.details.message;
+            }
+          }
         } catch {
           // If JSON parsing fails, use default message
         }
+        console.error("[DoctorsTab] Doctors fetch failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseData ?? "(parse failed)",
+        });
         throw new Error(errorMessage);
       }
 
@@ -97,7 +114,22 @@ export function DoctorsTab({
   const fetchDepartments = useCallback(async () => {
     try {
       const res = await fetch("/api/admin/departments", { cache: "no-store" });
-      if (!res.ok) return;
+      if (!res.ok) {
+        let responseData: { error?: { message?: string } } | null = null;
+        try {
+          const text = await res.text();
+          responseData = text ? JSON.parse(text) : null;
+        } catch {
+          // ignore
+        }
+        console.error("[DoctorsTab] Departments fetch failed:", {
+          status: res.status,
+          statusText: res.statusText,
+          body: responseData ?? "(parse failed)",
+        });
+        setDepartments([]);
+        return;
+      }
       const json = await res.json();
       setDepartments(json.data ?? []);
     } catch {
@@ -111,16 +143,44 @@ export function DoctorsTab({
         headers: {
           "Content-Type": "application/json",
         },
+        cache: "no-store",
       });
 
       if (!response.ok) {
-        throw new Error("Failed to fetch doctor stats");
+        let errorMessage = "Failed to fetch doctor stats";
+        let responseData: {
+          error?: { message?: string; details?: { message?: string } };
+        } | null = null;
+        try {
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+          if (responseData?.error?.message) {
+            errorMessage = responseData.error.message;
+            if (
+              typeof responseData.error.details === "object" &&
+              responseData.error.details?.message
+            ) {
+              errorMessage = responseData.error.details.message;
+            }
+          }
+        } catch {
+          // ignore
+        }
+        console.error("[DoctorsTab] Doctor stats fetch failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseData ?? "(parse failed)",
+        });
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
       setDoctorStats(data.stats || null);
     } catch (err) {
       console.error("[DoctorsTab] Error fetching doctor stats:", err);
+      onError(
+        err instanceof Error ? err.message : "Failed to fetch doctor stats"
+      );
     }
   };
 

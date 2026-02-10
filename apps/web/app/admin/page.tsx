@@ -59,12 +59,29 @@ function AdminDashboardContent() {
 
       if (!response.ok) {
         let errorMessage = "Failed to fetch doctors";
+        let responseData: {
+          error?: { message?: string; details?: { message?: string } };
+        } | null = null;
         try {
-          const data = await response.json();
-          errorMessage = data.error?.message || errorMessage;
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+          if (responseData?.error?.message) {
+            errorMessage = responseData.error.message;
+            if (
+              typeof responseData.error.details === "object" &&
+              responseData.error.details?.message
+            ) {
+              errorMessage = responseData.error.details.message;
+            }
+          }
         } catch {
           // If JSON parsing fails, use default message
         }
+        console.error("[AdminDashboard] Doctors fetch failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseData ?? "(parse failed)",
+        });
         throw new Error(errorMessage);
       }
 

@@ -16,6 +16,7 @@ async function proxy(
   if (!session?.user?.id) {
     return NextResponse.json(
       {
+        ok: false,
         success: false,
         error: { code: "UNAUTHORIZED", message: "Not authenticated" },
       },
@@ -25,6 +26,7 @@ async function proxy(
   if (session.user.role !== "ADMIN") {
     return NextResponse.json(
       {
+        ok: false,
         success: false,
         error: { code: "FORBIDDEN", message: "Admin access required" },
       },
@@ -36,9 +38,16 @@ async function proxy(
   try {
     token = generateBackendToken(session.user.id, session.user.role);
   } catch (tokenError) {
-    console.error("[AdminDepartments] Failed to generate token:", tokenError);
+    const err =
+      tokenError instanceof Error ? tokenError : new Error(String(tokenError));
+    console.error(
+      "[api/admin/departments] Failed to generate token:",
+      err.message,
+      err.stack
+    );
     return NextResponse.json(
       {
+        ok: false,
         success: false,
         error: {
           code: "TOKEN_GENERATION_ERROR",
@@ -67,9 +76,16 @@ async function proxy(
   try {
     response = await fetch(url, init);
   } catch (fetchError) {
-    console.error("[AdminDepartments] Fetch error:", fetchError);
+    const err =
+      fetchError instanceof Error ? fetchError : new Error(String(fetchError));
+    console.error(
+      "[api/admin/departments] Fetch error (backend unavailable):",
+      err.message,
+      err.stack
+    );
     return NextResponse.json(
       {
+        ok: false,
         success: false,
         error: {
           code: "NETWORK_ERROR",
@@ -85,30 +101,79 @@ async function proxy(
   try {
     const text = await response.text();
     data = text ? JSON.parse(text) : {};
-  } catch {
-    data = {
-      success: false,
-      error: {
-        code: "PARSE_ERROR",
-        message: "Invalid response from backend server",
+  } catch (parseError) {
+    const err =
+      parseError instanceof Error ? parseError : new Error(String(parseError));
+    console.error(
+      "[api/admin/departments] Failed to parse backend response:",
+      err.message,
+      err.stack
+    );
+    return NextResponse.json(
+      {
+        ok: false,
+        success: false,
+        error: {
+          code: "PARSE_ERROR",
+          message: "Invalid response from backend server",
+        },
       },
-    };
+      { status: 500 }
+    );
+  }
+
+  if (!response.ok) {
+    console.error("[api/admin/departments] Backend returned error:", {
+      status: response.status,
+      statusText: response.statusText,
+      body: data,
+    });
+    const errorPayload =
+      typeof data === "object" && data !== null && "error" in (data as object)
+        ? { ok: false, ...(data as object) }
+        : {
+            ok: false,
+            success: false,
+            error: {
+              code: "BACKEND_ERROR",
+              message:
+                (data as { error?: { message?: string } })?.error?.message ??
+                "Backend request failed",
+            },
+          };
+    return NextResponse.json(errorPayload, {
+      status: response.status,
+    });
   }
 
   return NextResponse.json(data, {
     status: response.status,
-    headers: response.ok
-      ? {
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
-        }
-      : undefined,
+    headers: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
   });
 }
 
 export async function GET(req: NextRequest) {
-  return proxy(req, "GET");
+  try {
+    return await proxy(req, "GET");
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("[api/admin/departments] GET error:", err.message, err.stack);
+    return NextResponse.json(
+      {
+        ok: false,
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: err.message || "Internal server error",
+        },
+      },
+      { status: 500 }
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -118,11 +183,32 @@ export async function POST(req: NextRequest) {
   } catch {
     return NextResponse.json(
       {
+        ok: false,
         success: false,
         error: { code: "VALIDATION_ERROR", message: "Invalid JSON body" },
       },
       { status: 400 }
     );
   }
-  return proxy(req, "POST", body);
+  try {
+    return await proxy(req, "POST", body);
+  } catch (error) {
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      "[api/admin/departments] POST error:",
+      err.message,
+      err.stack
+    );
+    return NextResponse.json(
+      {
+        ok: false,
+        success: false,
+        error: {
+          code: "INTERNAL_ERROR",
+          message: err.message || "Internal server error",
+        },
+      },
+      { status: 500 }
+    );
+  }
 }
