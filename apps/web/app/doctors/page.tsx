@@ -120,6 +120,17 @@ function slugToSearchTerm(slug: string): string {
   return slug.trim().replace(/-/g, " ").trim();
 }
 
+/** Search term to URL slug (spaces → hyphens, lowercase) */
+function searchTermToSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /** Parse URL search params: prefer q, department, doctorId; support legacy params */
 function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
   q: string;
@@ -281,6 +292,19 @@ function DoctorsPageContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPagination((prev) => ({ ...prev, page: 1 }));
+    // Sync filters to URL: "Search by name or email" → q only; specialization → department; doctorId when present
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) {
+      params.set("q", searchTerm.trim());
+    }
+    if (specializationFilter.trim()) {
+      params.set("department", searchTermToSlug(specializationFilter));
+    }
+    if (doctorIdFilter.trim()) {
+      params.set("doctorId", doctorIdFilter.trim());
+    }
+    const query = params.toString();
+    router.replace(query ? `/doctors?${query}` : "/doctors");
   };
 
   const handlePageChange = (newPage: number) => {

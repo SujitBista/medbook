@@ -47,15 +47,14 @@ export function HeroSearch() {
     const mainSearch = searchTerm.trim();
     const optional = departmentOrDoctor.trim();
 
+    // Free-text search (name/email/keyword) MUST map to q only, never to department
     if (mainSearch) {
       params.set("q", toSlug(mainSearch));
+    } else if (optional && !looksLikeDoctorId(optional)) {
+      params.set("q", toSlug(optional));
     }
-    if (optional) {
-      if (looksLikeDoctorId(optional)) {
-        params.set("doctorId", optional);
-      } else {
-        params.set("department", toSlug(optional));
-      }
+    if (optional && looksLikeDoctorId(optional)) {
+      params.set("doctorId", optional);
     }
     const query = params.toString();
     router.push(query ? `/doctors?${query}` : "/doctors");
