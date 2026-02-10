@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit");
     const search = searchParams.get("search");
     const specialization = searchParams.get("specialization");
+    const doctorId = searchParams.get("doctorId");
     const city = searchParams.get("city");
     const state = searchParams.get("state");
     const sortBy = searchParams.get("sortBy");
@@ -51,6 +52,7 @@ export async function GET(req: NextRequest) {
     if (limit) queryParams.append("limit", limit);
     if (search) queryParams.append("search", search);
     if (specialization) queryParams.append("specialization", specialization);
+    if (doctorId) queryParams.append("doctorId", doctorId);
     if (city) queryParams.append("city", city);
     if (state) queryParams.append("state", state);
     if (sortBy) queryParams.append("sortBy", sortBy);

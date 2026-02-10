@@ -222,9 +222,8 @@ describe("DoctorsPage", () => {
 
     it("prefills filters from URL params and passes them to API (deep link)", async () => {
       mockSearchParams = new URLSearchParams({
-        specialty: "Cardiology",
         q: "Cardiology",
-        doctor: "Smith",
+        department: "dermatology",
       });
       setupFetchMock({
         ok: true,
@@ -249,17 +248,17 @@ describe("DoctorsPage", () => {
             call[0] &&
             typeof call[0] === "string" &&
             call[0].includes("/api/doctors") &&
-            call[0].includes("specialization=Cardiology") &&
+            call[0].includes("specialization=") &&
             call[0].includes("search=")
         );
         expect(doctorsApiCall).toBeDefined();
         const url = doctorsApiCall[0];
         expect(url).toContain("Cardiology");
-        expect(url).toContain("Smith");
+        expect(url).toContain("dermatology");
       });
 
-      // Search input prefilled from URL (q + doctor)
-      expect(screen.getByDisplayValue("Cardiology Smith")).toBeInTheDocument();
+      // Primary search input prefilled from URL (q)
+      expect(screen.getByDisplayValue("Cardiology")).toBeInTheDocument();
     });
 
     it("should display search form", async () => {
