@@ -3,8 +3,9 @@
  */
 
 import { Response, NextFunction } from "express";
+import { UserRole } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
-import { createValidationError } from "../utils";
+import { createValidationError, createAuthorizationError } from "../utils";
 import { startBooking } from "../services/booking.service";
 
 /**
@@ -12,6 +13,7 @@ import { startBooking } from "../services/booking.service";
  * Start a capacity booking: create PENDING_PAYMENT appointment + PaymentIntent
  * Body: { scheduleId }
  * Returns: { clientSecret, appointmentId }
+ * Only PATIENT role can start a booking.
  */
 export async function startBookingHandler(
   req: AuthenticatedRequest,
@@ -21,6 +23,14 @@ export async function startBookingHandler(
   try {
     if (!req.user) {
       const error = createValidationError("User not authenticated");
+      next(error);
+      return;
+    }
+
+    if (req.user.role !== UserRole.PATIENT) {
+      const error = createAuthorizationError(
+        "Only patients can book appointments."
+      );
       next(error);
       return;
     }

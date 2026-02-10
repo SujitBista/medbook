@@ -23,6 +23,19 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (session.user.role !== "PATIENT") {
+      return NextResponse.json(
+        {
+          success: false,
+          error: {
+            code: "FORBIDDEN",
+            message: "Only patients can book appointments.",
+          },
+        },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const scheduleId = body?.scheduleId;
 
