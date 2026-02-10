@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
-import { Button, Card } from "@medbook/ui";
+import { Button, Card, useToast } from "@medbook/ui";
 import {
   Doctor,
   Appointment,
@@ -180,6 +180,7 @@ export default function DoctorDetailPage() {
   const doctorId = params.id as string;
   const hasRestoredRef = useRef(false);
 
+  const { showError: showToastError } = useToast();
   const role: BookingRole =
     status === "authenticated" && session?.user?.role === "PATIENT"
       ? "PATIENT"
@@ -215,6 +216,7 @@ export default function DoctorDetailPage() {
     clientSecret: string;
     appointmentId: string;
   } | null>(null);
+  const capacityDateInputRef = useRef<HTMLInputElement>(null);
   const [capacityResult, setCapacityResult] = useState<
     { status: "CONFIRMED"; queueNumber: number } | { status: "OVERFLOW" } | null
   >(null);
@@ -791,6 +793,10 @@ export default function DoctorDetailPage() {
   };
 
   const handleCapacityPayAndBook = async (window: ScheduleWithCapacity) => {
+    if (!window?.id) {
+      setError("No schedule available. Please select a time window.");
+      return;
+    }
     if (session?.user?.role === "ADMIN") {
       setError("Admins cannot book. Use the admin dashboard.");
       return;
@@ -811,16 +817,21 @@ export default function DoctorDetailPage() {
       });
       const data = await res.json();
       if (!res.ok || !data.success) {
-        throw new Error(
-          data.error?.message || "Failed to start booking. Please try again."
-        );
+        const message =
+          data.error?.message || "Failed to start booking. Please try again.";
+        setError(message);
+        showToastError(message);
+        return;
       }
       setCapacityStart({
         clientSecret: data.data.clientSecret,
         appointmentId: data.data.appointmentId,
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to start booking.");
+      const message =
+        err instanceof Error ? err.message : "Failed to start booking.";
+      setError(message);
+      showToastError(message);
     }
   };
 
@@ -1112,6 +1123,7 @@ export default function DoctorDetailPage() {
                     Date
                   </label>
                   <input
+                    ref={capacityDateInputRef}
                     type="date"
                     value={capacityDate}
                     onChange={(e) => setCapacityDate(e.target.value)}
@@ -1120,37 +1132,74 @@ export default function DoctorDetailPage() {
                   {capacityLoading ? (
                     <p className="text-gray-500">Loading windows...</p>
                   ) : capacityWindows.length === 0 ? (
-                    <p className="text-gray-500">
-                      No capacity windows for this date. Try another date.
-                    </p>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-6 text-center">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        No schedule available
+                      </h3>
+                      <p className="text-gray-600 mb-4">
+                        This doctor has no schedule for the selected date. Try
+                        another date.
+                      </p>
+                      <div className="flex flex-wrap justify-center gap-3">
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          onClick={() => capacityDateInputRef.current?.focus()}
+                        >
+                          Pick another date
+                        </Button>
+                        <Link href="/doctors">
+                          <Button variant="secondary" size="sm">
+                            Back to Doctors
+                          </Button>
+                        </Link>
+                      </div>
+                    </div>
                   ) : (
                     <>
                       <ul className="space-y-3">
-                        {capacityWindows.map((w) => (
-                          <li
-                            key={w.id}
-                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
-                          >
-                            <span className="font-medium text-gray-900">
-                              {w.startTime}–{w.endTime}
-                            </span>
-                            <span className="text-sm text-gray-600">
-                              {role === "ADMIN"
-                                ? `Capacity ${w.maxPatients} / Booked ${w.confirmedCount} / Remaining ${w.remaining}`
-                                : `Remaining tokens: ${w.remaining}/${w.maxPatients}`}
-                            </span>
-                            {role === "PATIENT" && (
-                              <Button
-                                variant="primary"
-                                size="sm"
-                                onClick={() => handleCapacityPayAndBook(w)}
-                                disabled={w.remaining <= 0 || booking}
-                              >
-                                Pay & Book
-                              </Button>
-                            )}
-                          </li>
-                        ))}
+                        {capacityWindows.map((w) => {
+                          const patientButtonLabel = !w.isBookable
+                            ? w.disabledReasonCode === "FULL"
+                              ? "Full"
+                              : w.disabledReasonCode === "PAST"
+                                ? "Closed"
+                                : w.disabledReasonCode ===
+                                    "PAYMENT_NOT_CONFIGURED"
+                                  ? "Unavailable"
+                                  : "Unavailable"
+                            : "Pay & Book";
+                          return (
+                            <li
+                              key={w.id}
+                              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                            >
+                              <span className="font-medium text-gray-900">
+                                {w.startTime}–{w.endTime}
+                              </span>
+                              <span className="text-sm text-gray-600">
+                                {role === "ADMIN"
+                                  ? `Capacity ${w.maxPatients} / Booked ${w.confirmedCount} / Remaining ${w.remaining}`
+                                  : `Remaining: ${w.remaining} of ${w.maxPatients}`}
+                              </span>
+                              {role === "PATIENT" && (
+                                <Button
+                                  variant="primary"
+                                  size="sm"
+                                  onClick={() => handleCapacityPayAndBook(w)}
+                                  disabled={!w.isBookable || booking}
+                                >
+                                  {patientButtonLabel}
+                                </Button>
+                              )}
+                              {w.disabledReason ? (
+                                <p className="w-full text-xs text-gray-500 mt-1">
+                                  {w.disabledReason}
+                                </p>
+                              ) : null}
+                            </li>
+                          );
+                        })}
                       </ul>
                       {role === "ADMIN" && (
                         <div className="mt-4">

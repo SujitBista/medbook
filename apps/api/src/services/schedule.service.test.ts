@@ -70,7 +70,7 @@ describe("schedule.service", () => {
     expect(s2.doctorId).toBe(doctorBId);
   });
 
-  it("should return availability windows with confirmedCount and remaining", async () => {
+  it("should return availability windows with confirmedCount, remaining, isBookable, disabledReason", async () => {
     await createSchedule({
       doctorId: doctorAId,
       date,
@@ -86,5 +86,13 @@ describe("schedule.service", () => {
     expect(windows[0].maxPatients).toBe(5);
     expect(windows[0].confirmedCount).toBe(0);
     expect(windows[0].remaining).toBe(5);
+    expect(typeof windows[0].isBookable).toBe("boolean");
+    expect(typeof windows[0].disabledReason).toBe("string");
+    expect(
+      windows[0].disabledReasonCode === undefined ||
+        ["FULL", "PAST", "PAYMENT_NOT_CONFIGURED", "ROLE_FORBIDDEN"].includes(
+          windows[0].disabledReasonCode!
+        )
+    ).toBe(true);
   });
 });

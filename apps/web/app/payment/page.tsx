@@ -70,6 +70,15 @@ function PaymentFormContent() {
       }
 
       const appointmentPrice = priceData.data.appointmentPrice;
+      if (
+        typeof appointmentPrice !== "number" ||
+        appointmentPrice <= 0 ||
+        !Number.isFinite(appointmentPrice)
+      ) {
+        setError("Invalid payment amount. Please select a valid schedule.");
+        setLoading(false);
+        return;
+      }
       setAmount(appointmentPrice);
 
       // Create payment intent
@@ -388,6 +397,39 @@ function PaymentFormContent() {
               <Button variant="primary" onClick={initializePayment}>
                 Try Again
               </Button>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
+
+  const invalidAmount =
+    !loading &&
+    (amount === null ||
+      amount === 0 ||
+      (typeof amount === "number" && !Number.isFinite(amount)));
+  const isInvalidAmountError =
+    error?.includes("Invalid payment amount") ?? false;
+  if (invalidAmount && (error === null || isInvalidAmountError)) {
+    return (
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Card>
+          <div className="text-center py-8">
+            <p className="text-gray-700 font-medium mb-2">
+              Invalid payment amount. Please select a valid schedule.
+            </p>
+            <p className="text-sm text-gray-600 mb-6">
+              The selected appointment has no valid price. Go back to the doctor
+              profile and choose a time window, or browse other doctors.
+            </p>
+            <div className="flex flex-wrap gap-3 justify-center">
+              <Link href={doctorId ? `/doctors/${doctorId}` : "/doctors"}>
+                <Button variant="outline">Back to Doctor</Button>
+              </Link>
+              <Link href="/doctors">
+                <Button variant="primary">Browse Doctors</Button>
+              </Link>
             </div>
           </div>
         </Card>

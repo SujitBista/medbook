@@ -11,6 +11,8 @@ import {
   createConflictError,
   createAppError,
 } from "../utils/errors";
+
+const INVALID_AMOUNT_STATUS = 422;
 import { logger } from "../utils/logger";
 import { getScheduleById, countConfirmedForSchedule } from "./schedule.service";
 import { getCommissionSettingsByDoctorId } from "./commission.service";
@@ -43,6 +45,17 @@ export async function startBooking(
   patientId: string
 ): Promise<{ clientSecret: string; appointmentId: string }> {
   const schedule = await getScheduleById(scheduleId);
+
+  const scheduleDate = new Date(schedule.date);
+  scheduleDate.setHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  if (scheduleDate < today) {
+    throw createValidationError(
+      "This schedule is in the past. Please choose an upcoming date."
+    );
+  }
+
   const confirmedCount = await countConfirmedForSchedule(scheduleId);
   if (confirmedCount >= schedule.maxPatients) {
     logger.warn("Booking start rejected: schedule full", {
@@ -67,11 +80,20 @@ export async function startBooking(
   const commission = await getCommissionSettingsByDoctorId(schedule.doctorId);
   const amountDollars = commission?.appointmentPrice ?? 0;
   if (amountDollars <= 0) {
-    throw createValidationError(
-      "Appointment price is not set for this doctor. Contact support."
+    throw createAppError(
+      "INVALID_AMOUNT",
+      "Appointment price must be greater than zero. Please select a valid schedule.",
+      INVALID_AMOUNT_STATUS
     );
   }
   const amountCents = Math.round(amountDollars * 100);
+  if (amountCents <= 0) {
+    throw createAppError(
+      "INVALID_AMOUNT",
+      "Appointment price must be greater than zero.",
+      INVALID_AMOUNT_STATUS
+    );
+  }
 
   const metadata: Record<string, string> = {
     scheduleId,

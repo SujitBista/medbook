@@ -8,7 +8,10 @@ import type {
   Schedule,
   CreateScheduleInput,
   ScheduleWithCapacity,
+  ScheduleDisabledReasonCode,
 } from "@medbook/types";
+import { getCommissionSettingsByDoctorId } from "./commission.service";
+import { isStripeConfigured } from "../config/stripe";
 import {
   createNotFoundError,
   createValidationError,
@@ -198,6 +201,44 @@ export async function getSchedules(queryInput: {
 }
 
 /**
+ * Get schedule windows for a doctor on a date (single source of truth for UI).
+ * Same data source as getAvailabilityWindows but returns plain schedules; use getAvailabilityWindows for remaining capacity.
+ */
+export async function getDoctorSchedules(
+  doctorId: string,
+  date: string
+): Promise<Schedule[]> {
+  return getSchedules({ doctorId, date });
+}
+
+/**
+ * Returns the set of doctor IDs that have at least one schedule in the given date range.
+ * Used for doctors list "has schedule" badge so list and booking page use the same logic (capacity-based).
+ */
+export async function getDoctorIdsWithScheduleInRange(
+  doctorIds: string[],
+  startDate: Date,
+  endDate: Date
+): Promise<Set<string>> {
+  if (doctorIds.length === 0) return new Set();
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  const rows = await query<{ doctorId: string }[]>((prisma) =>
+    prisma.schedule.findMany({
+      where: {
+        doctorId: { in: doctorIds },
+        date: { gte: start, lte: end },
+      },
+      select: { doctorId: true },
+      distinct: ["doctorId"],
+    })
+  );
+  return new Set(rows.map((r) => r.doctorId));
+}
+
+/**
  * Get schedule by ID
  */
 export async function getScheduleById(scheduleId: string): Promise<Schedule> {
@@ -250,9 +291,31 @@ export async function countConfirmedForSchedule(
   return result._count.id;
 }
 
+function scheduleEndDateTime(schedule: { date: Date; endTime: string }): Date {
+  const [endH, endM] = schedule.endTime.split(":").map(Number);
+  const end = new Date(schedule.date);
+  end.setHours(endH ?? 0, endM ?? 0, 0, 0);
+  return end;
+}
+
+function disabledReasonMessage(code: ScheduleDisabledReasonCode): string {
+  switch (code) {
+    case "FULL":
+      return "This window is full.";
+    case "PAST":
+      return "This window has already ended.";
+    case "PAYMENT_NOT_CONFIGURED":
+      return "Booking is unavailable (payment not configured).";
+    case "ROLE_FORBIDDEN":
+      return "You don't have permission to book.";
+    default:
+      return "";
+  }
+}
+
 /**
  * Get availability windows for a doctor on a date (public)
- * Returns schedules with confirmedCount and remaining capacity
+ * Returns schedules with confirmedCount, remaining, isBookable, and disabledReason(Code)
  */
 export async function getAvailabilityWindows(
   doctorId: string,
@@ -282,11 +345,29 @@ export async function getAvailabilityWindows(
     })
   );
 
+  const now = new Date();
+  const commission = await getCommissionSettingsByDoctorId(doctorId);
+  const appointmentPrice = commission?.appointmentPrice ?? 0;
+  const paymentConfigured = isStripeConfigured() && appointmentPrice > 0;
+
   const out: ScheduleWithCapacity[] = [];
 
   for (const s of schedules) {
     const confirmedCount = await countConfirmedForSchedule(s.id);
     const remaining = Math.max(0, s.maxPatients - confirmedCount);
+    const endAt = scheduleEndDateTime({ date: s.date, endTime: s.endTime });
+    const isPast = endAt <= now;
+
+    let disabledReasonCode: ScheduleDisabledReasonCode | null = null;
+    if (isPast) {
+      disabledReasonCode = "PAST";
+    } else if (remaining <= 0) {
+      disabledReasonCode = "FULL";
+    } else if (!paymentConfigured) {
+      disabledReasonCode = "PAYMENT_NOT_CONFIGURED";
+    }
+
+    const isBookable = !disabledReasonCode;
     out.push({
       id: s.id,
       doctorId: s.doctorId,
@@ -298,6 +379,11 @@ export async function getAvailabilityWindows(
       createdAt: s.createdAt,
       confirmedCount,
       remaining,
+      isBookable,
+      disabledReason: disabledReasonCode
+        ? disabledReasonMessage(disabledReasonCode)
+        : "",
+      disabledReasonCode: disabledReasonCode ?? undefined,
     });
   }
 

@@ -15,6 +15,7 @@ import {
   getDepartmentBySlug,
   searchDepartmentsByQuery,
 } from "./department.service";
+import { getDoctorIdsWithScheduleInRange } from "./schedule.service";
 
 /**
  * Gets doctor by ID
@@ -386,8 +387,9 @@ export async function getAllDoctors(options?: {
     },
   };
 
-  // If filtering by availability OR computing hasSchedule (includeNoSchedule), include slotTemplate, slots, and availabilities
-  if (hasAvailability || includeNoSchedule) {
+  // If filtering by availability, include slotTemplate, slots, and availabilities.
+  // When includeNoSchedule we use capacity-based schedules (getDoctorIdsWithScheduleInRange) instead.
+  if (hasAvailability) {
     includeOptions.slotTemplate = {
       select: {
         durationMinutes: true,
@@ -557,15 +559,26 @@ export async function getAllDoctors(options?: {
     throw error;
   }
 
+  // When includeNoSchedule, compute hasSchedule from capacity schedules (same source as booking page)
+  let doctorIdsWithSchedules: Set<string> = new Set();
+  if (includeNoSchedule && doctors.length > 0) {
+    const rangeEnd = new Date(now);
+    rangeEnd.setDate(rangeEnd.getDate() + 90);
+    doctorIdsWithSchedules = await getDoctorIdsWithScheduleInRange(
+      doctors.map((d) => d.id),
+      now,
+      rangeEnd
+    );
+  }
+
   return {
     doctors: doctors.map((doctor) => {
       const base = mapDoctorRowToDoctor(doctor);
       if (includeNoSchedule) {
-        const scheduleInfo = computeScheduleInfo(doctor, now);
         return {
           ...base,
-          hasSchedule: scheduleInfo.hasSchedule,
-          nextAvailableSlotAt: scheduleInfo.nextAvailableSlotAt,
+          hasSchedule: doctorIdsWithSchedules.has(doctor.id),
+          nextAvailableSlotAt: undefined,
         };
       }
       return base;
