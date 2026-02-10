@@ -24,12 +24,10 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     expect(
-      screen.getByPlaceholderText(
-        "Try: General Physician, Dentist, Skin, Child"
-      )
+      screen.getByPlaceholderText("Search symptoms, specialty, or doctor")
     ).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("Department / Doctor (optional)")
+      screen.getByPlaceholderText("Selected doctor or department")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Find & Book Doctor/i })
@@ -41,23 +39,33 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     await user.type(searchInput, "Cardiologist");
 
     expect(searchInput).toHaveValue("Cardiologist");
   });
 
-  it("allows typing in location input", async () => {
+  it("allows typing in second input (optional doctor/department)", async () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
-    const locationInput = screen.getByPlaceholderText(
-      "Department / Doctor (optional)"
+    const optionalInput = screen.getByPlaceholderText(
+      "Selected doctor or department"
     );
-    await user.type(locationInput, "New York");
+    await user.type(optionalInput, "New York");
 
-    expect(locationInput).toHaveValue("New York");
+    expect(optionalInput).toHaveValue("New York");
+  });
+
+  it("shows helper text below inputs", () => {
+    render(<HeroSearch />);
+
+    expect(
+      screen.getByText(
+        /Type to search, or select a doctor\/department from suggestions/i
+      )
+    ).toBeInTheDocument();
   });
 
   it("navigates to doctors page with q when both fields are submitted (main search wins)", async () => {
@@ -65,10 +73,10 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     const optionalInput = screen.getByPlaceholderText(
-      "Department / Doctor (optional)"
+      "Selected doctor or department"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
@@ -87,7 +95,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
@@ -104,7 +112,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const optionalInput = screen.getByPlaceholderText(
-      "Department / Doctor (optional)"
+      "Selected doctor or department"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
@@ -121,10 +129,10 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     const optionalInput = screen.getByPlaceholderText(
-      "Department / Doctor (optional)"
+      "Selected doctor or department"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
@@ -154,7 +162,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     await user.type(searchInput, "Dermatologist{Enter}");
 
@@ -166,7 +174,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const optionalInput = screen.getByPlaceholderText(
-      "Department / Doctor (optional)"
+      "Selected doctor or department"
     );
     await user.type(optionalInput, "Cardiology{Enter}");
 
@@ -192,7 +200,7 @@ describe("HeroSearch", () => {
 
     // The form should prevent default (handled by handleSubmit)
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     await user.type(searchInput, "Test");
     await user.click(
@@ -223,7 +231,7 @@ describe("HeroSearch", () => {
     await user.click(notSureLink);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     expect(searchInput).toHaveValue("General Physician");
   });
@@ -233,7 +241,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const searchInput = screen.getByPlaceholderText(
-      "Try: General Physician, Dentist, Skin, Child"
+      "Search symptoms, specialty, or doctor"
     );
     await user.type(searchInput, "Pediatrician");
     await user.click(
