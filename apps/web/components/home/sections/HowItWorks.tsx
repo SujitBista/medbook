@@ -4,8 +4,7 @@ const steps = [
   {
     number: "1",
     title: "Choose a specialty",
-    description:
-      "Search on the home page or browse doctors by specialty and location",
+    description: "Search on the home page or browse our doctors by specialty",
     icon: (
       <svg
         className="h-8 w-8"
@@ -25,7 +24,8 @@ const steps = [
   {
     number: "2",
     title: "Pick a doctor",
-    description: "View the doctor’s profile and see their availability",
+    description:
+      "View our doctor’s profile and see their availability at our clinic",
     icon: (
       <svg
         className="h-8 w-8"

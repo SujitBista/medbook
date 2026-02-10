@@ -61,7 +61,7 @@ export function HeroSearch() {
             <div className="md:w-64">
               <Input
                 type="text"
-                placeholder="City/Area (e.g., Biratnagar)"
+                placeholder="Department / Doctor (optional)"
                 value={location}
                 onChange={(e) => setLocation(e.target.value)}
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
@@ -82,6 +82,9 @@ export function HeroSearch() {
               </Button>
             </div>
           </div>
+          <p className="mt-3 text-sm text-gray-500">
+            Most patients start with a General Physician.
+          </p>
         </form>
 
         {/* Popular specialties chips — horizontal scroll on mobile */}
