@@ -241,6 +241,9 @@ export interface CreateDoctorUserInput {
   firstName: string;
   lastName: string;
   phoneNumber: string;
+  /** Required: doctor's department (replaces free-text specialization) */
+  departmentId: string;
+  /** @deprecated Use departmentId */
   specialization?: string;
   bio?: string;
   licenseNumber?: string;
@@ -277,6 +280,7 @@ export async function createDoctorUser(
     firstName,
     lastName,
     phoneNumber,
+    departmentId,
     specialization,
     bio,
     licenseNumber,
@@ -378,11 +382,30 @@ export async function createDoctorUser(
         },
       });
 
+      // Resolve department and sync specialization from department name
+      const departmentIdTrimmed = departmentId?.trim() || null;
+      if (!departmentIdTrimmed) {
+        throw createValidationError("Department is required", {
+          errors: { departmentId: "Please select a department" },
+        });
+      }
+      const department = await tx.department.findUnique({
+        where: { id: departmentIdTrimmed },
+        select: { id: true, name: true },
+      });
+      if (!department) {
+        throw createValidationError("Invalid department", {
+          errors: { departmentId: "Selected department does not exist" },
+        });
+      }
+      const specializationValue = specialization?.trim() || department.name;
+
       // Create doctor profile
       const doctor = await tx.doctor.create({
         data: {
           userId: user.id,
-          specialization: specialization?.trim() || null,
+          departmentId: department.id,
+          specialization: specializationValue,
           bio: bio?.trim() || null,
           licenseNumber: licenseNumber?.trim() || null,
           address: address?.trim() || null,
@@ -403,26 +426,55 @@ export async function createDoctorUser(
         lastName: user.lastName,
       });
 
+      const doctorWithDept = await tx.doctor.findUnique({
+        where: { id: doctor.id },
+        include: {
+          user: {
+            select: {
+              id: true,
+              email: true,
+              role: true,
+              firstName: true,
+              lastName: true,
+              phoneNumber: true,
+            },
+          },
+          department: { select: { id: true, name: true, slug: true } },
+        },
+      });
+      if (!doctorWithDept) throw createNotFoundError("Doctor");
+
       return {
         user: {
           ...user,
           role: convertUserRole(user.role),
         },
         doctor: {
-          id: doctor.id,
-          userId: doctor.userId,
-          specialization: doctor.specialization ?? undefined,
-          bio: doctor.bio ?? undefined,
-          licenseNumber: doctor.licenseNumber ?? undefined,
-          address: doctor.address ?? undefined,
-          city: doctor.city ?? undefined,
-          state: doctor.state ?? undefined,
-          zipCode: doctor.zipCode ?? undefined,
-          yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-          education: doctor.education ?? undefined,
-          profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-          createdAt: doctor.createdAt,
-          updatedAt: doctor.updatedAt,
+          id: doctorWithDept.id,
+          userId: doctorWithDept.userId,
+          departmentId: doctorWithDept.departmentId ?? undefined,
+          specialization:
+            doctorWithDept.department?.name ??
+            doctorWithDept.specialization ??
+            undefined,
+          department: doctorWithDept.department
+            ? {
+                id: doctorWithDept.department.id,
+                name: doctorWithDept.department.name,
+                slug: doctorWithDept.department.slug,
+              }
+            : undefined,
+          bio: doctorWithDept.bio ?? undefined,
+          licenseNumber: doctorWithDept.licenseNumber ?? undefined,
+          address: doctorWithDept.address ?? undefined,
+          city: doctorWithDept.city ?? undefined,
+          state: doctorWithDept.state ?? undefined,
+          zipCode: doctorWithDept.zipCode ?? undefined,
+          yearsOfExperience: doctorWithDept.yearsOfExperience ?? undefined,
+          education: doctorWithDept.education ?? undefined,
+          profilePictureUrl: doctorWithDept.profilePictureUrl ?? undefined,
+          createdAt: doctorWithDept.createdAt,
+          updatedAt: doctorWithDept.updatedAt,
         },
       };
     });

@@ -9,6 +9,7 @@ import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationMo
 import { DashboardTab } from "@/components/admin/tabs/DashboardTab";
 import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
+import { DepartmentsTab } from "@/components/admin/tabs/DepartmentsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
 import { ExceptionsTab } from "@/components/admin/tabs/ExceptionsTab";
 import { AppointmentsTab } from "@/components/admin/tabs/AppointmentsTab";
@@ -58,12 +59,29 @@ function AdminDashboardContent() {
 
       if (!response.ok) {
         let errorMessage = "Failed to fetch doctors";
+        let responseData: {
+          error?: { message?: string; details?: { message?: string } };
+        } | null = null;
         try {
-          const data = await response.json();
-          errorMessage = data.error?.message || errorMessage;
+          const text = await response.text();
+          responseData = text ? JSON.parse(text) : null;
+          if (responseData?.error?.message) {
+            errorMessage = responseData.error.message;
+            if (
+              typeof responseData.error.details === "object" &&
+              responseData.error.details?.message
+            ) {
+              errorMessage = responseData.error.details.message;
+            }
+          }
         } catch {
           // If JSON parsing fails, use default message
         }
+        console.error("[AdminDashboard] Doctors fetch failed:", {
+          status: response.status,
+          statusText: response.statusText,
+          body: responseData ?? "(parse failed)",
+        });
         throw new Error(errorMessage);
       }
 
@@ -282,6 +300,17 @@ function AdminDashboardContent() {
             // Navigate to schedule management via URL
             window.history.pushState({}, "", "/admin?tab=schedule-management");
             window.location.reload();
+          }}
+        />
+      )}
+
+      {/* Departments Tab */}
+      {activeTab === "departments" && (
+        <DepartmentsTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
           }}
         />
       )}

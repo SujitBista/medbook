@@ -69,10 +69,19 @@ export interface SystemHealth {
   timestamp: string;
 }
 
+export interface DoctorDepartment {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface Doctor {
   id: string;
   userId: string;
+  departmentId?: string;
+  /** @deprecated Use department instead */
   specialization?: string;
+  department?: DoctorDepartment;
   bio?: string;
   licenseNumber?: string;
   address?: string;
@@ -99,8 +108,18 @@ export type TabType =
   | "dashboard"
   | "general"
   | "doctors"
+  | "departments"
   | "schedule-management"
   | "exceptions"
   | "appointments"
   | "commissions"
   | "settings";
+
+export interface Department {
+  id: string;
+  name: string;
+  slug: string;
+  createdAt: string;
+  updatedAt: string;
+  aliases: { id: string; keyword: string }[];
+}

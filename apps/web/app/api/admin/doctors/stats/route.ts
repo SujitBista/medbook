@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: { code: "UNAUTHORIZED", message: "Not authenticated" },
         },
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     if (session.user.role !== "ADMIN") {
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: { code: "FORBIDDEN", message: "Admin access required" },
         },
@@ -41,9 +43,18 @@ export async function GET(req: NextRequest) {
         tokenLength: token.length,
       });
     } catch (tokenError) {
-      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      const err =
+        tokenError instanceof Error
+          ? tokenError
+          : new Error(String(tokenError));
+      console.error(
+        "[api/admin/doctors/stats] Failed to generate token:",
+        err.message,
+        err.stack
+      );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "TOKEN_GENERATION_ERROR",
@@ -69,12 +80,18 @@ export async function GET(req: NextRequest) {
         },
       });
     } catch (fetchError) {
+      const err =
+        fetchError instanceof Error
+          ? fetchError
+          : new Error(String(fetchError));
       console.error(
-        "[AdminDoctors] Fetch error (backend unavailable):",
-        fetchError
+        "[api/admin/doctors/stats] Fetch error (backend unavailable):",
+        err.message,
+        err.stack
       );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "NETWORK_ERROR",
@@ -91,12 +108,18 @@ export async function GET(req: NextRequest) {
       const text = await response.text();
       data = text ? JSON.parse(text) : {};
     } catch (parseError) {
+      const err =
+        parseError instanceof Error
+          ? parseError
+          : new Error(String(parseError));
       console.error(
-        "[AdminDoctors] Failed to parse backend response:",
-        parseError
+        "[api/admin/doctors/stats] Failed to parse backend response:",
+        err.message,
+        err.stack
       );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "PARSE_ERROR",
@@ -108,18 +131,31 @@ export async function GET(req: NextRequest) {
     }
 
     if (!response.ok) {
-      console.error("[AdminDoctors] Backend API error:", {
+      console.error("[api/admin/doctors/stats] Backend returned error:", {
         status: response.status,
         statusText: response.statusText,
-        data,
+        body: data,
       });
-      // If it's an authentication error, provide more helpful message
+      const errorPayload =
+        typeof data === "object" && data !== null && "error" in (data as object)
+          ? { ok: false, ...(data as object) }
+          : {
+              ok: false,
+              success: false,
+              error: {
+                code: "BACKEND_ERROR",
+                message:
+                  (data as { error?: { message?: string } })?.error?.message ??
+                  "Backend request failed",
+              },
+            };
       if (response.status === 401) {
         const errorMessage =
           (data as { error?: { message?: string } })?.error?.message ||
           "Invalid or expired token";
         return NextResponse.json(
           {
+            ok: false,
             success: false,
             error: {
               code: "AUTHENTICATION_ERROR",
@@ -131,16 +167,25 @@ export async function GET(req: NextRequest) {
           { status: response.status }
         );
       }
-      return NextResponse.json(data, { status: response.status });
+      return NextResponse.json(errorPayload, { status: response.status });
     }
 
     return NextResponse.json(data);
   } catch (error) {
-    console.error("[AdminDoctors] Error fetching doctor stats:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      "[api/admin/doctors/stats] Error fetching doctor stats:",
+      err.message,
+      err.stack
+    );
     return NextResponse.json(
       {
+        ok: false,
         success: false,
-        error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+        error: {
+          code: "INTERNAL_ERROR",
+          message: err.message || "Internal server error",
+        },
       },
       { status: 500 }
     );

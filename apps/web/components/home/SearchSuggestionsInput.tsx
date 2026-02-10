@@ -9,6 +9,8 @@ const MIN_CHARS = 2;
 export interface SuggestionDepartment {
   label: string;
   slug: string;
+  /** When matched by alias/symptom: e.g. "chest pain" */
+  matchReason?: string;
 }
 
 export interface SuggestionDoctor {
@@ -256,7 +258,12 @@ export function SearchSuggestionsInput({
                     selectDepartment(d.slug, d.label);
                   }}
                 >
-                  {d.label}
+                  <span>{d.label}</span>
+                  {d.matchReason && (
+                    <span className="block text-xs text-gray-500 mt-0.5">
+                      Matches: {d.matchReason}
+                    </span>
+                  )}
                 </li>
               ))}
               {doctors.length > 0 && (

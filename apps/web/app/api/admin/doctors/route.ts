@@ -13,6 +13,7 @@ export async function GET(req: NextRequest) {
     if (!session?.user?.id) {
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: { code: "UNAUTHORIZED", message: "Not authenticated" },
         },
@@ -24,6 +25,7 @@ export async function GET(req: NextRequest) {
     if (session.user.role !== "ADMIN") {
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: { code: "FORBIDDEN", message: "Admin access required" },
         },
@@ -37,6 +39,7 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit");
     const search = searchParams.get("search");
     const specialization = searchParams.get("specialization");
+    const departmentId = searchParams.get("departmentId");
 
     // Build query string
     const queryParams = new URLSearchParams();
@@ -44,6 +47,7 @@ export async function GET(req: NextRequest) {
     if (limit) queryParams.append("limit", limit);
     if (search) queryParams.append("search", search);
     if (specialization) queryParams.append("specialization", specialization);
+    if (departmentId) queryParams.append("departmentId", departmentId);
 
     const queryString = queryParams.toString();
     const url = `${env.apiUrl}/admin/doctors${queryString ? `?${queryString}` : ""}`;
@@ -58,9 +62,18 @@ export async function GET(req: NextRequest) {
         tokenLength: token.length,
       });
     } catch (tokenError) {
-      console.error("[AdminDoctors] Failed to generate token:", tokenError);
+      const err =
+        tokenError instanceof Error
+          ? tokenError
+          : new Error(String(tokenError));
+      console.error(
+        "[api/admin/doctors] Failed to generate token:",
+        err.message,
+        err.stack
+      );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "TOKEN_GENERATION_ERROR",
@@ -87,12 +100,18 @@ export async function GET(req: NextRequest) {
         cache: "no-store", // Always fetch fresh data
       });
     } catch (fetchError) {
+      const err =
+        fetchError instanceof Error
+          ? fetchError
+          : new Error(String(fetchError));
       console.error(
-        "[AdminDoctors] Fetch error (backend unavailable):",
-        fetchError
+        "[api/admin/doctors] Fetch error (backend unavailable):",
+        err.message,
+        err.stack
       );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "NETWORK_ERROR",
@@ -109,12 +128,18 @@ export async function GET(req: NextRequest) {
       const text = await response.text();
       data = text ? JSON.parse(text) : {};
     } catch (parseError) {
+      const err =
+        parseError instanceof Error
+          ? parseError
+          : new Error(String(parseError));
       console.error(
-        "[AdminDoctors] Failed to parse backend response:",
-        parseError
+        "[api/admin/doctors] Failed to parse backend response:",
+        err.message,
+        err.stack
       );
       return NextResponse.json(
         {
+          ok: false,
           success: false,
           error: {
             code: "PARSE_ERROR",
@@ -126,7 +151,26 @@ export async function GET(req: NextRequest) {
     }
 
     if (!response.ok) {
-      return NextResponse.json(data, { status: response.status });
+      console.error("[api/admin/doctors] Backend returned error:", {
+        status: response.status,
+        statusText: response.statusText,
+        body: data,
+      });
+      return NextResponse.json(
+        typeof data === "object" && data !== null && "error" in (data as object)
+          ? { ok: false, ...(data as object) }
+          : {
+              ok: false,
+              success: false,
+              error: {
+                code: "BACKEND_ERROR",
+                message:
+                  (data as { error?: { message?: string } })?.error?.message ??
+                  "Backend request failed",
+              },
+            },
+        { status: response.status }
+      );
     }
 
     // Return with cache-control headers to prevent browser caching
@@ -138,11 +182,20 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("[AdminDoctors] Error fetching doctors:", error);
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error(
+      "[api/admin/doctors] Error fetching doctors:",
+      err.message,
+      err.stack
+    );
     return NextResponse.json(
       {
+        ok: false,
         success: false,
-        error: { code: "INTERNAL_ERROR", message: "Internal server error" },
+        error: {
+          code: "INTERNAL_ERROR",
+          message: err.message || "Internal server error",
+        },
       },
       { status: 500 }
     );
