@@ -1017,6 +1017,117 @@ describe("PUT /api/v1/appointments/:id", () => {
     expect(response.body.data).toBeDefined();
     expect(response.body.data.status).toBe("COMPLETED");
   });
+
+  it("should reject PENDING → COMPLETED with clear error (unconfirmed appointment)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const pastStart = new Date(Date.now() - 30 * 60 * 1000);
+    const futureEnd = new Date(Date.now() + 30 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "PENDING",
+      startTime: pastStart,
+      endTime: futureEnd,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "COMPLETED" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toBe(
+      "Cannot complete an unconfirmed appointment."
+    );
+  });
+
+  it("should reject any status transition from CANCELLED (terminal state)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const startTime = new Date(Date.now() + 60 * 60 * 1000);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "CANCELLED",
+      startTime,
+      endTime,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "CONFIRMED" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toContain(
+      "already CANCELLED; no further changes allowed"
+    );
+  });
+
+  it("should reject any status transition from NO_SHOW (terminal state)", async () => {
+    const admin = await createTestUser({ role: "ADMIN" });
+    createdUserIds.push(admin.id);
+
+    const doctor = await createTestDoctor();
+    createdDoctorIds.push(doctor.id);
+    createdUserIds.push(doctor.userId);
+
+    const patient = await createTestUser({ role: "PATIENT" });
+    createdUserIds.push(patient.id);
+
+    const startTime = new Date(Date.now() + 60 * 60 * 1000);
+    const endTime = new Date(startTime.getTime() + 60 * 60 * 1000);
+    const appointment = await createTestAppointment({
+      patientId: patient.id,
+      doctorId: doctor.id,
+      status: "NO_SHOW",
+      startTime,
+      endTime,
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const headers = createAuthHeaders(admin.id, UserRole.ADMIN);
+
+    const response = await agent
+      .put(`/api/v1/appointments/${appointment.id}`)
+      .set(headers)
+      .send({ status: "CONFIRMED" })
+      .expect(400);
+
+    expect(response.body.success).toBe(false);
+    expect(response.body.error).toBeDefined();
+    expect(response.body.error.message).toContain(
+      "already NO_SHOW; no further changes allowed"
+    );
+  });
 });
 
 describe("POST /api/v1/appointments/:id/cancel", () => {
