@@ -100,11 +100,13 @@ describe("doctor.service", () => {
     });
 
     it("should filter doctors by specialization", async () => {
-      await createTestDoctor({ specialization: "Cardiology" });
+      // Use unique string so no department slug matches; service uses specialization contains
+      const spec = `Cardiology-${Date.now()}`;
+      await createTestDoctor({ specialization: spec });
       await createTestDoctor({ specialization: "Neurology" });
-      await createTestDoctor({ specialization: "Cardiology" });
+      await createTestDoctor({ specialization: spec });
 
-      const result = await getAllDoctors({ specialization: "Cardiology" });
+      const result = await getAllDoctors({ specialization: spec });
 
       expect(result.doctors.length).toBeGreaterThanOrEqual(2);
       result.doctors.forEach((doctor) => {

@@ -7,7 +7,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DoctorRegistrationModal } from "../DoctorRegistrationModal";
 
-// Mock fetch for image upload
+// Mock fetch so components that call fetch (e.g. departments, upload) get a valid response
 global.fetch = vi.fn();
 
 describe("DoctorRegistrationModal", () => {
@@ -16,7 +16,18 @@ describe("DoctorRegistrationModal", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    (global.fetch as ReturnType<typeof vi.fn>).mockClear();
+    (global.fetch as ReturnType<typeof vi.fn>).mockImplementation(
+      (url: string | URL) => {
+        const urlStr = typeof url === "string" ? url : url.toString();
+        if (urlStr.includes("/api/admin/departments")) {
+          return Promise.resolve({
+            ok: true,
+            json: () => Promise.resolve({ data: [] }),
+          } as Response);
+        }
+        return Promise.resolve({ ok: false } as Response);
+      }
+    );
   });
 
   it("does not render when isOpen is false", () => {
@@ -64,7 +75,7 @@ describe("DoctorRegistrationModal", () => {
     ).toBeInTheDocument();
   });
 
-  it("renders optional form fields", () => {
+  it("renders optional form fields", async () => {
     render(
       <DoctorRegistrationModal
         isOpen={true}
@@ -73,8 +84,10 @@ describe("DoctorRegistrationModal", () => {
       />
     );
 
-    // Optional fields
-    expect(screen.getByLabelText(/Specialization/i)).toBeInTheDocument();
+    // Department (required) and Bio (optional) - wait for departments fetch
+    await waitFor(() => {
+      expect(screen.getByText(/Department/i)).toBeInTheDocument();
+    });
     expect(screen.getByLabelText(/Bio/i)).toBeInTheDocument();
   });
 

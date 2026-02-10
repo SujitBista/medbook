@@ -512,6 +512,35 @@ export async function createTestDoctor(overrides?: {
 }
 
 /**
+ * Creates a test department in the database.
+ * Use for admin doctor creation tests that require departmentId.
+ * Slug is always made unique to avoid constraint violations across tests.
+ */
+export async function createTestDepartment(overrides?: {
+  name?: string;
+  slug?: string;
+}): Promise<{ id: string; name: string; slug: string }> {
+  const name =
+    overrides?.name ??
+    `Test Dept ${Date.now()}-${Math.random().toString(36).substring(7)}`;
+  const baseSlug =
+    overrides?.slug ??
+    name
+      .toLowerCase()
+      .replace(/\s+/g, "-")
+      .replace(/[^a-z0-9-]/g, "");
+  const slug = `${baseSlug}-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+
+  const department = await query((prisma) =>
+    prisma.department.create({
+      data: { name, slug },
+      select: { id: true, name: true, slug: true },
+    })
+  );
+  return department;
+}
+
+/**
  * Creates a test availability in the database
  * Uses a transaction to ensure atomicity and prevent race conditions
  * Note: If doctorId provided, it MUST exist (throws error if not found)
