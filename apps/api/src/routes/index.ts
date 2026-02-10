@@ -9,6 +9,7 @@ import appointmentRoutes from "./appointment.routes";
 import slotRoutes from "./slot.routes";
 import paymentRoutes from "./payment.routes";
 import commissionRoutes from "./commission.routes";
+import searchRoutes from "./search.routes";
 
 /**
  * Main router aggregator
@@ -39,5 +40,6 @@ router.use("/appointments", appointmentRoutes);
 router.use("/slots", slotRoutes);
 router.use("/payments", paymentRoutes);
 router.use("/commissions", commissionRoutes);
+router.use("/search", searchRoutes);
 
 export default router;

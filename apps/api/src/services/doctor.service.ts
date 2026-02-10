@@ -527,6 +527,106 @@ export async function getAllDoctors(options?: {
   };
 }
 
+/** Slug for department/specialization: lowercase, hyphenated */
+function toSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export interface SearchSuggestionDepartment {
+  label: string;
+  slug: string;
+}
+
+export interface SearchSuggestionDoctor {
+  id: string;
+  name: string;
+  department: string;
+}
+
+export interface SearchSuggestionsResult {
+  departments: SearchSuggestionDepartment[];
+  doctors: SearchSuggestionDoctor[];
+}
+
+/**
+ * Get search suggestions (departments/specializations + doctors) for typeahead
+ * @param q Search query (min 2 chars)
+ */
+export async function getSearchSuggestions(
+  q: string
+): Promise<SearchSuggestionsResult> {
+  const term = q.trim().toLowerCase();
+  if (term.length < 2) {
+    return { departments: [], doctors: [] };
+  }
+
+  const where: Prisma.DoctorWhereInput = {
+    OR: [
+      {
+        specialization: {
+          contains: term,
+          mode: "insensitive",
+        },
+      },
+      {
+        user: {
+          OR: [
+            { firstName: { contains: term, mode: "insensitive" } },
+            { lastName: { contains: term, mode: "insensitive" } },
+          ],
+        },
+      },
+    ],
+  };
+
+  const doctors = await query<
+    Prisma.DoctorGetPayload<{
+      include: {
+        user: { select: { firstName: true; lastName: true } };
+      };
+    }>[]
+  >((prisma) =>
+    prisma.doctor.findMany({
+      where,
+      take: 15,
+      orderBy: { specialization: "asc" },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    })
+  );
+
+  const departmentMap = new Map<string, string>();
+  for (const d of doctors) {
+    const spec = d.specialization?.trim();
+    if (spec && spec.toLowerCase().includes(term)) {
+      const slug = toSlug(spec);
+      if (slug && !departmentMap.has(slug)) {
+        departmentMap.set(slug, spec);
+      }
+    }
+  }
+  const departments: SearchSuggestionDepartment[] = Array.from(
+    departmentMap.entries()
+  ).map(([slug, label]) => ({ label, slug }));
+
+  const doctorsList: SearchSuggestionDoctor[] = doctors.map((d) => ({
+    id: d.id,
+    name: `Dr. ${d.user.firstName} ${d.user.lastName}`.trim(),
+    department: d.specialization ?? "",
+  }));
+
+  return { departments, doctors: doctorsList };
+}
+
 /**
  * Creates a new doctor profile
  * @param input Doctor creation input
