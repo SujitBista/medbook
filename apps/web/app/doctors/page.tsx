@@ -5,7 +5,7 @@ import { useSession } from "next-auth/react";
 import { Button, Card, Input } from "@medbook/ui";
 import { Doctor } from "@medbook/types";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import useSWR from "swr";
 import { AdvancedDoctorFilters } from "@/components/features/AdvancedDoctorFilters";
 
@@ -115,11 +115,53 @@ const fetcher = async (url: string): Promise<DoctorsResponse> => {
   return data;
 };
 
-export default function DoctorsPage() {
+/** Parse URL search params into filter state (supports specialty/q/doctor and legacy search/specialization/location) */
+function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
+  searchTerm: string;
+  specializationFilter: string;
+} {
+  if (!searchParams) return { searchTerm: "", specializationFilter: "" };
+  const specialty =
+    searchParams.get("specialty") ?? searchParams.get("specialization") ?? "";
+  const q = searchParams.get("q") ?? "";
+  const doctor = searchParams.get("doctor") ?? "";
+  const legacySearch = searchParams.get("search") ?? "";
+  const legacyLocation = searchParams.get("location") ?? "";
+  const searchTerm = [q, doctor, legacySearch, legacyLocation]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
+  return {
+    specializationFilter: specialty,
+    searchTerm,
+  };
+}
+
+function DoctorsPageContent() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [searchTerm, setSearchTerm] = useState("");
-  const [specializationFilter, setSpecializationFilter] = useState("");
+  const searchParams = useSearchParams();
+  const urlFilters = getFiltersFromSearchParams(searchParams);
+  const [searchTerm, setSearchTerm] = useState(urlFilters.searchTerm);
+  const [specializationFilter, setSpecializationFilter] = useState(
+    urlFilters.specializationFilter
+  );
+  const [pagination, setPagination] = useState({
+    page: 1,
+    limit: 12,
+  });
+
+  // Sync URL query params into filter state (deep link + refresh support)
+  useEffect(() => {
+    const next = getFiltersFromSearchParams(searchParams);
+    const id = setTimeout(() => {
+      setSearchTerm(next.searchTerm);
+      setSpecializationFilter(next.specializationFilter);
+      setPagination((prev) => ({ ...prev, page: 1 }));
+    }, 0);
+    return () => clearTimeout(id);
+  }, [searchParams]);
+
   const [advancedFilters, setAdvancedFilters] = useState({
     city: "",
     state: "",
@@ -129,10 +171,6 @@ export default function DoctorsPage() {
       | "yearsOfExperience"
       | "createdAt",
     sortOrder: "desc" as "asc" | "desc",
-  });
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 12,
   });
 
   // Build API URL with query parameters
@@ -639,5 +677,24 @@ export default function DoctorsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function DoctorsPageFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-primary-600" />
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function DoctorsPage() {
+  return (
+    <React.Suspense fallback={<DoctorsPageFallback />}>
+      <DoctorsPageContent />
+    </React.Suspense>
   );
 }

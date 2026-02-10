@@ -79,7 +79,7 @@ describe("HeroSearch", () => {
     await user.click(submitButton);
 
     expect(mockPush).toHaveBeenCalledWith(
-      "/doctors?search=Cardiologist&location=New+York"
+      "/doctors?specialty=Cardiologist&q=Cardiologist&doctor=New+York"
     );
   });
 
@@ -97,10 +97,12 @@ describe("HeroSearch", () => {
     await user.type(searchInput, "Dermatologist");
     await user.click(submitButton);
 
-    expect(mockPush).toHaveBeenCalledWith("/doctors?search=Dermatologist");
+    expect(mockPush).toHaveBeenCalledWith(
+      "/doctors?specialty=Dermatologist&q=Dermatologist"
+    );
   });
 
-  it("navigates with only location when search term is empty", async () => {
+  it("navigates with only doctor/department when search term is empty", async () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
@@ -114,7 +116,7 @@ describe("HeroSearch", () => {
     await user.type(locationInput, "Boston");
     await user.click(submitButton);
 
-    expect(mockPush).toHaveBeenCalledWith("/doctors?location=Boston");
+    expect(mockPush).toHaveBeenCalledWith("/doctors?doctor=Boston");
   });
 
   it("navigates to doctors page without params when both fields are empty", async () => {
@@ -127,6 +129,32 @@ describe("HeroSearch", () => {
     await user.click(submitButton);
 
     expect(mockPush).toHaveBeenCalledWith("/doctors");
+  });
+
+  it("pressing Enter in specialty input triggers search", async () => {
+    const user = userEvent.setup();
+    render(<HeroSearch />);
+
+    const searchInput = screen.getByPlaceholderText(
+      "Try: General Physician, Dentist, Skin, Child"
+    );
+    await user.type(searchInput, "Dermatologist{Enter}");
+
+    expect(mockPush).toHaveBeenCalledWith(
+      "/doctors?specialty=Dermatologist&q=Dermatologist"
+    );
+  });
+
+  it("pressing Enter in department/doctor input triggers search", async () => {
+    const user = userEvent.setup();
+    render(<HeroSearch />);
+
+    const locationInput = screen.getByPlaceholderText(
+      "Department / Doctor (optional)"
+    );
+    await user.type(locationInput, "Cardiology{Enter}");
+
+    expect(mockPush).toHaveBeenCalledWith("/doctors?doctor=Cardiology");
   });
 
   it("prevents default form submission", async () => {
@@ -199,6 +227,8 @@ describe("HeroSearch", () => {
       screen.getByRole("button", { name: /Find & Book Doctor/i })
     );
 
-    expect(mockPush).toHaveBeenCalledWith("/doctors?search=Pediatrician");
+    expect(mockPush).toHaveBeenCalledWith(
+      "/doctors?specialty=Pediatrician&q=Pediatrician"
+    );
   });
 });
