@@ -1,17 +1,21 @@
 /**
  * Booking service tests (capacity-based)
  * - Admin manual booking assigns next token and respects capacity
+ * - startBooking rejects missing/invalid schedule, past schedule, and zero amount
  */
 
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { createSchedule } from "./schedule.service";
-import { createManualBooking } from "./booking.service";
+import { createManualBooking, startBooking } from "./booking.service";
 import { query } from "@app/db";
 import {
   createTestDoctor,
   createTestUser,
   cleanupTestData,
 } from "../__tests__/db";
+import type { DoctorCommissionSettings } from "@medbook/types";
+import * as commissionService from "./commission.service";
+import * as stripeConfig from "../config/stripe";
 
 type AppointmentRow = {
   status: string;
@@ -102,6 +106,59 @@ describe("booking.service", () => {
     ).rejects.toMatchObject({
       statusCode: 409,
       message: expect.stringContaining("full"),
+    });
+  });
+
+  describe("startBooking", () => {
+    it("should reject non-existent scheduleId with 404", async () => {
+      await expect(
+        startBooking("00000000-0000-0000-0000-000000000000", patientId)
+      ).rejects.toMatchObject({
+        code: "NOT_FOUND",
+        statusCode: 404,
+        message: expect.stringContaining("Schedule"),
+      });
+    });
+
+    it("should reject schedule in the past with 400", async () => {
+      const pastDate = "2020-01-01";
+      const pastSchedule = await createSchedule({
+        doctorId,
+        date: pastDate,
+        startTime: "09:00",
+        endTime: "10:00",
+        maxPatients: 5,
+      });
+      await expect(
+        startBooking(pastSchedule.id, patientId)
+      ).rejects.toMatchObject({
+        code: "VALIDATION_ERROR",
+        statusCode: 400,
+        message: expect.stringContaining("past"),
+      });
+    });
+
+    it("should reject when appointment price is 0 with 422", async () => {
+      vi.spyOn(
+        commissionService,
+        "getCommissionSettingsByDoctorId"
+      ).mockResolvedValueOnce({
+        id: "cs-1",
+        doctorId,
+        appointmentPrice: 0,
+        commissionRate: 0.1,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      } as DoctorCommissionSettings);
+      vi.spyOn(stripeConfig, "isStripeConfigured").mockReturnValueOnce(true);
+
+      await expect(startBooking(scheduleId, patientId)).rejects.toMatchObject({
+        code: "INVALID_AMOUNT",
+        statusCode: 422,
+        message: expect.stringContaining("greater than zero"),
+      });
+
+      vi.restoreAllMocks();
     });
   });
 });

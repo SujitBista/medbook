@@ -198,6 +198,44 @@ export async function getSchedules(queryInput: {
 }
 
 /**
+ * Get schedule windows for a doctor on a date (single source of truth for UI).
+ * Same data source as getAvailabilityWindows but returns plain schedules; use getAvailabilityWindows for remaining capacity.
+ */
+export async function getDoctorSchedules(
+  doctorId: string,
+  date: string
+): Promise<Schedule[]> {
+  return getSchedules({ doctorId, date });
+}
+
+/**
+ * Returns the set of doctor IDs that have at least one schedule in the given date range.
+ * Used for doctors list "has schedule" badge so list and booking page use the same logic (capacity-based).
+ */
+export async function getDoctorIdsWithScheduleInRange(
+  doctorIds: string[],
+  startDate: Date,
+  endDate: Date
+): Promise<Set<string>> {
+  if (doctorIds.length === 0) return new Set();
+  const start = new Date(startDate);
+  start.setHours(0, 0, 0, 0);
+  const end = new Date(endDate);
+  end.setHours(23, 59, 59, 999);
+  const rows = await query<{ doctorId: string }[]>((prisma) =>
+    prisma.schedule.findMany({
+      where: {
+        doctorId: { in: doctorIds },
+        date: { gte: start, lte: end },
+      },
+      select: { doctorId: true },
+      distinct: ["doctorId"],
+    })
+  );
+  return new Set(rows.map((r) => r.doctorId));
+}
+
+/**
  * Get schedule by ID
  */
 export async function getScheduleById(scheduleId: string): Promise<Schedule> {

@@ -791,6 +791,10 @@ export default function DoctorDetailPage() {
   };
 
   const handleCapacityPayAndBook = async (window: ScheduleWithCapacity) => {
+    if (!window?.id) {
+      setError("No schedule available. Please select a time window.");
+      return;
+    }
     if (session?.user?.role === "ADMIN") {
       setError("Admins cannot book. Use the admin dashboard.");
       return;
@@ -1121,7 +1125,7 @@ export default function DoctorDetailPage() {
                     <p className="text-gray-500">Loading windows...</p>
                   ) : capacityWindows.length === 0 ? (
                     <p className="text-gray-500">
-                      No capacity windows for this date. Try another date.
+                      No schedule available for this date. Try another date.
                     </p>
                   ) : (
                     <>
@@ -1144,7 +1148,12 @@ export default function DoctorDetailPage() {
                                 variant="primary"
                                 size="sm"
                                 onClick={() => handleCapacityPayAndBook(w)}
-                                disabled={w.remaining <= 0 || booking}
+                                disabled={
+                                  w.remaining <= 0 ||
+                                  booking ||
+                                  !appointmentPrice ||
+                                  appointmentPrice <= 0
+                                }
                               >
                                 Pay & Book
                               </Button>
