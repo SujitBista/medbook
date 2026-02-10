@@ -24,20 +24,17 @@ function toSlug(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
-/** Heuristic: looks like a doctor unique id (doc_xxx or UUID-style) */
-function looksLikeDoctorId(value: string): boolean {
-  const trimmed = value.trim();
-  return /^doc_[\w-]+$/i.test(trimmed) || /^[0-9a-f-]{36}$/i.test(trimmed);
-}
-
 export function HeroSearch() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [departmentOrDoctor, setDepartmentOrDoctor] = useState("");
   const [selectedDepartmentSlug, setSelectedDepartmentSlug] = useState<
     string | null
   >(null);
   const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
+  /** Display label in second input: department name or doctor name when a suggestion is selected */
+  const [selectedDisplayLabel, setSelectedDisplayLabel] = useState<
+    string | null
+  >(null);
   const ctaWrapperRef = useRef<HTMLDivElement>(null);
 
   const focusCta = () => {
@@ -49,24 +46,14 @@ export function HeroSearch() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    const mainSearch = searchTerm.trim();
-    const optional = departmentOrDoctor.trim();
+    const q = searchTerm.trim();
 
-    // Prefer typeahead selection from main search, then fall back to free-text / optional
     if (selectedDoctorId) {
       params.set("doctorId", selectedDoctorId);
     } else if (selectedDepartmentSlug) {
       params.set("department", selectedDepartmentSlug);
-    } else {
-      // Free-text search (name/email/keyword) MUST map to q only, never to department
-      if (mainSearch) {
-        params.set("q", toSlug(mainSearch));
-      } else if (optional && !looksLikeDoctorId(optional)) {
-        params.set("q", toSlug(optional));
-      }
-      if (optional && looksLikeDoctorId(optional)) {
-        params.set("doctorId", optional);
-      }
+    } else if (q) {
+      params.set("q", toSlug(q));
     }
     const query = params.toString();
     router.push(query ? `/doctors?${query}` : "/doctors");
@@ -76,22 +63,29 @@ export function HeroSearch() {
     setSearchTerm(value);
     setSelectedDepartmentSlug(null);
     setSelectedDoctorId(null);
+    setSelectedDisplayLabel(null);
   };
 
   const handleSelectDepartment = (slug: string, label: string) => {
-    setSearchTerm(label);
     setSelectedDepartmentSlug(slug);
+    setSelectedDisplayLabel(label);
     setSelectedDoctorId(null);
   };
 
   const handleSelectDoctor = (
     id: string,
-    _name: string,
-    department?: string
+    name: string,
+    _department?: string
   ) => {
-    setSearchTerm(_name);
     setSelectedDoctorId(id);
-    setSelectedDepartmentSlug(department ? toSlug(department) : null);
+    setSelectedDisplayLabel(name);
+    setSelectedDepartmentSlug(null);
+  };
+
+  const handleClearSelection = () => {
+    setSelectedDepartmentSlug(null);
+    setSelectedDoctorId(null);
+    setSelectedDisplayLabel(null);
   };
 
   const handleChipClick = (specialty: string) => {
@@ -104,9 +98,7 @@ export function HeroSearch() {
   };
 
   const hasFilterSelection =
-    selectedDepartmentSlug != null ||
-    selectedDoctorId != null ||
-    departmentOrDoctor.trim() !== "";
+    selectedDepartmentSlug != null || selectedDoctorId != null;
 
   return (
     <div className="mt-6 w-full max-w-4xl mx-auto">
@@ -128,14 +120,24 @@ export function HeroSearch() {
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
               />
             </div>
-            <div className="md:w-64">
+            <div className="md:w-64 relative">
               <Input
                 type="text"
                 placeholder="Selected doctor or department"
-                value={departmentOrDoctor}
-                onChange={(e) => setDepartmentOrDoctor(e.target.value)}
-                className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
+                value={selectedDisplayLabel ?? ""}
+                readOnly
+                className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500 pr-9"
               />
+              {(selectedDepartmentSlug != null || selectedDoctorId != null) && (
+                <button
+                  type="button"
+                  onClick={handleClearSelection}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-1"
+                  aria-label="Clear selection"
+                >
+                  ✕
+                </button>
+              )}
             </div>
             <div
               ref={ctaWrapperRef}
