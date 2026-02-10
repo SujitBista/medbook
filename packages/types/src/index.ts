@@ -13,3 +13,4 @@ export * from "./payment.types";
 export * from "./commission.types";
 export * from "./api.types";
 export * from "./scheduleException.types";
+export * from "./schedule.types";

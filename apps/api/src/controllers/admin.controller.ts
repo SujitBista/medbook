@@ -40,6 +40,8 @@ import {
   deleteScheduleException,
   getScheduleExceptionById,
 } from "../services/exception.service";
+import { createSchedule, getSchedules } from "../services/schedule.service";
+import { createManualBooking } from "../services/booking.service";
 import {
   getAllDepartments,
   getDepartmentById as getDepartmentByIdService,
@@ -841,6 +843,121 @@ export async function getSchedulingException(
     res.status(200).json({
       success: true,
       data: exception,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Create a capacity schedule (admin only)
+ * POST /api/v1/admin/schedules
+ */
+export async function createScheduleHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { doctorId, date, startTime, endTime, maxPatients } = req.body;
+
+    if (!doctorId || !date || !startTime || !endTime || maxPatients == null) {
+      const error = createValidationError(
+        "doctorId, date, startTime, endTime, and maxPatients are required"
+      );
+      next(error);
+      return;
+    }
+
+    const schedule = await createSchedule(
+      {
+        doctorId,
+        date: String(date),
+        startTime: String(startTime),
+        endTime: String(endTime),
+        maxPatients: Number(maxPatients),
+      },
+      req.user?.id
+    );
+
+    res.status(201).json({
+      success: true,
+      data: schedule,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * List capacity schedules (admin only)
+ * GET /api/v1/admin/schedules?doctorId=&date= or startDate=&endDate=
+ */
+export async function getSchedulesHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const doctorId = req.query.doctorId as string | undefined;
+    const date = req.query.date as string | undefined;
+    const startDate = req.query.startDate as string | undefined;
+    const endDate = req.query.endDate as string | undefined;
+
+    const schedules = await getSchedules({
+      doctorId,
+      date,
+      startDate,
+      endDate,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: schedules,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * POST /api/v1/admin/bookings/manual
+ * Create manual (walk-in/cash/eSewa) booking with token assignment
+ * Body: { scheduleId, patientId, paymentProvider: CASH|ESEWA, note? }
+ */
+export async function createManualBookingHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { scheduleId, patientId, paymentProvider, note } = req.body;
+
+    if (!scheduleId || !patientId || !paymentProvider) {
+      const error = createValidationError(
+        "scheduleId, patientId, and paymentProvider are required"
+      );
+      next(error);
+      return;
+    }
+    if (paymentProvider !== "CASH" && paymentProvider !== "ESEWA") {
+      const error = createValidationError(
+        "paymentProvider must be CASH or ESEWA"
+      );
+      next(error);
+      return;
+    }
+
+    const result = await createManualBooking({
+      scheduleId: String(scheduleId),
+      patientId: String(patientId),
+      paymentProvider,
+      note: note != null ? String(note) : undefined,
+    });
+
+    res.status(201).json({
+      success: true,
+      data: result,
     });
   } catch (error) {
     next(error);

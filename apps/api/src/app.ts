@@ -9,6 +9,7 @@ import {
   basicRateLimiter,
   securityHeaders,
 } from "./middleware";
+import { stripeWebhookHandler } from "./controllers/stripe-webhook.controller";
 
 /**
  * Creates and configures the Express application
@@ -28,6 +29,13 @@ export function createApp(): Express {
 
   // Global rate limiting for API requests
   app.use(basicRateLimiter);
+
+  // Stripe webhook must receive raw body for signature verification (before express.json())
+  app.use(
+    "/api/v1/webhooks/stripe",
+    express.raw({ type: "application/json" }),
+    stripeWebhookHandler
+  );
 
   // Basic middleware
   app.use(express.json());

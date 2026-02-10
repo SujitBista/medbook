@@ -29,6 +29,7 @@ model User {
   patientAppointments Appointment[] @relation("PatientAppointments")
   patientPayments Payment[] @relation("PatientPayments")
   scheduleExceptionsCreated ScheduleException[]
+  schedulesCreated Schedule[]
 
   @@map("users")
 }
@@ -59,6 +60,7 @@ model Doctor {
   appointments Appointment[]
   slotTemplate SlotTemplate?
   slots Slot[]
+  schedules Schedule[]
   commissionSettings DoctorCommissionSettings?
   payments Payment[]
   commissions Commission[]
@@ -91,41 +93,74 @@ model Availability {
   @@map("availabilities")
 }
 
-model Appointment {
-  id            String            @id @default(uuid())
-  patientId     String
-  doctorId      String
-  availabilityId String?           // Optional: link to specific availability slot
-  slotId        String?            @unique // Link to specific slot (unique for one-to-one)
-  paymentId     String?            @unique // Link to payment (optional for backward compatibility)
-  startTime     DateTime
-  endTime       DateTime
-  status        AppointmentStatus  @default(PENDING)
-  notes         String?
-  isArchived    Boolean            @default(false)
-  cancelledBy   CancelledBy?       // Who cancelled (for refund policy audit)
-  cancelledAt   DateTime?         // When cancelled (UTC)
-  cancelReason  String?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+// Capacity-based schedule window: date + time range + maxPatients (no generated slots)
+model Schedule {
+  id          String   @id @default(uuid())
+  doctorId    String
+  date        DateTime @db.Date
+  startTime   String   // HH:mm (e.g. "09:00")
+  endTime     String   // HH:mm (e.g. "12:00")
+  maxPatients Int      // Capacity for this window
+  createdById String?
+  createdAt   DateTime @default(now())
 
   // Relations
-  patient User @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
-  doctor Doctor @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  doctor       Doctor        @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  createdBy    User?         @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  appointments Appointment[]
+
+  @@index([doctorId])
+  @@index([doctorId, date])
+  @@unique([doctorId, date, startTime, endTime])
+  @@map("schedules")
+}
+
+model Appointment {
+  id               String                 @id @default(uuid())
+  patientId        String
+  doctorId         String
+  scheduleId       String?                // Capacity-based: FK to Schedule (null for legacy slot-based)
+  availabilityId   String?               // Optional: link to specific availability slot (legacy)
+  slotId           String?                @unique // Legacy: link to specific slot
+  paymentId        String?                @unique // Link to payment (optional for backward compatibility)
+  startTime        DateTime               // Legacy/slot-based; for schedule-based derived from Schedule
+  endTime          DateTime
+  status           AppointmentStatus      @default(PENDING)
+  paymentStatus    AppointmentPaymentStatus? @default(UNPAID)
+  paymentProvider  PaymentProvider?       // STRIPE | CASH | ESEWA
+  paymentIntentId  String?                @unique // Stripe PI id for webhook lookup
+  paidAt           DateTime?
+  queueNumber      Int?                   // Token number (assigned after payment); unique per schedule when not null
+  notes            String?
+  isArchived       Boolean                @default(false)
+  cancelledBy      CancelledBy?
+  cancelledAt      DateTime?
+  cancelReason     String?
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  // Relations
+  patient    User      @relation("PatientAppointments", fields: [patientId], references: [id], onDelete: Cascade)
+  doctor     Doctor    @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  schedule   Schedule? @relation(fields: [scheduleId], references: [id], onDelete: SetNull)
   availability Availability? @relation(fields: [availabilityId], references: [id], onDelete: SetNull)
-  slot Slot? @relation(fields: [slotId], references: [id], onDelete: SetNull)
-  payment Payment?
-  reminder Reminder?
+  slot       Slot?     @relation(fields: [slotId], references: [id], onDelete: SetNull)
+  payment    Payment?
+  reminder   Reminder?
   commissions Commission[]
 
   @@index([patientId])
   @@index([doctorId])
+  @@index([scheduleId])
   @@index([startTime])
   @@index([endTime])
   @@index([status])
+  @@index([paymentStatus])
+  @@index([paymentIntentId])
   @@index([isArchived])
-  @@index([endTime, isArchived]) // Composite index for archiving queries
+  @@index([endTime, isArchived])
   @@index([paymentId])
+  @@unique([scheduleId, queueNumber]) // Token unique per schedule (null queueNumber allowed for PENDING_PAYMENT/OVERFLOW)
   @@map("appointments")
 }
 
@@ -142,12 +177,25 @@ enum CancelledBy {
 }
 
 enum AppointmentStatus {
-  PENDING
-  CONFIRMED
-  BOOKED
+  PENDING           // Legacy / admin-created
+  PENDING_PAYMENT   // Capacity flow: created on booking start, awaiting Stripe
+  CONFIRMED         // Paid and token assigned
+  BOOKED            // Legacy
   CANCELLED
   COMPLETED
   NO_SHOW
+  OVERFLOW          // Payment succeeded but schedule was full; refund needed
+}
+
+enum AppointmentPaymentStatus {
+  UNPAID
+  PAID
+}
+
+enum PaymentProvider {
+  STRIPE
+  CASH
+  ESEWA
 }
 
 model SlotTemplate {

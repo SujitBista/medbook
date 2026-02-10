@@ -11,12 +11,45 @@ import {
   updateAvailability,
   deleteAvailability,
 } from "../services/availability.service";
+import { getAvailabilityWindows } from "../services/schedule.service";
 import {
   CreateAvailabilityInput,
   UpdateAvailabilityInput,
 } from "@medbook/types";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
+
+/**
+ * Get capacity windows for a doctor on a date (public)
+ * GET /api/v1/availability/windows?doctorId=&date= (date: YYYY-MM-DD)
+ */
+export async function getAvailabilityWindowsHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const doctorId = req.query.doctorId as string | undefined;
+    const date = req.query.date as string | undefined;
+
+    if (!doctorId || !date) {
+      const error = createValidationError(
+        "doctorId and date query parameters are required"
+      );
+      next(error);
+      return;
+    }
+
+    const windows = await getAvailabilityWindows(doctorId, date);
+
+    res.status(200).json({
+      success: true,
+      data: windows,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
 
 /**
  * Get availability by ID

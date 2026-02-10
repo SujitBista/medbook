@@ -8,6 +8,7 @@ import availabilityRoutes from "./availability.routes";
 import appointmentRoutes from "./appointment.routes";
 import slotRoutes from "./slot.routes";
 import paymentRoutes from "./payment.routes";
+import bookingRoutes from "./booking.routes";
 import commissionRoutes from "./commission.routes";
 import searchRoutes from "./search.routes";
 
@@ -39,6 +40,7 @@ router.use("/availability", availabilityRoutes);
 router.use("/appointments", appointmentRoutes);
 router.use("/slots", slotRoutes);
 router.use("/payments", paymentRoutes);
+router.use("/bookings", bookingRoutes);
 router.use("/commissions", commissionRoutes);
 router.use("/search", searchRoutes);
 

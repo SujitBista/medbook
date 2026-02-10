@@ -1,0 +1,305 @@
+/**
+ * Capacity-based schedule service
+ * Handles schedule windows (date + startTime + endTime + maxPatients)
+ */
+
+import { query, withTransaction } from "@app/db";
+import type {
+  Schedule,
+  CreateScheduleInput,
+  ScheduleWithCapacity,
+} from "@medbook/types";
+import {
+  createNotFoundError,
+  createValidationError,
+  createConflictError,
+} from "../utils/errors";
+import { logger } from "../utils/logger";
+
+const TIME_REGEX = /^([01]?\d|2[0-3]):([0-5]\d)$/;
+
+function parseTimeToMinutes(s: string): number {
+  const m = s.trim().match(TIME_REGEX);
+  if (!m) throw createValidationError(`Invalid time format: ${s}. Use HH:mm`);
+  return parseInt(m[1]!, 10) * 60 + parseInt(m[2]!, 10);
+}
+
+function timesOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string
+): boolean {
+  const aS = parseTimeToMinutes(aStart);
+  const aE = parseTimeToMinutes(aEnd);
+  const bS = parseTimeToMinutes(bStart);
+  const bE = parseTimeToMinutes(bEnd);
+  return aS < bE && aE > bS;
+}
+
+/**
+ * Create a schedule window (capacity-based)
+ * Rejects overlapping windows for the same doctor on the same date.
+ */
+export async function createSchedule(
+  input: CreateScheduleInput,
+  createdById?: string | null
+): Promise<Schedule> {
+  const { doctorId, date, startTime, endTime, maxPatients } = input;
+
+  if (maxPatients < 1) {
+    throw createValidationError("maxPatients must be at least 1");
+  }
+
+  const startM = parseTimeToMinutes(startTime);
+  const endM = parseTimeToMinutes(endTime);
+  if (startM >= endM) {
+    throw createValidationError("startTime must be before endTime");
+  }
+
+  const dateOnly = new Date(date);
+  if (isNaN(dateOnly.getTime())) {
+    throw createValidationError("Invalid date format. Use YYYY-MM-DD");
+  }
+  dateOnly.setHours(0, 0, 0, 0);
+
+  const existing = await query<
+    { id: string; startTime: string; endTime: string }[]
+  >((prisma) =>
+    prisma.schedule.findMany({
+      where: {
+        doctorId,
+        date: dateOnly,
+      },
+      select: { id: true, startTime: true, endTime: true },
+    })
+  );
+
+  for (const ex of existing) {
+    if (timesOverlap(startTime, endTime, ex.startTime, ex.endTime)) {
+      logger.warn("Schedule overlap rejected", {
+        doctorId,
+        date,
+        new: { startTime, endTime },
+        existing: { startTime: ex.startTime, endTime: ex.endTime },
+      });
+      throw createConflictError(
+        "This time window overlaps with an existing schedule for the same doctor on this date"
+      );
+    }
+  }
+
+  const schedule = await query<{
+    id: string;
+    doctorId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    maxPatients: number;
+    createdById: string | null;
+    createdAt: Date;
+  }>((prisma) =>
+    prisma.schedule.create({
+      data: {
+        doctorId,
+        date: dateOnly,
+        startTime: startTime.trim(),
+        endTime: endTime.trim(),
+        maxPatients,
+        createdById: createdById ?? null,
+      },
+    })
+  );
+
+  logger.info("Schedule created", {
+    event: "schedule-create",
+    scheduleId: schedule.id,
+    doctorId,
+    date,
+    startTime,
+    endTime,
+    maxPatients,
+  });
+
+  return {
+    id: schedule.id,
+    doctorId: schedule.doctorId,
+    date: schedule.date,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    maxPatients: schedule.maxPatients,
+    createdById: schedule.createdById ?? undefined,
+    createdAt: schedule.createdAt,
+  };
+}
+
+/**
+ * Get schedules (admin) with optional filters
+ */
+export async function getSchedules(queryInput: {
+  doctorId?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+}): Promise<Schedule[]> {
+  const where: { doctorId?: string; date?: object } = {};
+
+  if (queryInput.doctorId) {
+    where.doctorId = queryInput.doctorId;
+  }
+
+  if (queryInput.date) {
+    const d = new Date(queryInput.date);
+    d.setHours(0, 0, 0, 0);
+    where.date = d;
+  } else if (queryInput.startDate || queryInput.endDate) {
+    const cond: { gte?: Date; lte?: Date } = {};
+    if (queryInput.startDate) {
+      const d = new Date(queryInput.startDate);
+      d.setHours(0, 0, 0, 0);
+      cond.gte = d;
+    }
+    if (queryInput.endDate) {
+      const d = new Date(queryInput.endDate);
+      d.setHours(23, 59, 59, 999);
+      cond.lte = d;
+    }
+    if (Object.keys(cond).length) where.date = cond;
+  }
+
+  const rows = await query<
+    {
+      id: string;
+      doctorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      maxPatients: number;
+      createdById: string | null;
+      createdAt: Date;
+    }[]
+  >((prisma) =>
+    prisma.schedule.findMany({
+      where,
+      orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    })
+  );
+
+  return rows.map((r) => ({
+    id: r.id,
+    doctorId: r.doctorId,
+    date: r.date,
+    startTime: r.startTime,
+    endTime: r.endTime,
+    maxPatients: r.maxPatients,
+    createdById: r.createdById ?? undefined,
+    createdAt: r.createdAt,
+  }));
+}
+
+/**
+ * Get schedule by ID
+ */
+export async function getScheduleById(scheduleId: string): Promise<Schedule> {
+  const row = await query<{
+    id: string;
+    doctorId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    maxPatients: number;
+    createdById: string | null;
+    createdAt: Date;
+  } | null>((prisma) =>
+    prisma.schedule.findUnique({
+      where: { id: scheduleId },
+    })
+  );
+
+  if (!row) {
+    throw createNotFoundError("Schedule");
+  }
+
+  return {
+    id: row.id,
+    doctorId: row.doctorId,
+    date: row.date,
+    startTime: row.startTime,
+    endTime: row.endTime,
+    maxPatients: row.maxPatients,
+    createdById: row.createdById ?? undefined,
+    createdAt: row.createdAt,
+  };
+}
+
+/**
+ * Count CONFIRMED appointments for a schedule (excludes PENDING_PAYMENT, CANCELLED, OVERFLOW)
+ */
+export async function countConfirmedForSchedule(
+  scheduleId: string
+): Promise<number> {
+  const result = await query<{ _count: { id: number } }>((prisma) =>
+    prisma.appointment.aggregate({
+      _count: { id: true },
+      where: {
+        scheduleId,
+        status: "CONFIRMED",
+      },
+    })
+  );
+  return result._count.id;
+}
+
+/**
+ * Get availability windows for a doctor on a date (public)
+ * Returns schedules with confirmedCount and remaining capacity
+ */
+export async function getAvailabilityWindows(
+  doctorId: string,
+  date: string
+): Promise<ScheduleWithCapacity[]> {
+  const d = new Date(date);
+  if (isNaN(d.getTime())) {
+    throw createValidationError("Invalid date. Use YYYY-MM-DD");
+  }
+  d.setHours(0, 0, 0, 0);
+
+  const schedules = await query<
+    {
+      id: string;
+      doctorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      maxPatients: number;
+      createdById: string | null;
+      createdAt: Date;
+    }[]
+  >((prisma) =>
+    prisma.schedule.findMany({
+      where: { doctorId, date: d },
+      orderBy: { startTime: "asc" },
+    })
+  );
+
+  const out: ScheduleWithCapacity[] = [];
+
+  for (const s of schedules) {
+    const confirmedCount = await countConfirmedForSchedule(s.id);
+    const remaining = Math.max(0, s.maxPatients - confirmedCount);
+    out.push({
+      id: s.id,
+      doctorId: s.doctorId,
+      date: s.date,
+      startTime: s.startTime,
+      endTime: s.endTime,
+      maxPatients: s.maxPatients,
+      createdById: s.createdById ?? undefined,
+      createdAt: s.createdAt,
+      confirmedCount,
+      remaining,
+    });
+  }
+
+  return out;
+}

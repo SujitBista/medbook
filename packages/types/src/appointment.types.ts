@@ -5,11 +5,24 @@
 
 export enum AppointmentStatus {
   PENDING = "PENDING",
+  PENDING_PAYMENT = "PENDING_PAYMENT",
   CONFIRMED = "CONFIRMED",
   BOOKED = "BOOKED",
   CANCELLED = "CANCELLED",
   COMPLETED = "COMPLETED",
   NO_SHOW = "NO_SHOW",
+  OVERFLOW = "OVERFLOW",
+}
+
+export enum AppointmentPaymentStatus {
+  UNPAID = "UNPAID",
+  PAID = "PAID",
+}
+
+export enum PaymentProvider {
+  STRIPE = "STRIPE",
+  CASH = "CASH",
+  ESEWA = "ESEWA",
 }
 
 /** Who cancelled the appointment (for refund policy audit) */
@@ -30,13 +43,19 @@ export interface Appointment {
   patientId: string;
   patientEmail?: string; // Patient email for display purposes
   doctorId: string;
-  availabilityId?: string; // Optional: link to specific availability slot
-  slotId?: string; // Optional: link to specific slot (for slot-based booking)
+  scheduleId?: string | null; // Capacity-based: link to Schedule
+  availabilityId?: string; // Optional: link to specific availability slot (legacy)
+  slotId?: string; // Optional: link to specific slot (legacy)
   startTime: Date;
   endTime: Date;
   status: AppointmentStatus;
+  paymentStatus?: AppointmentPaymentStatus | null;
+  paymentProvider?: PaymentProvider | null;
+  paymentIntentId?: string | null;
+  paidAt?: Date | null;
+  queueNumber?: number | null; // Token number (assigned after payment)
   notes?: string;
-  isArchived?: boolean; // Whether the appointment has been archived (expired appointments)
+  isArchived?: boolean;
   cancelledBy?: CancelledBy;
   cancelledAt?: Date;
   cancelReason?: string;

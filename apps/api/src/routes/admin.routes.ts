@@ -28,6 +28,9 @@ import {
   listSchedulingExceptions,
   deleteSchedulingException,
   getSchedulingException,
+  createScheduleHandler,
+  getSchedulesHandler,
+  createManualBookingHandler,
   listDepartments,
   getDepartment,
   createDepartmentHandler,
@@ -166,6 +169,24 @@ router.get("/scheduling/exceptions/:id", getSchedulingException);
  * Delete schedule exception
  */
 router.delete("/scheduling/exceptions/:id", deleteSchedulingException);
+
+/**
+ * POST /api/v1/admin/schedules
+ * Create capacity schedule (doctorId, date, startTime, endTime, maxPatients)
+ */
+router.post("/schedules", createScheduleHandler);
+
+/**
+ * GET /api/v1/admin/schedules
+ * List schedules (query: doctorId, date, startDate, endDate)
+ */
+router.get("/schedules", getSchedulesHandler);
+
+/**
+ * POST /api/v1/admin/bookings/manual
+ * Create manual booking (scheduleId, patientId, paymentProvider: CASH|ESEWA, note?)
+ */
+router.post("/bookings/manual", createManualBookingHandler);
 
 /**
  * GET /api/v1/admin/departments
