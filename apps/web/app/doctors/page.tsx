@@ -120,6 +120,17 @@ function slugToSearchTerm(slug: string): string {
   return slug.trim().replace(/-/g, " ").trim();
 }
 
+/** Search term to URL slug (spaces → hyphens, lowercase) */
+function searchTermToSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 /** Parse URL search params: prefer q, department, doctorId; support legacy params */
 function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
   q: string;
@@ -175,6 +186,8 @@ function DoctorsPageContent() {
     return () => clearTimeout(id);
   }, [searchParams]);
 
+  const [showAllDoctors, setShowAllDoctors] = useState(false);
+
   const [advancedFilters, setAdvancedFilters] = useState({
     city: "",
     state: "",
@@ -220,6 +233,10 @@ function DoctorsPageContent() {
       params.append("sortOrder", advancedFilters.sortOrder);
     }
 
+    if (showAllDoctors) {
+      params.append("includeNoSchedule", "true");
+    }
+
     return `/api/doctors?${params.toString()}`;
   }, [
     pagination.page,
@@ -228,6 +245,7 @@ function DoctorsPageContent() {
     specializationFilter,
     doctorIdFilter,
     advancedFilters,
+    showAllDoctors,
   ]);
 
   // Use SWR for data fetching with revalidation options
@@ -281,6 +299,19 @@ function DoctorsPageContent() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setPagination((prev) => ({ ...prev, page: 1 }));
+    // Sync filters to URL: "Search by name or email" → q only; specialization → department; doctorId when present
+    const params = new URLSearchParams();
+    if (searchTerm.trim()) {
+      params.set("q", searchTerm.trim());
+    }
+    if (specializationFilter.trim()) {
+      params.set("department", searchTermToSlug(specializationFilter));
+    }
+    if (doctorIdFilter.trim()) {
+      params.set("doctorId", doctorIdFilter.trim());
+    }
+    const query = params.toString();
+    router.replace(query ? `/doctors?${query}` : "/doctors");
   };
 
   const handlePageChange = (newPage: number) => {
@@ -403,6 +434,24 @@ function DoctorsPageContent() {
               </Button>
             </div>
           </form>
+
+          {/* Show all doctors toggle */}
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={showAllDoctors}
+                onChange={(e) => {
+                  setShowAllDoctors(e.target.checked);
+                  setPagination((prev) => ({ ...prev, page: 1 }));
+                }}
+                className="rounded border-gray-300 text-primary-600 focus:ring-primary-500"
+              />
+              <span className="text-sm font-medium text-gray-700">
+                Show all doctors (including those without schedule)
+              </span>
+            </label>
+          </div>
         </Card>
 
         {/* Advanced Filters */}
@@ -517,9 +566,17 @@ function DoctorsPageContent() {
                               />
                             </div>
                             <div className="flex-1 min-w-0 pt-1">
-                              <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
-                                {doctorName}
-                              </h3>
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="text-lg font-semibold text-gray-900 truncate group-hover:text-primary-700 transition-colors">
+                                  {doctorName}
+                                </h3>
+                                {showAllDoctors &&
+                                  doctor.hasSchedule === false && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-amber-100 text-amber-800">
+                                      No schedule available
+                                    </span>
+                                  )}
+                              </div>
                               {doctor.specialization && (
                                 <p className="text-sm text-primary-600 font-medium mt-1">
                                   {doctor.specialization}
@@ -581,25 +638,36 @@ function DoctorsPageContent() {
                           />
 
                           {/* Action Button */}
-                          <Link href={`/doctors/${doctor.id}`}>
-                            <Button
-                              variant="primary"
-                              className="w-full group-hover:shadow-md transition-all"
-                              onClick={() => {
-                                if (!session) {
-                                  router.push(
-                                    `/login?callbackUrl=/doctors/${doctor.id}`
-                                  );
-                                }
-                              }}
-                            >
-                              {!session
-                                ? "View Profile"
-                                : session.user?.role === "PATIENT"
-                                  ? "Book Appointment"
-                                  : "View Profile"}
-                            </Button>
-                          </Link>
+                          {showAllDoctors && doctor.hasSchedule === false ? (
+                            <Link href={`/doctors/${doctor.id}`}>
+                              <Button
+                                variant="outline"
+                                className="w-full group-hover:shadow-md transition-all"
+                              >
+                                View Profile
+                              </Button>
+                            </Link>
+                          ) : (
+                            <Link href={`/doctors/${doctor.id}`}>
+                              <Button
+                                variant="primary"
+                                className="w-full group-hover:shadow-md transition-all"
+                                onClick={() => {
+                                  if (!session) {
+                                    router.push(
+                                      `/login?callbackUrl=/doctors/${doctor.id}`
+                                    );
+                                  }
+                                }}
+                              >
+                                {!session
+                                  ? "View Profile"
+                                  : session.user?.role === "PATIENT"
+                                    ? "Book Appointment"
+                                    : "View Profile"}
+                              </Button>
+                            </Link>
+                          )}
                         </div>
                       </Card>
                     );

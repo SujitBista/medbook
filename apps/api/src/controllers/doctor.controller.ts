@@ -47,6 +47,10 @@ export async function getDoctors(
       req.query.hasAvailability !== undefined
         ? req.query.hasAvailability === "true"
         : true;
+    const includeNoSchedule =
+      req.query.includeNoSchedule !== undefined
+        ? req.query.includeNoSchedule === "true"
+        : false;
 
     // Validate pagination parameters
     if (page < 1) {
@@ -91,6 +95,7 @@ export async function getDoctors(
       specialization,
       doctorId: doctorId?.trim() || undefined,
       hasAvailability,
+      includeNoSchedule,
       city,
       state,
       sortBy,

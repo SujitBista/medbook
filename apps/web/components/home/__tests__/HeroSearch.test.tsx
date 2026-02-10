@@ -60,7 +60,7 @@ describe("HeroSearch", () => {
     expect(locationInput).toHaveValue("New York");
   });
 
-  it("navigates to doctors page with q and department when form is submitted", async () => {
+  it("navigates to doctors page with q when both fields are submitted (main search wins)", async () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
@@ -78,9 +78,8 @@ describe("HeroSearch", () => {
     await user.type(optionalInput, "New York");
     await user.click(submitButton);
 
-    expect(mockPush).toHaveBeenCalledWith(
-      "/doctors?q=cardiologist&department=new-york"
-    );
+    // Free-text maps to q only; when main search is set it is used for q
+    expect(mockPush).toHaveBeenCalledWith("/doctors?q=cardiologist");
   });
 
   it("navigates with only q (slug) when optional field is empty", async () => {
@@ -100,7 +99,7 @@ describe("HeroSearch", () => {
     expect(mockPush).toHaveBeenCalledWith("/doctors?q=dermatologist");
   });
 
-  it("navigates with only department when search term is empty", async () => {
+  it("navigates with q when only optional field is filled (free-text maps to q)", async () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
@@ -114,7 +113,7 @@ describe("HeroSearch", () => {
     await user.type(optionalInput, "Boston");
     await user.click(submitButton);
 
-    expect(mockPush).toHaveBeenCalledWith("/doctors?department=boston");
+    expect(mockPush).toHaveBeenCalledWith("/doctors?q=boston");
   });
 
   it("navigates with doctorId when optional input looks like doctor id", async () => {
@@ -162,7 +161,7 @@ describe("HeroSearch", () => {
     expect(mockPush).toHaveBeenCalledWith("/doctors?q=dermatologist");
   });
 
-  it("pressing Enter in department/doctor input triggers search", async () => {
+  it("pressing Enter in department/doctor input triggers search with q", async () => {
     const user = userEvent.setup();
     render(<HeroSearch />);
 
@@ -171,7 +170,7 @@ describe("HeroSearch", () => {
     );
     await user.type(optionalInput, "Cardiology{Enter}");
 
-    expect(mockPush).toHaveBeenCalledWith("/doctors?department=cardiology");
+    expect(mockPush).toHaveBeenCalledWith("/doctors?q=cardiology");
   });
 
   it("prevents default form submission", async () => {

@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { Button, Input } from "@medbook/ui";
 import { useRouter } from "next/navigation";
+import { SearchSuggestionsInput } from "./SearchSuggestionsInput";
 
 const POPULAR_SPECIALTIES = [
   "General Physician",
@@ -33,6 +34,10 @@ export function HeroSearch() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
   const [departmentOrDoctor, setDepartmentOrDoctor] = useState("");
+  const [selectedDepartmentSlug, setSelectedDepartmentSlug] = useState<
+    string | null
+  >(null);
+  const [selectedDoctorId, setSelectedDoctorId] = useState<string | null>(null);
   const ctaWrapperRef = useRef<HTMLDivElement>(null);
 
   const focusCta = () => {
@@ -47,18 +52,46 @@ export function HeroSearch() {
     const mainSearch = searchTerm.trim();
     const optional = departmentOrDoctor.trim();
 
-    if (mainSearch) {
-      params.set("q", toSlug(mainSearch));
-    }
-    if (optional) {
-      if (looksLikeDoctorId(optional)) {
+    // Prefer typeahead selection from main search, then fall back to free-text / optional
+    if (selectedDoctorId) {
+      params.set("doctorId", selectedDoctorId);
+    } else if (selectedDepartmentSlug) {
+      params.set("department", selectedDepartmentSlug);
+    } else {
+      // Free-text search (name/email/keyword) MUST map to q only, never to department
+      if (mainSearch) {
+        params.set("q", toSlug(mainSearch));
+      } else if (optional && !looksLikeDoctorId(optional)) {
+        params.set("q", toSlug(optional));
+      }
+      if (optional && looksLikeDoctorId(optional)) {
         params.set("doctorId", optional);
-      } else {
-        params.set("department", toSlug(optional));
       }
     }
     const query = params.toString();
     router.push(query ? `/doctors?${query}` : "/doctors");
+  };
+
+  const handleMainSearchChange = (value: string) => {
+    setSearchTerm(value);
+    setSelectedDepartmentSlug(null);
+    setSelectedDoctorId(null);
+  };
+
+  const handleSelectDepartment = (slug: string, label: string) => {
+    setSearchTerm(label);
+    setSelectedDepartmentSlug(slug);
+    setSelectedDoctorId(null);
+  };
+
+  const handleSelectDoctor = (
+    id: string,
+    _name: string,
+    department?: string
+  ) => {
+    setSearchTerm(_name);
+    setSelectedDoctorId(id);
+    setSelectedDepartmentSlug(department ? toSlug(department) : null);
   };
 
   const handleChipClick = (specialty: string) => {
@@ -77,11 +110,12 @@ export function HeroSearch() {
         <form onSubmit={handleSearch}>
           <div className="flex flex-col md:flex-row gap-3">
             <div className="flex-1">
-              <Input
-                type="text"
-                placeholder="Try: General Physician, Dentist, Skin, Child"
+              <SearchSuggestionsInput
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={handleMainSearchChange}
+                onSelectDepartment={handleSelectDepartment}
+                onSelectDoctor={handleSelectDoctor}
+                placeholder="Try: General Physician, Dentist, Skin, Child"
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
               />
             </div>

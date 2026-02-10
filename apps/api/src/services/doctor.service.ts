@@ -135,6 +135,8 @@ export async function getAllDoctors(options?: {
   specialization?: string;
   doctorId?: string;
   hasAvailability?: boolean;
+  /** When true, return all doctors (no availability filter) with computed hasSchedule and nextAvailableSlotAt */
+  includeNoSchedule?: boolean;
   city?: string;
   state?: string;
   sortBy?: "name" | "specialization" | "yearsOfExperience" | "createdAt";
@@ -146,7 +148,11 @@ export async function getAllDoctors(options?: {
   const search = options?.search?.trim()?.toLowerCase() || undefined;
   const specialization = options?.specialization?.trim() || undefined;
   const doctorId = options?.doctorId?.trim() || undefined;
-  const hasAvailability = options?.hasAvailability ?? false;
+  const includeNoSchedule = options?.includeNoSchedule ?? false;
+  // When includeNoSchedule=true, don't filter by availability; otherwise use hasAvailability
+  const hasAvailability = includeNoSchedule
+    ? false
+    : (options?.hasAvailability ?? false);
   const city = options?.city?.trim() || undefined;
   const state = options?.state?.trim() || undefined;
   const sortBy = options?.sortBy ?? "createdAt";
@@ -325,8 +331,8 @@ export async function getAllDoctors(options?: {
     },
   };
 
-  // If filtering by availability, include slotTemplate, slots, and availabilities
-  if (hasAvailability) {
+  // If filtering by availability OR computing hasSchedule (includeNoSchedule), include slotTemplate, slots, and availabilities
+  if (hasAvailability || includeNoSchedule) {
     includeOptions.slotTemplate = {
       select: {
         durationMinutes: true,
@@ -497,27 +503,38 @@ export async function getAllDoctors(options?: {
   }
 
   return {
-    doctors: doctors.map((doctor) => ({
-      id: doctor.id,
-      userId: doctor.userId,
-      specialization: doctor.specialization ?? undefined,
-      bio: doctor.bio ?? undefined,
-      licenseNumber: doctor.licenseNumber ?? undefined,
-      address: doctor.address ?? undefined,
-      city: doctor.city ?? undefined,
-      state: doctor.state ?? undefined,
-      zipCode: doctor.zipCode ?? undefined,
-      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-      education: doctor.education ?? undefined,
-      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-      createdAt: doctor.createdAt,
-      updatedAt: doctor.updatedAt,
-      // Include user fields for display purposes
-      userEmail: doctor.user?.email,
-      userFirstName: doctor.user?.firstName ?? undefined,
-      userLastName: doctor.user?.lastName ?? undefined,
-      userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
-    })),
+    doctors: doctors.map((doctor) => {
+      const base = {
+        id: doctor.id,
+        userId: doctor.userId,
+        specialization: doctor.specialization ?? undefined,
+        bio: doctor.bio ?? undefined,
+        licenseNumber: doctor.licenseNumber ?? undefined,
+        address: doctor.address ?? undefined,
+        city: doctor.city ?? undefined,
+        state: doctor.state ?? undefined,
+        zipCode: doctor.zipCode ?? undefined,
+        yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+        education: doctor.education ?? undefined,
+        profilePictureUrl: doctor.profilePictureUrl ?? undefined,
+        createdAt: doctor.createdAt,
+        updatedAt: doctor.updatedAt,
+        // Include user fields for display purposes
+        userEmail: doctor.user?.email,
+        userFirstName: doctor.user?.firstName ?? undefined,
+        userLastName: doctor.user?.lastName ?? undefined,
+        userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
+      };
+      if (includeNoSchedule) {
+        const scheduleInfo = computeScheduleInfo(doctor, now);
+        return {
+          ...base,
+          hasSchedule: scheduleInfo.hasSchedule,
+          nextAvailableSlotAt: scheduleInfo.nextAvailableSlotAt,
+        };
+      }
+      return base;
+    }),
     pagination: {
       page,
       limit,
@@ -525,6 +542,166 @@ export async function getAllDoctors(options?: {
       totalPages: Math.ceil(total / limit),
     },
   };
+}
+
+/** Compute hasSchedule and nextAvailableSlotAt from doctor's slots/availabilities */
+function computeScheduleInfo(
+  doctor: {
+    slots?: { id: string; status: string; startTime: Date }[];
+    availabilities?: {
+      isRecurring: boolean;
+      startTime: Date;
+      endTime: Date;
+      validFrom: Date | null;
+      validTo: Date | null;
+    }[];
+    slotTemplate?: { durationMinutes: number | null } | null;
+  },
+  now: Date
+): { hasSchedule: boolean; nextAvailableSlotAt: Date | null } {
+  const slots = doctor.slots && Array.isArray(doctor.slots) ? doctor.slots : [];
+  if (slots.length > 0) {
+    const earliest = slots
+      .map((s) => new Date(s.startTime))
+      .filter((d) => d >= now)
+      .sort((a, b) => a.getTime() - b.getTime())[0];
+    return { hasSchedule: true, nextAvailableSlotAt: earliest ?? null };
+  }
+
+  const slotDurationMinutes = doctor.slotTemplate?.durationMinutes ?? 30;
+  const minSlotDurationMs = slotDurationMinutes * 60 * 1000;
+  const minSlotEndTime = new Date(now.getTime() + minSlotDurationMs);
+
+  const availabilities =
+    doctor.availabilities && Array.isArray(doctor.availabilities)
+      ? doctor.availabilities
+      : [];
+  for (const availability of availabilities) {
+    if (!availability.isRecurring) {
+      if (new Date(availability.endTime) >= minSlotEndTime) {
+        return {
+          hasSchedule: true,
+          nextAvailableSlotAt: new Date(availability.startTime),
+        };
+      }
+    } else {
+      const hasValidTimeRange =
+        !availability.validTo ||
+        new Date(availability.validTo) >= minSlotEndTime;
+      if (hasValidTimeRange) {
+        const availStart = new Date(availability.startTime);
+        const availEnd = new Date(availability.endTime);
+        const availDurationMs = availEnd.getTime() - availStart.getTime();
+        if (availDurationMs >= minSlotDurationMs) {
+          return {
+            hasSchedule: true,
+            nextAvailableSlotAt: availStart,
+          };
+        }
+      }
+    }
+  }
+  return { hasSchedule: false, nextAvailableSlotAt: null };
+}
+
+/** Slug for department/specialization: lowercase, hyphenated */
+function toSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export interface SearchSuggestionDepartment {
+  label: string;
+  slug: string;
+}
+
+export interface SearchSuggestionDoctor {
+  id: string;
+  name: string;
+  department: string;
+}
+
+export interface SearchSuggestionsResult {
+  departments: SearchSuggestionDepartment[];
+  doctors: SearchSuggestionDoctor[];
+}
+
+/**
+ * Get search suggestions (departments/specializations + doctors) for typeahead
+ * @param q Search query (min 2 chars)
+ */
+export async function getSearchSuggestions(
+  q: string
+): Promise<SearchSuggestionsResult> {
+  const term = q.trim().toLowerCase();
+  if (term.length < 2) {
+    return { departments: [], doctors: [] };
+  }
+
+  const where: Prisma.DoctorWhereInput = {
+    OR: [
+      {
+        specialization: {
+          contains: term,
+          mode: "insensitive",
+        },
+      },
+      {
+        user: {
+          OR: [
+            { firstName: { contains: term, mode: "insensitive" } },
+            { lastName: { contains: term, mode: "insensitive" } },
+          ],
+        },
+      },
+    ],
+  };
+
+  const doctors = await query<
+    Prisma.DoctorGetPayload<{
+      include: {
+        user: { select: { firstName: true; lastName: true } };
+      };
+    }>[]
+  >((prisma) =>
+    prisma.doctor.findMany({
+      where,
+      take: 15,
+      orderBy: { specialization: "asc" },
+      include: {
+        user: {
+          select: { firstName: true, lastName: true },
+        },
+      },
+    })
+  );
+
+  const departmentMap = new Map<string, string>();
+  for (const d of doctors) {
+    const spec = d.specialization?.trim();
+    if (spec && spec.toLowerCase().includes(term)) {
+      const slug = toSlug(spec);
+      if (slug && !departmentMap.has(slug)) {
+        departmentMap.set(slug, spec);
+      }
+    }
+  }
+  const departments: SearchSuggestionDepartment[] = Array.from(
+    departmentMap.entries()
+  ).map(([slug, label]) => ({ label, slug }));
+
+  const doctorsList: SearchSuggestionDoctor[] = doctors.map((d) => ({
+    id: d.id,
+    name: `Dr. ${d.user.firstName} ${d.user.lastName}`.trim(),
+    department: d.specialization ?? "",
+  }));
+
+  return { departments, doctors: doctorsList };
 }
 
 /**
