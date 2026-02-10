@@ -115,25 +115,36 @@ const fetcher = async (url: string): Promise<DoctorsResponse> => {
   return data;
 };
 
-/** Parse URL search params into filter state (supports specialty/q/doctor and legacy search/specialization/location) */
+/** Slug to search-friendly string for API (hyphens → spaces) */
+function slugToSearchTerm(slug: string): string {
+  return slug.trim().replace(/-/g, " ").trim();
+}
+
+/** Parse URL search params: prefer q, department, doctorId; support legacy params */
 function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
-  searchTerm: string;
-  specializationFilter: string;
+  q: string;
+  department: string;
+  doctorId: string;
 } {
-  if (!searchParams) return { searchTerm: "", specializationFilter: "" };
-  const specialty =
-    searchParams.get("specialty") ?? searchParams.get("specialization") ?? "";
-  const q = searchParams.get("q") ?? "";
-  const doctor = searchParams.get("doctor") ?? "";
-  const legacySearch = searchParams.get("search") ?? "";
-  const legacyLocation = searchParams.get("location") ?? "";
-  const searchTerm = [q, doctor, legacySearch, legacyLocation]
-    .filter(Boolean)
-    .join(" ")
-    .trim();
+  if (!searchParams) return { q: "", department: "", doctorId: "" };
+  const q =
+    searchParams.get("q") ??
+    searchParams.get("specialty") ??
+    searchParams.get("specialization") ??
+    searchParams.get("search") ??
+    "";
+  const department = searchParams.get("department") ?? "";
+  const doctorId = searchParams.get("doctorId") ?? "";
+  const legacyDoctor = searchParams.get("doctor") ?? "";
+  const dept =
+    department.trim() ||
+    (legacyDoctor.trim()
+      ? legacyDoctor.trim().toLowerCase().replace(/\s+/g, "-")
+      : "");
   return {
-    specializationFilter: specialty,
-    searchTerm,
+    q: q.trim(),
+    department: dept,
+    doctorId: doctorId.trim(),
   };
 }
 
@@ -142,10 +153,11 @@ function DoctorsPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const urlFilters = getFiltersFromSearchParams(searchParams);
-  const [searchTerm, setSearchTerm] = useState(urlFilters.searchTerm);
+  const [searchTerm, setSearchTerm] = useState(urlFilters.q);
   const [specializationFilter, setSpecializationFilter] = useState(
-    urlFilters.specializationFilter
+    urlFilters.department || urlFilters.q
   );
+  const [doctorIdFilter, setDoctorIdFilter] = useState(urlFilters.doctorId);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 12,
@@ -155,8 +167,9 @@ function DoctorsPageContent() {
   useEffect(() => {
     const next = getFiltersFromSearchParams(searchParams);
     const id = setTimeout(() => {
-      setSearchTerm(next.searchTerm);
-      setSpecializationFilter(next.specializationFilter);
+      setSearchTerm(next.q);
+      setSpecializationFilter(next.department || next.q);
+      setDoctorIdFilter(next.doctorId);
       setPagination((prev) => ({ ...prev, page: 1 }));
     }, 0);
     return () => clearTimeout(id);
@@ -173,7 +186,7 @@ function DoctorsPageContent() {
     sortOrder: "desc" as "asc" | "desc",
   });
 
-  // Build API URL with query parameters
+  // Build API URL: q → search + specialization (slug to words), department → specialization, doctorId when present
   const apiUrl = useMemo(() => {
     const params = new URLSearchParams({
       page: pagination.page.toString(),
@@ -183,9 +196,12 @@ function DoctorsPageContent() {
     if (searchTerm) {
       params.append("search", searchTerm);
     }
-
-    if (specializationFilter) {
-      params.append("specialization", specializationFilter);
+    const specializationValue = slugToSearchTerm(specializationFilter);
+    if (specializationValue) {
+      params.append("specialization", specializationValue);
+    }
+    if (doctorIdFilter) {
+      params.append("doctorId", doctorIdFilter);
     }
 
     if (advancedFilters.city) {
@@ -210,6 +226,7 @@ function DoctorsPageContent() {
     pagination.limit,
     searchTerm,
     specializationFilter,
+    doctorIdFilter,
     advancedFilters,
   ]);
 
@@ -443,17 +460,18 @@ function DoctorsPageContent() {
                     No doctors found
                   </h3>
                   <p className="mt-2 text-sm text-gray-600">
-                    {searchTerm || specializationFilter
+                    {searchTerm || specializationFilter || doctorIdFilter
                       ? "Try adjusting your search filters."
                       : "No doctors are currently available."}
                   </p>
-                  {(searchTerm || specializationFilter) && (
+                  {(searchTerm || specializationFilter || doctorIdFilter) && (
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => {
                         setSearchTerm("");
                         setSpecializationFilter("");
+                        setDoctorIdFilter("");
                         setPagination((prev) => ({ ...prev, page: 1 }));
                       }}
                       className="mt-4"

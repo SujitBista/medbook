@@ -1,5 +1,15 @@
 import { SectionHeader, SpecialtyCard } from "../index";
 
+function toSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
 const specialties = [
   {
     title: "Dentist",
@@ -132,7 +142,7 @@ export function PopularSpecialties() {
               title={specialty.title}
               description={specialty.description}
               icon={specialty.icon}
-              href={`/doctors?specialization=${encodeURIComponent(specialty.title)}`}
+              href={`/doctors?q=${encodeURIComponent(toSlug(specialty.title))}`}
             />
           ))}
         </div>

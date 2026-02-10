@@ -12,10 +12,27 @@ const POPULAR_SPECIALTIES = [
   "Pediatrician",
 ] as const;
 
+/** Normalize to URL-safe slug: lowercase, hyphenated, no redundant chars */
+function toSlug(value: string): string {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^a-z0-9-]/g, "")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+/** Heuristic: looks like a doctor unique id (doc_xxx or UUID-style) */
+function looksLikeDoctorId(value: string): boolean {
+  const trimmed = value.trim();
+  return /^doc_[\w-]+$/i.test(trimmed) || /^[0-9a-f-]{36}$/i.test(trimmed);
+}
+
 export function HeroSearch() {
   const router = useRouter();
   const [searchTerm, setSearchTerm] = useState("");
-  const [location, setLocation] = useState("");
+  const [departmentOrDoctor, setDepartmentOrDoctor] = useState("");
   const ctaWrapperRef = useRef<HTMLDivElement>(null);
 
   const focusCta = () => {
@@ -27,20 +44,25 @@ export function HeroSearch() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    const specialtyOrKeyword = searchTerm.trim();
-    const departmentOrDoctor = location.trim();
-    if (specialtyOrKeyword) {
-      params.set("specialty", specialtyOrKeyword);
-      params.set("q", specialtyOrKeyword);
+    const mainSearch = searchTerm.trim();
+    const optional = departmentOrDoctor.trim();
+
+    if (mainSearch) {
+      params.set("q", toSlug(mainSearch));
     }
-    if (departmentOrDoctor) params.set("doctor", departmentOrDoctor);
+    if (optional) {
+      if (looksLikeDoctorId(optional)) {
+        params.set("doctorId", optional);
+      } else {
+        params.set("department", toSlug(optional));
+      }
+    }
     const query = params.toString();
     router.push(query ? `/doctors?${query}` : "/doctors");
   };
 
   const handleChipClick = (specialty: string) => {
-    setSearchTerm(specialty);
-    focusCta();
+    router.push(`/doctors?q=${encodeURIComponent(toSlug(specialty))}`);
   };
 
   const handleNotSureClick = () => {
@@ -67,8 +89,8 @@ export function HeroSearch() {
               <Input
                 type="text"
                 placeholder="Department / Doctor (optional)"
-                value={location}
-                onChange={(e) => setLocation(e.target.value)}
+                value={departmentOrDoctor}
+                onChange={(e) => setDepartmentOrDoctor(e.target.value)}
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
               />
             </div>
@@ -99,8 +121,7 @@ export function HeroSearch() {
           </span>
           <div className="flex gap-2 min-w-0 md:flex-wrap md:justify-center">
             {POPULAR_SPECIALTIES.map((specialty) => {
-              const isSelected =
-                searchTerm.toLowerCase() === specialty.toLowerCase();
+              const isSelected = toSlug(searchTerm) === toSlug(specialty);
               return (
                 <button
                   key={specialty}

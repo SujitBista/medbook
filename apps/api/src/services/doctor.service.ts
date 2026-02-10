@@ -133,6 +133,7 @@ export async function getAllDoctors(options?: {
   limit?: number;
   search?: string;
   specialization?: string;
+  doctorId?: string;
   hasAvailability?: boolean;
   city?: string;
   state?: string;
@@ -144,6 +145,7 @@ export async function getAllDoctors(options?: {
   const skip = (page - 1) * limit;
   const search = options?.search?.trim()?.toLowerCase() || undefined;
   const specialization = options?.specialization?.trim() || undefined;
+  const doctorId = options?.doctorId?.trim() || undefined;
   const hasAvailability = options?.hasAvailability ?? false;
   const city = options?.city?.trim() || undefined;
   const state = options?.state?.trim() || undefined;
@@ -155,6 +157,10 @@ export async function getAllDoctors(options?: {
   // Build where clause for search
   // Using 'any' for complex Prisma nested types
   const where: Prisma.DoctorWhereInput = {};
+
+  if (doctorId) {
+    where.id = doctorId;
+  }
 
   if (specialization) {
     where.specialization = {

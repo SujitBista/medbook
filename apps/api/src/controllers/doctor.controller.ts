@@ -32,6 +32,7 @@ export async function getDoctors(
       : 10;
     const search = req.query.search as string | undefined;
     const specialization = req.query.specialization as string | undefined;
+    const doctorId = req.query.doctorId as string | undefined;
     const city = req.query.city as string | undefined;
     const state = req.query.state as string | undefined;
     const sortBy = req.query.sortBy as
@@ -88,6 +89,7 @@ export async function getDoctors(
       limit,
       search,
       specialization,
+      doctorId: doctorId?.trim() || undefined,
       hasAvailability,
       city,
       state,
