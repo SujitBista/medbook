@@ -137,7 +137,7 @@ function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
   };
 }
 
-export default function DoctorsPage() {
+function DoctorsPageContent() {
   const { data: session } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -677,5 +677,24 @@ export default function DoctorsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+function DoctorsPageFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white flex items-center justify-center">
+      <div className="text-center">
+        <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-gray-300 border-t-primary-600" />
+        <p className="mt-4 text-gray-600">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function DoctorsPage() {
+  return (
+    <React.Suspense fallback={<DoctorsPageFallback />}>
+      <DoctorsPageContent />
+    </React.Suspense>
   );
 }
