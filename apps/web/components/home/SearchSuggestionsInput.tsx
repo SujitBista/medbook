@@ -125,20 +125,18 @@ export function SearchSuggestionsInput({
 
   const selectDepartment = useCallback(
     (slug: string, label: string) => {
-      onChange(label);
       onSelectDepartment?.(slug, label);
       close();
     },
-    [onChange, onSelectDepartment, close]
+    [onSelectDepartment, close]
   );
 
   const selectDoctor = useCallback(
     (doc: SuggestionDoctor) => {
-      onChange(doc.name);
       onSelectDoctor?.(doc.id, doc.name, doc.department || undefined);
       close();
     },
-    [onChange, onSelectDoctor, close]
+    [onSelectDoctor, close]
   );
 
   const getItemAt = useCallback(
