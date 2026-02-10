@@ -28,6 +28,11 @@ import {
   listSchedulingExceptions,
   deleteSchedulingException,
   getSchedulingException,
+  listDepartments,
+  getDepartment,
+  createDepartmentHandler,
+  updateDepartmentHandler,
+  deleteDepartmentHandler,
 } from "../controllers/admin.controller";
 
 const router: IRouter = Router();
@@ -161,5 +166,35 @@ router.get("/scheduling/exceptions/:id", getSchedulingException);
  * Delete schedule exception
  */
 router.delete("/scheduling/exceptions/:id", deleteSchedulingException);
+
+/**
+ * GET /api/v1/admin/departments
+ * List all departments with search keywords
+ */
+router.get("/departments", listDepartments);
+
+/**
+ * GET /api/v1/admin/departments/:id
+ * Get department by ID
+ */
+router.get("/departments/:id", getDepartment);
+
+/**
+ * POST /api/v1/admin/departments
+ * Create department (body: name, searchKeywords comma-separated)
+ */
+router.post("/departments", createDepartmentHandler);
+
+/**
+ * PUT /api/v1/admin/departments/:id
+ * Update department (body: name?, searchKeywords?)
+ */
+router.put("/departments/:id", updateDepartmentHandler);
+
+/**
+ * DELETE /api/v1/admin/departments/:id
+ * Delete department
+ */
+router.delete("/departments/:id", deleteDepartmentHandler);
 
 export default router;

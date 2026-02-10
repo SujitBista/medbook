@@ -37,6 +37,7 @@ export async function GET(req: NextRequest) {
     const limit = searchParams.get("limit");
     const search = searchParams.get("search");
     const specialization = searchParams.get("specialization");
+    const departmentId = searchParams.get("departmentId");
 
     // Build query string
     const queryParams = new URLSearchParams();
@@ -44,6 +45,7 @@ export async function GET(req: NextRequest) {
     if (limit) queryParams.append("limit", limit);
     if (search) queryParams.append("search", search);
     if (specialization) queryParams.append("specialization", specialization);
+    if (departmentId) queryParams.append("departmentId", departmentId);
 
     const queryString = queryParams.toString();
     const url = `${env.apiUrl}/admin/doctors${queryString ? `?${queryString}` : ""}`;

@@ -1,7 +1,15 @@
 "use client";
 
-import { FormEvent, useEffect, useId, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { Button, Input } from "@medbook/ui";
+import type { Department } from "@/app/admin/types";
 
 interface DoctorRegistrationModalProps {
   isOpen: boolean;
@@ -16,7 +24,7 @@ interface DoctorFormData {
   firstName: string;
   lastName: string;
   phoneNumber: string;
-  specialization: string;
+  departmentId: string;
   bio: string;
   licenseNumber: string;
   address: string;
@@ -47,7 +55,7 @@ export function DoctorRegistrationModal({
     firstName: "",
     lastName: "",
     phoneNumber: "",
-    specialization: "",
+    departmentId: "",
     bio: "",
     licenseNumber: "",
     address: "",
@@ -64,6 +72,52 @@ export function DoctorRegistrationModal({
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [departmentsLoading, setDepartmentsLoading] = useState(false);
+  const [departmentSearch, setDepartmentSearch] = useState("");
+  const [departmentDropdownOpen, setDepartmentDropdownOpen] = useState(false);
+  const [showAddDepartmentModal, setShowAddDepartmentModal] = useState(false);
+  const [addDepartmentName, setAddDepartmentName] = useState("");
+  const [addDepartmentKeywords, setAddDepartmentKeywords] = useState("");
+  const [addDepartmentSubmitting, setAddDepartmentSubmitting] = useState(false);
+  const [addDepartmentError, setAddDepartmentError] = useState<string | null>(
+    null
+  );
+  const departmentDropdownRef = useRef<HTMLDivElement>(null);
+
+  const fetchDepartments = useCallback(async () => {
+    setDepartmentsLoading(true);
+    try {
+      const res = await fetch("/api/admin/departments", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to fetch departments");
+      const json = await res.json();
+      setDepartments(json.data ?? []);
+    } catch (err) {
+      console.error("[DoctorRegistrationModal] Fetch departments:", err);
+      setDepartments([]);
+    } finally {
+      setDepartmentsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetchDepartments();
+    }
+  }, [isOpen, fetchDepartments]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        departmentDropdownRef.current &&
+        !departmentDropdownRef.current.contains(event.target as Node)
+      ) {
+        setDepartmentDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const resetForm = () => {
     setFormData({
@@ -73,7 +127,7 @@ export function DoctorRegistrationModal({
       firstName: "",
       lastName: "",
       phoneNumber: "",
-      specialization: "",
+      departmentId: "",
       bio: "",
       licenseNumber: "",
       address: "",
@@ -86,6 +140,7 @@ export function DoctorRegistrationModal({
     });
     setSelectedFile(null);
     setImagePreview(null);
+    setDepartmentSearch("");
     setErrors({});
   };
 
@@ -232,6 +287,10 @@ export function DoctorRegistrationModal({
       newErrors.phoneNumber = "Phone number is required";
     }
 
+    if (!formData.departmentId.trim()) {
+      newErrors.departmentId = "Department is required";
+    }
+
     if (!formData.licenseNumber.trim()) {
       newErrors.licenseNumber = "Medical license number is required";
     }
@@ -273,7 +332,7 @@ export function DoctorRegistrationModal({
           firstName: formData.firstName,
           lastName: formData.lastName,
           phoneNumber: formData.phoneNumber,
-          specialization: formData.specialization || undefined,
+          departmentId: formData.departmentId || undefined,
           bio: formData.bio || undefined,
           licenseNumber: formData.licenseNumber || undefined,
           address: formData.address || undefined,
@@ -316,6 +375,55 @@ export function DoctorRegistrationModal({
   const handleClose = () => {
     resetForm();
     onClose();
+  };
+
+  const handleCreateDepartment = async (e: FormEvent) => {
+    e.preventDefault();
+    const name = addDepartmentName.trim();
+    if (!name) {
+      setAddDepartmentError("Department name is required");
+      return;
+    }
+    setAddDepartmentSubmitting(true);
+    setAddDepartmentError(null);
+    try {
+      const res = await fetch("/api/admin/departments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name,
+          searchKeywords: addDepartmentKeywords.trim()
+            ? addDepartmentKeywords
+                .split(",")
+                .map((s) => s.trim())
+                .filter(Boolean)
+                .join(", ")
+            : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAddDepartmentError(
+          data.error?.message ?? "Failed to create department"
+        );
+        return;
+      }
+      const newDept = data.data;
+      if (newDept?.id) {
+        setDepartments((prev) =>
+          [...prev, newDept].sort((a, b) => a.name.localeCompare(b.name))
+        );
+        setFormData((prev) => ({ ...prev, departmentId: newDept.id }));
+        setDepartmentSearch("");
+        setDepartmentDropdownOpen(false);
+        setShowAddDepartmentModal(false);
+      }
+    } catch (err) {
+      console.error("[DoctorRegistrationModal] Create department:", err);
+      setAddDepartmentError("Failed to create department");
+    } finally {
+      setAddDepartmentSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -472,17 +580,102 @@ export function DoctorRegistrationModal({
                   placeholder="e.g., MD-12345"
                 />
               </div>
-              <div>
-                <Input
-                  label="Specialization"
-                  type="text"
-                  name="specialization"
-                  value={formData.specialization}
-                  onChange={handleChange}
-                  error={errors.specialization}
-                  disabled={isLoading}
-                  placeholder="e.g., Cardiology, Pediatrics"
-                />
+              <div className="relative" ref={departmentDropdownRef}>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Department <span className="text-red-500">*</span>
+                </label>
+                <div className="flex gap-2">
+                  <div className="flex-1 relative">
+                    <input
+                      type="text"
+                      value={
+                        departmentDropdownOpen
+                          ? departmentSearch
+                          : (departments.find(
+                              (d) => d.id === formData.departmentId
+                            )?.name ?? "")
+                      }
+                      onChange={(e) => {
+                        setDepartmentSearch(e.target.value);
+                        setDepartmentDropdownOpen(true);
+                      }}
+                      onFocus={() => setDepartmentDropdownOpen(true)}
+                      placeholder="Search or select department..."
+                      disabled={isLoading || departmentsLoading}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                    />
+                    {departmentDropdownOpen && (
+                      <ul className="absolute z-10 mt-1 w-full max-h-48 overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg py-1">
+                        {departments
+                          .filter(
+                            (d) =>
+                              !departmentSearch.trim() ||
+                              d.name
+                                .toLowerCase()
+                                .includes(departmentSearch.toLowerCase()) ||
+                              d.slug
+                                .toLowerCase()
+                                .includes(departmentSearch.toLowerCase())
+                          )
+                          .map((d) => (
+                            <li
+                              key={d.id}
+                              role="option"
+                              aria-selected={formData.departmentId === d.id}
+                              onClick={() => {
+                                setFormData((prev) => ({
+                                  ...prev,
+                                  departmentId: d.id,
+                                }));
+                                setDepartmentSearch("");
+                                setDepartmentDropdownOpen(false);
+                                if (errors.departmentId)
+                                  setErrors((prev) => ({
+                                    ...prev,
+                                    departmentId: "",
+                                  }));
+                              }}
+                              className={`cursor-pointer px-3 py-2 text-sm ${formData.departmentId === d.id ? "bg-primary-50 text-primary-800" : "hover:bg-gray-50"}`}
+                            >
+                              {d.name}
+                            </li>
+                          ))}
+                        {departments.filter(
+                          (d) =>
+                            !departmentSearch.trim() ||
+                            d.name
+                              .toLowerCase()
+                              .includes(departmentSearch.toLowerCase()) ||
+                            d.slug
+                              .toLowerCase()
+                              .includes(departmentSearch.toLowerCase())
+                        ).length === 0 && (
+                          <li className="px-3 py-2 text-sm text-gray-500">
+                            No departments match
+                          </li>
+                        )}
+                      </ul>
+                    )}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => {
+                      setShowAddDepartmentModal(true);
+                      setAddDepartmentName("");
+                      setAddDepartmentKeywords("");
+                      setAddDepartmentError(null);
+                    }}
+                    disabled={isLoading || departmentsLoading}
+                  >
+                    Add new
+                  </Button>
+                </div>
+                {errors.departmentId && (
+                  <p className="mt-1 text-sm text-red-600">
+                    {errors.departmentId}
+                  </p>
+                )}
               </div>
               <div>
                 <label
@@ -714,6 +907,71 @@ export function DoctorRegistrationModal({
           </div>
         </form>
       </div>
+
+      {/* Add new department modal */}
+      {showAddDepartmentModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50">
+          <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4 p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+              Add new department
+            </h3>
+            <form onSubmit={handleCreateDepartment} className="space-y-4">
+              {addDepartmentError && (
+                <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+                  {addDepartmentError}
+                </div>
+              )}
+              <Input
+                label="Department name"
+                type="text"
+                value={addDepartmentName}
+                onChange={(e) => setAddDepartmentName(e.target.value)}
+                placeholder="e.g., Cardiology"
+                disabled={addDepartmentSubmitting}
+                required
+              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Search keywords (optional)
+                </label>
+                <input
+                  type="text"
+                  value={addDepartmentKeywords}
+                  onChange={(e) => setAddDepartmentKeywords(e.target.value)}
+                  placeholder="e.g., chest pain, heart"
+                  disabled={addDepartmentSubmitting}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Comma-separated symptom or search terms
+                </p>
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    setShowAddDepartmentModal(false);
+                    setAddDepartmentError(null);
+                  }}
+                  disabled={addDepartmentSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={addDepartmentSubmitting}
+                >
+                  {addDepartmentSubmitting
+                    ? "Creating..."
+                    : "Create department"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

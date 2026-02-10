@@ -13,8 +13,11 @@ const tabLabels: Record<string, string> = {
   dashboard: "Dashboard",
   general: "Users",
   doctors: "Doctors",
+  departments: "Departments",
   appointments: "Appointments",
   "schedule-management": "Schedule Management",
+  exceptions: "Special Availability",
+  commissions: "Commissions & Pricing",
   settings: "Settings",
 };
 

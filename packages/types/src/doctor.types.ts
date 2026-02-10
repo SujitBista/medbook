@@ -2,10 +2,20 @@
  * Doctor-related types
  */
 
+export interface DoctorDepartment {
+  id: string;
+  name: string;
+  slug: string;
+}
+
 export interface Doctor {
   id: string;
   userId: string;
+  departmentId?: string;
+  /** @deprecated Use department (name/slug) instead */
   specialization?: string;
+  /** Resolved from departmentId when present */
+  department?: DoctorDepartment;
   bio?: string;
   licenseNumber?: string;
   address?: string;
@@ -29,6 +39,8 @@ export interface Doctor {
 
 export interface CreateDoctorInput {
   userId: string;
+  departmentId?: string;
+  /** @deprecated Use departmentId */
   specialization?: string;
   bio?: string;
   licenseNumber?: string;
@@ -42,6 +54,8 @@ export interface CreateDoctorInput {
 }
 
 export interface UpdateDoctorInput {
+  departmentId?: string;
+  /** @deprecated Use departmentId */
   specialization?: string;
   bio?: string;
   licenseNumber?: string;

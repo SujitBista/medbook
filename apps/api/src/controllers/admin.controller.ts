@@ -40,6 +40,14 @@ import {
   deleteScheduleException,
   getScheduleExceptionById,
 } from "../services/exception.service";
+import {
+  getAllDepartments,
+  getDepartmentById as getDepartmentByIdService,
+  createDepartment,
+  updateDepartment,
+  deleteDepartment,
+  parseKeywordString,
+} from "../services/department.service";
 import { AuthenticatedRequest } from "../middleware/auth.middleware";
 import { createValidationError } from "../utils";
 
@@ -231,6 +239,7 @@ export async function registerDoctor(
       firstName,
       lastName,
       phoneNumber,
+      departmentId,
       specialization,
       bio,
       licenseNumber,
@@ -260,6 +269,9 @@ export async function registerDoctor(
     if (!phoneNumber || !phoneNumber.trim()) {
       fieldErrors.phoneNumber = "Phone number is required";
     }
+    if (!departmentId || !String(departmentId).trim()) {
+      fieldErrors.departmentId = "Department is required";
+    }
 
     if (Object.keys(fieldErrors).length > 0) {
       const error = createValidationError(
@@ -278,6 +290,7 @@ export async function registerDoctor(
       firstName: firstName.trim(),
       lastName: lastName.trim(),
       phoneNumber: phoneNumber.trim(),
+      departmentId: String(departmentId).trim(),
       specialization,
       bio,
       licenseNumber,
@@ -318,6 +331,7 @@ export async function listDoctors(
       : 100; // Admin can see more doctors at once
     const search = req.query.search as string | undefined;
     const specialization = req.query.specialization as string | undefined;
+    const departmentId = req.query.departmentId as string | undefined;
 
     // Validate pagination parameters
     if (page < 1) {
@@ -337,6 +351,7 @@ export async function listDoctors(
       limit,
       search,
       specialization,
+      departmentId,
     });
 
     res.status(200).json({
@@ -390,6 +405,7 @@ export async function updateDoctorProfile(
   try {
     const { id } = req.params;
     const {
+      departmentId,
       specialization,
       bio,
       licenseNumber,
@@ -410,6 +426,7 @@ export async function updateDoctorProfile(
 
     // Validate that at least one field is provided
     const hasAnyField =
+      departmentId !== undefined ||
       specialization !== undefined ||
       bio !== undefined ||
       licenseNumber !== undefined ||
@@ -430,6 +447,7 @@ export async function updateDoctorProfile(
     }
 
     const input: UpdateDoctorInput = {
+      ...(departmentId !== undefined && { departmentId }),
       ...(specialization !== undefined && { specialization }),
       ...(bio !== undefined && { bio }),
       ...(licenseNumber !== undefined && { licenseNumber }),
@@ -824,6 +842,139 @@ export async function getSchedulingException(
       success: true,
       data: exception,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * List departments (admin only)
+ * GET /api/v1/admin/departments
+ */
+export async function listDepartments(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const departments = await getAllDepartments();
+    res.status(200).json({
+      success: true,
+      data: departments,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get department by ID (admin only)
+ * GET /api/v1/admin/departments/:id
+ */
+export async function getDepartment(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      next(createValidationError("Department ID is required"));
+      return;
+    }
+    const department = await getDepartmentByIdService(id);
+    if (!department) {
+      res
+        .status(404)
+        .json({ success: false, error: { message: "Department not found" } });
+      return;
+    }
+    res.status(200).json({ success: true, data: department });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Create department (admin only)
+ * POST /api/v1/admin/departments
+ * Body: { name: string, searchKeywords?: string } (comma-separated)
+ */
+export async function createDepartmentHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { name, searchKeywords } = req.body ?? {};
+    if (!name || typeof name !== "string" || !name.trim()) {
+      next(createValidationError("Department name is required"));
+      return;
+    }
+    const keywords = searchKeywords
+      ? parseKeywordString(
+          typeof searchKeywords === "string"
+            ? searchKeywords
+            : String(searchKeywords)
+        )
+      : [];
+    const department = await createDepartment({ name: name.trim(), keywords });
+    res.status(201).json({ success: true, data: department });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update department (admin only)
+ * PUT /api/v1/admin/departments/:id
+ * Body: { name?: string, searchKeywords?: string } (comma-separated)
+ */
+export async function updateDepartmentHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    const { name, searchKeywords } = req.body ?? {};
+    if (!id) {
+      next(createValidationError("Department ID is required"));
+      return;
+    }
+    const input: { name?: string; keywords?: string[] } = {};
+    if (name !== undefined)
+      input.name = typeof name === "string" ? name.trim() : "";
+    if (searchKeywords !== undefined)
+      input.keywords = parseKeywordString(
+        typeof searchKeywords === "string"
+          ? searchKeywords
+          : String(searchKeywords)
+      );
+    const department = await updateDepartment(id, input);
+    res.status(200).json({ success: true, data: department });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete department (admin only)
+ * DELETE /api/v1/admin/departments/:id
+ */
+export async function deleteDepartmentHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const { id } = req.params;
+    if (!id) {
+      next(createValidationError("Department ID is required"));
+      return;
+    }
+    await deleteDepartment(id);
+    res.status(200).json({ success: true, message: "Department deleted" });
   } catch (error) {
     next(error);
   }

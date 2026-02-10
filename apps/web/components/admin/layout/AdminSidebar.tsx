@@ -6,6 +6,7 @@ import {
   HomeIcon,
   UsersIcon,
   UserGroupIcon,
+  BuildingOffice2Icon,
   CalendarIcon,
   CalendarDaysIcon,
   ClockIcon,
@@ -44,6 +45,12 @@ const navItems: NavItem[] = [
     label: "Doctors",
     href: "/admin?tab=doctors",
     icon: UserGroupIcon,
+  },
+  {
+    id: "departments",
+    label: "Departments",
+    href: "/admin?tab=departments",
+    icon: BuildingOffice2Icon,
   },
   {
     id: "appointments",

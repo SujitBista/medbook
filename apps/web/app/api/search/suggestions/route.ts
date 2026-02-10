@@ -9,6 +9,8 @@ import { env } from "@/lib/env";
 export interface SuggestionDepartment {
   label: string;
   slug: string;
+  /** When matched by alias/symptom: e.g. "chest pain" */
+  matchReason?: string;
 }
 
 export interface SuggestionDoctor {

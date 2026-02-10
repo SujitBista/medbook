@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Button } from "@medbook/ui";
 import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationModal";
 import { CommissionSettingsModal } from "@/components/admin/modals/CommissionSettingsModal";
-import type { Doctor, DoctorStats } from "@/app/admin/types";
+import type { Doctor, DoctorStats, Department } from "@/app/admin/types";
 
 interface DoctorsTabProps {
   onError: (error: string) => void;
@@ -20,11 +20,12 @@ export function DoctorsTab({
   const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [doctorStats, setDoctorStats] = useState<DoctorStats | null>(null);
   const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [departments, setDepartments] = useState<Department[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [specializationFilter, setSpecializationFilter] = useState("");
+  const [departmentFilterId, setDepartmentFilterId] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const [editDoctorData, setEditDoctorData] = useState({
-    specialization: "",
+    departmentId: "",
     bio: "",
     licenseNumber: "",
     address: "",
@@ -55,8 +56,8 @@ export function DoctorsTab({
       setDoctorsLoading(true);
       const queryParams = new URLSearchParams();
       if (searchQuery) queryParams.append("search", searchQuery);
-      if (specializationFilter)
-        queryParams.append("specialization", specializationFilter);
+      if (departmentFilterId)
+        queryParams.append("departmentId", departmentFilterId);
       queryParams.append("page", doctorPage.toString());
       queryParams.append("limit", doctorPageSize.toString());
       queryParams.append("_t", Date.now().toString());
@@ -91,7 +92,18 @@ export function DoctorsTab({
     } finally {
       setDoctorsLoading(false);
     }
-  }, [searchQuery, specializationFilter, doctorPage, doctorPageSize, onError]);
+  }, [searchQuery, departmentFilterId, doctorPage, doctorPageSize, onError]);
+
+  const fetchDepartments = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/departments", { cache: "no-store" });
+      if (!res.ok) return;
+      const json = await res.json();
+      setDepartments(json.data ?? []);
+    } catch {
+      setDepartments([]);
+    }
+  }, []);
 
   const fetchDoctorStats = async () => {
     try {
@@ -118,17 +130,21 @@ export function DoctorsTab({
   }, [fetchDoctors]);
 
   useEffect(() => {
+    fetchDepartments();
+  }, [fetchDepartments]);
+
+  useEffect(() => {
     const timer = setTimeout(() => {
       setDoctorPage(1);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery, specializationFilter]);
+  }, [searchQuery, departmentFilterId]);
 
   const handleEditDoctor = (doctor: Doctor) => {
     setSelectedDoctor(doctor);
     setEditDoctorData({
-      specialization: doctor.specialization || "",
+      departmentId: doctor.departmentId ?? doctor.department?.id ?? "",
       bio: doctor.bio || "",
       licenseNumber: doctor.licenseNumber || "",
       address: doctor.address || "",
@@ -252,7 +268,7 @@ export function DoctorsTab({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          specialization: editDoctorData.specialization || undefined,
+          departmentId: editDoctorData.departmentId || undefined,
           bio: editDoctorData.bio || undefined,
           licenseNumber: editDoctorData.licenseNumber || undefined,
           address: editDoctorData.address || undefined,
@@ -394,16 +410,16 @@ export function DoctorsTab({
             {Object.keys(doctorStats.doctorsBySpecialization).length > 0 && (
               <div>
                 <h4 className="mb-2 text-sm font-medium text-gray-700">
-                  By Specialization:
+                  By Department:
                 </h4>
                 <div className="flex flex-wrap gap-2">
                   {Object.entries(doctorStats.doctorsBySpecialization).map(
-                    ([specialization, count]) => (
+                    ([deptName, count]) => (
                       <span
-                        key={specialization}
+                        key={deptName}
                         className="inline-flex items-center rounded-full bg-green-50 px-3 py-1 text-sm font-medium text-green-800"
                       >
-                        {specialization}: {count}
+                        {deptName}: {count}
                       </span>
                     )
                   )}
@@ -434,19 +450,24 @@ export function DoctorsTab({
             </div>
             <div>
               <label
-                htmlFor="specialization-filter"
+                htmlFor="department-filter"
                 className="block text-sm font-medium text-gray-700"
               >
-                Filter by Specialization
+                Filter by Department
               </label>
-              <input
-                type="text"
-                id="specialization-filter"
-                value={specializationFilter}
-                onChange={(e) => setSpecializationFilter(e.target.value)}
-                placeholder="e.g., Cardiology"
+              <select
+                id="department-filter"
+                value={departmentFilterId}
+                onChange={(e) => setDepartmentFilterId(e.target.value)}
                 className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
+              >
+                <option value="">All departments</option>
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
         </div>
@@ -479,7 +500,7 @@ export function DoctorsTab({
                 No doctors found
               </h3>
               <p className="mt-1 text-sm text-gray-500">
-                {searchQuery || specializationFilter
+                {searchQuery || departmentFilterId
                   ? "Try adjusting your search or filter criteria"
                   : "There are no doctors in the system yet"}
               </p>
@@ -497,7 +518,7 @@ export function DoctorsTab({
                         Contact
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
-                        Specialization
+                        Department
                       </th>
                       <th className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-gray-600">
                         License
@@ -570,9 +591,11 @@ export function DoctorsTab({
                             </div>
                           </td>
                           <td className="px-4 py-3">
-                            {doctor.specialization ? (
+                            {(doctor.department?.name ??
+                            doctor.specialization) ? (
                               <span className="inline-flex items-center rounded-md bg-blue-50 px-2 py-1 text-xs font-medium text-blue-700">
-                                {doctor.specialization}
+                                {doctor.department?.name ??
+                                  doctor.specialization}
                               </span>
                             ) : (
                               <span className="text-xs text-gray-400">
@@ -851,7 +874,7 @@ export function DoctorsTab({
                 onClick={() => {
                   setSelectedDoctor(null);
                   setEditDoctorData({
-                    specialization: "",
+                    departmentId: "",
                     bio: "",
                     licenseNumber: "",
                     address: "",
@@ -937,19 +960,25 @@ export function DoctorsTab({
 
               <div>
                 <label className="block text-sm font-medium text-gray-700">
-                  Specialization
+                  Department
                 </label>
-                <input
-                  type="text"
-                  value={editDoctorData.specialization}
+                <select
+                  value={editDoctorData.departmentId}
                   onChange={(e) =>
                     setEditDoctorData((prev) => ({
                       ...prev,
-                      specialization: e.target.value,
+                      departmentId: e.target.value,
                     }))
                   }
                   className="mt-1 w-full rounded-md border border-gray-300 px-3 py-2 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
-                />
+                >
+                  <option value="">Select department</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>
+                      {d.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div>
@@ -1097,7 +1126,7 @@ export function DoctorsTab({
                   onClick={() => {
                     setSelectedDoctor(null);
                     setEditDoctorData({
-                      specialization: "",
+                      departmentId: "",
                       bio: "",
                       licenseNumber: "",
                       address: "",

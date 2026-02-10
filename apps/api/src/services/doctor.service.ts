@@ -11,6 +11,10 @@ import {
   createValidationError,
 } from "../utils/errors";
 import { logger } from "../utils/logger";
+import {
+  getDepartmentBySlug,
+  searchDepartmentsByQuery,
+} from "./department.service";
 
 /**
  * Gets doctor by ID
@@ -18,9 +22,76 @@ import { logger } from "../utils/logger";
  * @returns Doctor data with user information
  * @throws AppError if doctor not found
  */
+const doctorIncludeUser = {
+  user: {
+    select: {
+      id: true,
+      email: true,
+      role: true,
+      firstName: true,
+      lastName: true,
+      phoneNumber: true,
+    },
+  },
+  department: {
+    select: { id: true, name: true, slug: true },
+  },
+} as const;
+
+function mapDoctorRowToDoctor(doctor: {
+  id: string;
+  userId: string;
+  departmentId?: string | null;
+  specialization?: string | null;
+  department?: { id: string; name: string; slug: string } | null;
+  bio?: string | null;
+  licenseNumber?: string | null;
+  address?: string | null;
+  city?: string | null;
+  state?: string | null;
+  zipCode?: string | null;
+  yearsOfExperience?: number | null;
+  education?: string | null;
+  profilePictureUrl?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  user?: {
+    email?: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    phoneNumber?: string | null;
+  };
+}): Doctor {
+  const department = doctor.department;
+  return {
+    id: doctor.id,
+    userId: doctor.userId,
+    departmentId: doctor.departmentId ?? department?.id ?? undefined,
+    specialization: department?.name ?? doctor.specialization ?? undefined,
+    department: department
+      ? { id: department.id, name: department.name, slug: department.slug }
+      : undefined,
+    bio: doctor.bio ?? undefined,
+    licenseNumber: doctor.licenseNumber ?? undefined,
+    address: doctor.address ?? undefined,
+    city: doctor.city ?? undefined,
+    state: doctor.state ?? undefined,
+    zipCode: doctor.zipCode ?? undefined,
+    yearsOfExperience: doctor.yearsOfExperience ?? undefined,
+    education: doctor.education ?? undefined,
+    profilePictureUrl: doctor.profilePictureUrl ?? undefined,
+    createdAt: doctor.createdAt,
+    updatedAt: doctor.updatedAt,
+    userEmail: doctor.user?.email,
+    userFirstName: doctor.user?.firstName ?? undefined,
+    userLastName: doctor.user?.lastName ?? undefined,
+    userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
+  };
+}
+
 export async function getDoctorById(doctorId: string): Promise<Doctor> {
   const doctor = await query<Prisma.DoctorGetPayload<{
-    include: {
+    include: typeof doctorIncludeUser & {
       user: {
         select: {
           id: true;
@@ -36,6 +107,7 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
     prisma.doctor.findUnique({
       where: { id: doctorId },
       include: {
+        ...doctorIncludeUser,
         user: {
           select: {
             id: true,
@@ -54,27 +126,7 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
     throw createNotFoundError("Doctor");
   }
 
-  return {
-    id: doctor.id,
-    userId: doctor.userId,
-    specialization: doctor.specialization ?? undefined,
-    bio: doctor.bio ?? undefined,
-    licenseNumber: doctor.licenseNumber ?? undefined,
-    address: doctor.address ?? undefined,
-    city: doctor.city ?? undefined,
-    state: doctor.state ?? undefined,
-    zipCode: doctor.zipCode ?? undefined,
-    yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-    education: doctor.education ?? undefined,
-    profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-    createdAt: doctor.createdAt,
-    updatedAt: doctor.updatedAt,
-    // Include user fields for display purposes
-    userEmail: doctor.user?.email,
-    userFirstName: doctor.user?.firstName ?? undefined,
-    userLastName: doctor.user?.lastName ?? undefined,
-    userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
-  };
+  return mapDoctorRowToDoctor(doctor) as Doctor;
 }
 
 /**
@@ -86,25 +138,15 @@ export async function getDoctorById(doctorId: string): Promise<Doctor> {
 export async function getDoctorByUserId(userId: string): Promise<Doctor> {
   const doctor = await query<Prisma.DoctorGetPayload<{
     include: {
-      user: {
-        select: {
-          id: true;
-          email: true;
-          role: true;
-        };
-      };
+      user: { select: { id: true; email: true; role: true } };
+      department: { select: { id: true; name: true; slug: true } };
     };
   }> | null>((prisma) =>
     prisma.doctor.findUnique({
       where: { userId },
       include: {
-        user: {
-          select: {
-            id: true,
-            email: true,
-            role: true,
-          },
-        },
+        user: { select: { id: true, email: true, role: true } },
+        department: { select: { id: true, name: true, slug: true } },
       },
     })
   );
@@ -113,14 +155,7 @@ export async function getDoctorByUserId(userId: string): Promise<Doctor> {
     throw createNotFoundError("Doctor");
   }
 
-  return {
-    id: doctor.id,
-    userId: doctor.userId,
-    specialization: doctor.specialization ?? undefined,
-    bio: doctor.bio ?? undefined,
-    createdAt: doctor.createdAt,
-    updatedAt: doctor.updatedAt,
-  };
+  return mapDoctorRowToDoctor(doctor);
 }
 
 /**
@@ -133,6 +168,7 @@ export async function getAllDoctors(options?: {
   limit?: number;
   search?: string;
   specialization?: string;
+  departmentId?: string;
   doctorId?: string;
   hasAvailability?: boolean;
   /** When true, return all doctors (no availability filter) with computed hasSchedule and nextAvailableSlotAt */
@@ -147,6 +183,7 @@ export async function getAllDoctors(options?: {
   const skip = (page - 1) * limit;
   const search = options?.search?.trim()?.toLowerCase() || undefined;
   const specialization = options?.specialization?.trim() || undefined;
+  const departmentId = options?.departmentId?.trim() || undefined;
   const doctorId = options?.doctorId?.trim() || undefined;
   const includeNoSchedule = options?.includeNoSchedule ?? false;
   // When includeNoSchedule=true, don't filter by availability; otherwise use hasAvailability
@@ -168,11 +205,24 @@ export async function getAllDoctors(options?: {
     where.id = doctorId;
   }
 
-  if (specialization) {
-    where.specialization = {
-      contains: specialization,
-      mode: "insensitive",
-    };
+  if (departmentId) {
+    where.departmentId = departmentId;
+  } else if (specialization) {
+    // Resolve specialization (slug or name) to departmentId when possible
+    const slug = toSlug(specialization);
+    if (slug) {
+      const dep = await getDepartmentBySlug(slug);
+      if (dep) {
+        where.departmentId = dep.id;
+      } else {
+        where.specialization = {
+          contains: specialization,
+          mode: "insensitive",
+        };
+      }
+    } else {
+      where.specialization = { contains: specialization, mode: "insensitive" };
+    }
   }
 
   // Enhanced search: search by name (firstName, lastName), email
@@ -304,7 +354,9 @@ export async function getAllDoctors(options?: {
     };
   } else if (sortBy === "specialization") {
     orderBy = {
-      specialization: sortOrder === "asc" ? "asc" : "desc",
+      department: {
+        name: sortOrder === "asc" ? "asc" : "desc",
+      },
     };
   } else if (sortBy === "yearsOfExperience") {
     orderBy = {
@@ -328,6 +380,9 @@ export async function getAllDoctors(options?: {
         lastName: true,
         phoneNumber: true,
       },
+    },
+    department: {
+      select: { id: true, name: true, slug: true },
     },
   };
 
@@ -504,27 +559,7 @@ export async function getAllDoctors(options?: {
 
   return {
     doctors: doctors.map((doctor) => {
-      const base = {
-        id: doctor.id,
-        userId: doctor.userId,
-        specialization: doctor.specialization ?? undefined,
-        bio: doctor.bio ?? undefined,
-        licenseNumber: doctor.licenseNumber ?? undefined,
-        address: doctor.address ?? undefined,
-        city: doctor.city ?? undefined,
-        state: doctor.state ?? undefined,
-        zipCode: doctor.zipCode ?? undefined,
-        yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-        education: doctor.education ?? undefined,
-        profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-        createdAt: doctor.createdAt,
-        updatedAt: doctor.updatedAt,
-        // Include user fields for display purposes
-        userEmail: doctor.user?.email,
-        userFirstName: doctor.user?.firstName ?? undefined,
-        userLastName: doctor.user?.lastName ?? undefined,
-        userPhoneNumber: doctor.user?.phoneNumber ?? undefined,
-      };
+      const base = mapDoctorRowToDoctor(doctor);
       if (includeNoSchedule) {
         const scheduleInfo = computeScheduleInfo(doctor, now);
         return {
@@ -618,6 +653,8 @@ function toSlug(value: string): string {
 export interface SearchSuggestionDepartment {
   label: string;
   slug: string;
+  /** When matched by alias only: the keyword(s) that matched (e.g. "chest pain") */
+  matchReason?: string;
 }
 
 export interface SearchSuggestionDoctor {
@@ -632,8 +669,9 @@ export interface SearchSuggestionsResult {
 }
 
 /**
- * Get search suggestions (departments/specializations + doctors) for typeahead
- * @param q Search query (min 2 chars)
+ * Get search suggestions (departments/specializations + doctors) for typeahead.
+ * Departments are matched by: (a) department name, (b) department alias keywords.
+ * Name matches rank above alias matches. Doctor suggestions unchanged (name/specialization).
  */
 export async function getSearchSuggestions(
   q: string
@@ -643,62 +681,79 @@ export async function getSearchSuggestions(
     return { departments: [], doctors: [] };
   }
 
-  const where: Prisma.DoctorWhereInput = {
-    OR: [
-      {
-        specialization: {
-          contains: term,
-          mode: "insensitive",
-        },
-      },
-      {
-        user: {
+  const [departmentMatches, doctors] = await Promise.all([
+    searchDepartmentsByQuery(term),
+    query<
+      Prisma.DoctorGetPayload<{
+        include: {
+          user: { select: { firstName: true; lastName: true } };
+          department: { select: { name: true } };
+        };
+      }>[]
+    >((prisma) =>
+      prisma.doctor.findMany({
+        where: {
           OR: [
-            { firstName: { contains: term, mode: "insensitive" } },
-            { lastName: { contains: term, mode: "insensitive" } },
+            { specialization: { contains: term, mode: "insensitive" } },
+            {
+              department: {
+                OR: [
+                  { name: { contains: term, mode: "insensitive" } },
+                  { slug: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            },
+            {
+              user: {
+                OR: [
+                  { firstName: { contains: term, mode: "insensitive" } },
+                  { lastName: { contains: term, mode: "insensitive" } },
+                ],
+              },
+            },
           ],
         },
-      },
-    ],
-  };
-
-  const doctors = await query<
-    Prisma.DoctorGetPayload<{
-      include: {
-        user: { select: { firstName: true; lastName: true } };
-      };
-    }>[]
-  >((prisma) =>
-    prisma.doctor.findMany({
-      where,
-      take: 15,
-      orderBy: { specialization: "asc" },
-      include: {
-        user: {
-          select: { firstName: true, lastName: true },
+        take: 15,
+        orderBy: { department: { name: "asc" } },
+        include: {
+          user: { select: { firstName: true, lastName: true } },
+          department: { select: { name: true } },
         },
-      },
-    })
-  );
+      })
+    ),
+  ]);
 
-  const departmentMap = new Map<string, string>();
+  const departmentsFromTable: SearchSuggestionDepartment[] =
+    departmentMatches.map((d) => ({
+      label: d.name,
+      slug: d.slug,
+      ...(d.matchReason ? { matchReason: d.matchReason } : {}),
+    }));
+
+  const slugFromTable = new Set(departmentsFromTable.map((d) => d.slug));
+  const departmentMap = new Map<string, { label: string; slug: string }>();
   for (const d of doctors) {
     const spec = d.specialization?.trim();
     if (spec && spec.toLowerCase().includes(term)) {
       const slug = toSlug(spec);
-      if (slug && !departmentMap.has(slug)) {
-        departmentMap.set(slug, spec);
+      if (slug && !slugFromTable.has(slug) && !departmentMap.has(slug)) {
+        departmentMap.set(slug, { label: spec, slug });
       }
     }
   }
-  const departments: SearchSuggestionDepartment[] = Array.from(
-    departmentMap.entries()
-  ).map(([slug, label]) => ({ label, slug }));
+  const departmentsFromDoctors: SearchSuggestionDepartment[] = Array.from(
+    departmentMap.values()
+  );
+
+  const departments: SearchSuggestionDepartment[] = [
+    ...departmentsFromTable,
+    ...departmentsFromDoctors,
+  ];
 
   const doctorsList: SearchSuggestionDoctor[] = doctors.map((d) => ({
     id: d.id,
     name: `Dr. ${d.user.firstName} ${d.user.lastName}`.trim(),
-    department: d.specialization ?? "",
+    department: d.department?.name ?? d.specialization ?? "",
   }));
 
   return { departments, doctors: doctorsList };
@@ -713,6 +768,7 @@ export async function getSearchSuggestions(
 export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
   const {
     userId,
+    departmentId,
     specialization,
     bio,
     licenseNumber,
@@ -773,25 +829,33 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
     throw createConflictError("Doctor profile already exists for this user");
   }
 
+  // Resolve specialization from department when only departmentId is provided
+  let specializationValue = specialization?.trim() || null;
+  if (departmentId && !specializationValue) {
+    const dep = await query((prisma) =>
+      prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { name: true },
+      })
+    );
+    if (dep) specializationValue = dep.name;
+  }
+
   // Create doctor profile
   try {
     const doctor = await query<
       Prisma.DoctorGetPayload<{
         include: {
-          user: {
-            select: {
-              id: true;
-              email: true;
-              role: true;
-            };
-          };
+          user: { select: { id: true; email: true; role: true } };
+          department: { select: { id: true; name: true; slug: true } };
         };
       }>
     >((prisma) =>
       prisma.doctor.create({
         data: {
           userId,
-          specialization: specialization?.trim() || null,
+          departmentId: departmentId?.trim() || null,
+          specialization: specializationValue,
           bio: bio?.trim() || null,
           licenseNumber: licenseNumber?.trim() || null,
           address: address?.trim() || null,
@@ -803,35 +867,15 @@ export async function createDoctor(input: CreateDoctorInput): Promise<Doctor> {
           profilePictureUrl: profilePictureUrl?.trim() || null,
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              role: true,
-            },
-          },
+          user: { select: { id: true, email: true, role: true } },
+          department: { select: { id: true, name: true, slug: true } },
         },
       })
     );
 
     logger.info("Doctor profile created", { doctorId: doctor.id, userId });
 
-    return {
-      id: doctor.id,
-      userId: doctor.userId,
-      specialization: doctor.specialization ?? undefined,
-      bio: doctor.bio ?? undefined,
-      licenseNumber: doctor.licenseNumber ?? undefined,
-      address: doctor.address ?? undefined,
-      city: doctor.city ?? undefined,
-      state: doctor.state ?? undefined,
-      zipCode: doctor.zipCode ?? undefined,
-      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-      education: doctor.education ?? undefined,
-      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-      createdAt: doctor.createdAt,
-      updatedAt: doctor.updatedAt,
-    };
+    return mapDoctorRowToDoctor(doctor);
   } catch (error: unknown) {
     // Handle Prisma unique constraint violation
     if (
@@ -858,6 +902,7 @@ export async function updateDoctor(
   input: UpdateDoctorInput
 ): Promise<Doctor> {
   const {
+    departmentId,
     specialization,
     bio,
     licenseNumber,
@@ -888,26 +933,38 @@ export async function updateDoctor(
     throw createNotFoundError("Doctor");
   }
 
+  // When departmentId is set, sync specialization from department name if not provided
+  let specializationValue: string | null | undefined = specialization;
+  if (departmentId !== undefined && specialization === undefined) {
+    const dep = await query((prisma) =>
+      prisma.department.findUnique({
+        where: { id: departmentId },
+        select: { name: true },
+      })
+    );
+    specializationValue = dep?.name ?? null;
+  } else if (specialization !== undefined) {
+    specializationValue = specialization.trim() || null;
+  }
+
   // Update doctor
   try {
     const doctor = await query<
       Prisma.DoctorGetPayload<{
         include: {
-          user: {
-            select: {
-              id: true;
-              email: true;
-              role: true;
-            };
-          };
+          user: { select: { id: true; email: true; role: true } };
+          department: { select: { id: true; name: true; slug: true } };
         };
       }>
     >((prisma) =>
       prisma.doctor.update({
         where: { id: doctorId },
         data: {
-          ...(specialization !== undefined && {
-            specialization: specialization.trim() || null,
+          ...(departmentId !== undefined && {
+            departmentId: departmentId?.trim() || null,
+          }),
+          ...(specializationValue !== undefined && {
+            specialization: specializationValue,
           }),
           ...(bio !== undefined && { bio: bio.trim() || null }),
           ...(licenseNumber !== undefined && {
@@ -928,35 +985,15 @@ export async function updateDoctor(
           }),
         },
         include: {
-          user: {
-            select: {
-              id: true,
-              email: true,
-              role: true,
-            },
-          },
+          user: { select: { id: true, email: true, role: true } },
+          department: { select: { id: true, name: true, slug: true } },
         },
       })
     );
 
     logger.info("Doctor profile updated", { doctorId });
 
-    return {
-      id: doctor.id,
-      userId: doctor.userId,
-      specialization: doctor.specialization ?? undefined,
-      bio: doctor.bio ?? undefined,
-      licenseNumber: doctor.licenseNumber ?? undefined,
-      address: doctor.address ?? undefined,
-      city: doctor.city ?? undefined,
-      state: doctor.state ?? undefined,
-      zipCode: doctor.zipCode ?? undefined,
-      yearsOfExperience: doctor.yearsOfExperience ?? undefined,
-      education: doctor.education ?? undefined,
-      profilePictureUrl: doctor.profilePictureUrl ?? undefined,
-      createdAt: doctor.createdAt,
-      updatedAt: doctor.updatedAt,
-    };
+    return mapDoctorRowToDoctor(doctor);
   } catch (error: unknown) {
     // Handle Prisma not found error (P2025)
     if (
@@ -1043,11 +1080,13 @@ export async function getDoctorStats(): Promise<DoctorStats> {
   const doctors = await query<
     {
       specialization: string | null;
+      department: { name: string } | null;
     }[]
   >((prisma) =>
     prisma.doctor.findMany({
       select: {
         specialization: true,
+        department: { select: { name: true } },
       },
     })
   );
@@ -1056,9 +1095,9 @@ export async function getDoctorStats(): Promise<DoctorStats> {
   const doctorsBySpecialization: Record<string, number> = {};
 
   doctors.forEach((doctor) => {
-    const specialization = doctor.specialization || "Unspecified";
-    doctorsBySpecialization[specialization] =
-      (doctorsBySpecialization[specialization] || 0) + 1;
+    const label =
+      doctor.department?.name ?? doctor.specialization ?? "Unspecified";
+    doctorsBySpecialization[label] = (doctorsBySpecialization[label] || 0) + 1;
   });
 
   return {

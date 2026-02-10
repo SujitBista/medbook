@@ -9,6 +9,7 @@ import { DoctorRegistrationModal } from "@/components/admin/DoctorRegistrationMo
 import { DashboardTab } from "@/components/admin/tabs/DashboardTab";
 import { GeneralTab } from "@/components/admin/tabs/GeneralTab";
 import { DoctorsTab } from "@/components/admin/tabs/DoctorsTab";
+import { DepartmentsTab } from "@/components/admin/tabs/DepartmentsTab";
 import { ScheduleManagementTab } from "@/components/admin/tabs/ScheduleManagementTab";
 import { ExceptionsTab } from "@/components/admin/tabs/ExceptionsTab";
 import { AppointmentsTab } from "@/components/admin/tabs/AppointmentsTab";
@@ -282,6 +283,17 @@ function AdminDashboardContent() {
             // Navigate to schedule management via URL
             window.history.pushState({}, "", "/admin?tab=schedule-management");
             window.location.reload();
+          }}
+        />
+      )}
+
+      {/* Departments Tab */}
+      {activeTab === "departments" && (
+        <DepartmentsTab
+          onError={setError}
+          onSuccess={(message) => {
+            setSuccessMessage(message);
+            setTimeout(() => setSuccessMessage(null), 5000);
           }}
         />
       )}
