@@ -97,26 +97,33 @@ export function HeroSearch() {
     focusCta();
   };
 
+  const hasFilterSelection =
+    selectedDepartmentSlug != null || selectedDoctorId != null;
+
   return (
     <div className="mt-6 w-full max-w-4xl mx-auto">
       {/* Booking Card: single unified container */}
       <div className="rounded-2xl bg-white/95 backdrop-blur-sm border border-gray-200/80 shadow-lg shadow-gray-200/50 p-4 sm:p-5 md:p-6">
         <form onSubmit={handleSearch}>
           <div className="flex flex-col md:flex-row gap-3">
-            <div className="flex-1">
+            <div
+              className={`flex-1 transition-[opacity,background-color] duration-200 ${
+                hasFilterSelection ? "opacity-75 bg-gray-50/60 rounded-lg" : ""
+              }`}
+            >
               <SearchSuggestionsInput
                 value={searchTerm}
                 onChange={handleMainSearchChange}
                 onSelectDepartment={handleSelectDepartment}
                 onSelectDoctor={handleSelectDoctor}
-                placeholder="Try: General Physician, Dentist, Skin, Child"
+                placeholder="Search symptoms, specialty, or doctor"
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500"
               />
             </div>
             <div className="md:w-64 relative">
               <Input
                 type="text"
-                placeholder="Department / Doctor (optional)"
+                placeholder="Selected doctor or department"
                 value={selectedDisplayLabel ?? ""}
                 readOnly
                 className="w-full border-gray-300 focus:border-primary-500 focus:ring-primary-500 text-gray-900 placeholder:text-gray-500 pr-9"
@@ -147,6 +154,9 @@ export function HeroSearch() {
               </Button>
             </div>
           </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Type to search, or select a doctor/department from suggestions.
+          </p>
           <p className="mt-3 text-sm text-gray-500">
             Most patients start with a General Physician.
           </p>
