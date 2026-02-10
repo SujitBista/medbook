@@ -13,8 +13,6 @@ import {
   type ScheduleWithCapacity,
 } from "@medbook/types";
 import {
-  TimeSlotSelector,
-  BookingForm,
   AppointmentConfirmation,
   TimeSlot,
 } from "@/components/features/appointment";
@@ -28,6 +26,8 @@ import Link from "next/link";
 import useSWR from "swr";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import { AuthStatus } from "@/app/components/AuthStatus";
+import { AdminBookingBlockedCard } from "./components/AdminBookingBlockedCard";
+import { GuestCTA } from "./components/GuestCTA";
 
 // Doctor Avatar Component with fallback
 function DoctorAvatar({
@@ -169,6 +169,9 @@ const fetchSlots = async (url: string): Promise<TimeSlot[]> => {
   return timeSlots;
 };
 
+/** Role for public booking UI: PATIENT can book, ADMIN sees read-only + admin panel, GUEST sees read-only + sign-in CTA */
+type BookingRole = "PATIENT" | "ADMIN" | "GUEST";
+
 export default function DoctorDetailPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -176,6 +179,13 @@ export default function DoctorDetailPage() {
   const searchParams = useSearchParams();
   const doctorId = params.id as string;
   const hasRestoredRef = useRef(false);
+
+  const role: BookingRole =
+    status === "authenticated" && session?.user?.role === "PATIENT"
+      ? "PATIENT"
+      : status === "authenticated" && session?.user?.role === "ADMIN"
+        ? "ADMIN"
+        : "GUEST";
 
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
   const [showBookingForm, setShowBookingForm] = useState(false);
@@ -1087,9 +1097,16 @@ export default function DoctorDetailPage() {
               </Card>
             )}
 
-            {/* Capacity: Choose time window (main booking UI) */}
+            {/* Capacity: Choose time window (main booking UI) — role-aware */}
             {!capacityResult && !capacityStart && (
-              <Card className="mb-6" title="Choose a time window">
+              <Card
+                className="mb-6"
+                title={
+                  role === "ADMIN"
+                    ? "Choose a time window — Read-only (Admin)"
+                    : "Choose a time window"
+                }
+              >
                 <div className="p-6">
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Date
@@ -1107,29 +1124,48 @@ export default function DoctorDetailPage() {
                       No capacity windows for this date. Try another date.
                     </p>
                   ) : (
-                    <ul className="space-y-3">
-                      {capacityWindows.map((w) => (
-                        <li
-                          key={w.id}
-                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
-                        >
-                          <span className="font-medium text-gray-900">
-                            {w.startTime}–{w.endTime}
-                          </span>
-                          <span className="text-sm text-gray-600">
-                            Remaining tokens: {w.remaining}/{w.maxPatients}
-                          </span>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            onClick={() => handleCapacityPayAndBook(w)}
-                            disabled={w.remaining <= 0 || booking}
+                    <>
+                      <ul className="space-y-3">
+                        {capacityWindows.map((w) => (
+                          <li
+                            key={w.id}
+                            className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
                           >
-                            Pay & Book
-                          </Button>
-                        </li>
-                      ))}
-                    </ul>
+                            <span className="font-medium text-gray-900">
+                              {w.startTime}–{w.endTime}
+                            </span>
+                            <span className="text-sm text-gray-600">
+                              {role === "ADMIN"
+                                ? `Capacity ${w.maxPatients} / Booked ${w.confirmedCount} / Remaining ${w.remaining}`
+                                : `Remaining tokens: ${w.remaining}/${w.maxPatients}`}
+                            </span>
+                            {role === "PATIENT" && (
+                              <Button
+                                variant="primary"
+                                size="sm"
+                                onClick={() => handleCapacityPayAndBook(w)}
+                                disabled={w.remaining <= 0 || booking}
+                              >
+                                Pay & Book
+                              </Button>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                      {role === "ADMIN" && (
+                        <div className="mt-4">
+                          <AdminBookingBlockedCard />
+                        </div>
+                      )}
+                      {role === "GUEST" && (
+                        <div className="mt-4 flex flex-col gap-2">
+                          <p className="text-sm text-gray-600">
+                            Sign in to book an appointment in a time window.
+                          </p>
+                          <GuestCTA callbackUrl={`/doctors/${doctorId}`} />
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               </Card>
@@ -1144,181 +1180,7 @@ export default function DoctorDetailPage() {
                   router.push("/dashboard");
                 }}
               />
-            ) : !showBookingForm ? (
-              <Card title="Available Time Slots">
-                {session?.user?.role === "ADMIN" ? (
-                  <div className="text-center py-12">
-                    <div className="mx-auto w-16 h-16 mb-4 text-amber-500">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-gray-900 font-semibold text-lg mb-2">
-                      Admin Access
-                    </p>
-                    <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      Admins cannot book appointments through the public booking
-                      page. Please use the admin dashboard to manage
-                      appointments and view booking information.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Link href="/admin">
-                        <Button variant="primary">Go to Admin Dashboard</Button>
-                      </Link>
-                      <Link href="/doctors">
-                        <Button variant="outline">Browse Doctors</Button>
-                      </Link>
-                    </div>
-                  </div>
-                ) : availableSlots.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="mx-auto w-16 h-16 mb-4 text-gray-300">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={1.5}
-                        stroke="currentColor"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"
-                        />
-                      </svg>
-                    </div>
-                    <p className="text-gray-600 font-medium mb-2">
-                      No Available Time Slots
-                    </p>
-                    <p className="text-sm text-gray-500 max-w-sm mx-auto mb-6">
-                      This doctor currently has no available appointment slots.
-                      Please check back later or browse other doctors.
-                    </p>
-                    <div className="flex flex-col sm:flex-row gap-3 justify-center">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => mutateSlots()}
-                        disabled={slotsLoading}
-                      >
-                        {slotsLoading ? "Refreshing..." : "Refresh Slots"}
-                      </Button>
-                      <Link href="/doctors">
-                        <Button variant="ghost" size="sm">
-                          ← Browse Other Doctors
-                        </Button>
-                      </Link>
-                    </div>
-                  </div>
-                ) : (
-                  <>
-                    <TimeSlotSelector
-                      slots={availableSlots}
-                      selectedSlot={selectedSlot}
-                      onSelectSlot={handleSlotSelect}
-                      loading={slotsLoading}
-                    />
-                    {selectedSlot && (
-                      <div className="mt-6">
-                        {status === "unauthenticated" ? (
-                          <div className="space-y-3">
-                            <p className="text-sm text-gray-600 text-center">
-                              Please sign in to book this appointment
-                            </p>
-                            <Link
-                              href={`/login?callbackUrl=${encodeURIComponent(
-                                selectedSlot?.id && selectedSlot?.availabilityId
-                                  ? buildBookingConfirmCallbackUrl(doctorId, {
-                                      id: selectedSlot.id,
-                                      availabilityId:
-                                        selectedSlot.availabilityId,
-                                      startTime: selectedSlot.startTime,
-                                      endTime: selectedSlot.endTime,
-                                    })
-                                  : `/doctors/${doctorId}`
-                              )}`}
-                            >
-                              <Button variant="primary" className="w-full">
-                                Sign In to Book
-                              </Button>
-                            </Link>
-                          </div>
-                        ) : session?.user?.role === "ADMIN" ? (
-                          <div className="space-y-3">
-                            <p className="text-sm text-gray-600 text-center">
-                              Admins cannot book appointments. Please use the
-                              admin dashboard to manage appointments.
-                            </p>
-                            <Link href="/admin">
-                              <Button variant="outline" className="w-full">
-                                Go to Admin Dashboard
-                              </Button>
-                            </Link>
-                          </div>
-                        ) : session?.user?.role === "DOCTOR" ? (
-                          <div className="space-y-3">
-                            <p className="text-sm text-gray-600 text-center">
-                              Doctors cannot book appointments with other
-                              doctors. Please use the appointments page to
-                              manage your own appointments.
-                            </p>
-                            <Link href="/appointments">
-                              <Button variant="outline" className="w-full">
-                                View My Appointments
-                              </Button>
-                            </Link>
-                          </div>
-                        ) : (
-                          <Button
-                            variant="primary"
-                            onClick={() => setShowBookingForm(true)}
-                            className="w-full"
-                          >
-                            Book Selected Slot
-                          </Button>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-              </Card>
-            ) : (
-              <BookingForm
-                doctorId={doctorId}
-                patientId={session?.user?.id || ""}
-                patientName={
-                  typeof session?.user?.name === "string"
-                    ? session.user.name
-                    : undefined
-                }
-                patientEmail={
-                  typeof session?.user?.email === "string"
-                    ? session.user.email
-                    : undefined
-                }
-                selectedSlot={selectedSlot}
-                onSubmit={handleBookingSubmit}
-                onCancel={handleCancelBooking}
-                loading={booking || creatingPaymentIntent}
-                appointmentPrice={appointmentPrice}
-                paymentIntentId={paymentIntentId}
-                clientSecret={clientSecret}
-                onPaymentSuccess={handlePaymentSuccess}
-                showPayment={
-                  !!appointmentPrice && !!paymentIntentId && !!clientSecret
-                }
-              />
-            )}
+            ) : null}
           </div>
         </div>
       </div>
