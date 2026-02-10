@@ -622,7 +622,13 @@ export async function createTestAppointment(overrides?: {
   availabilityId?: string;
   startTime?: Date;
   endTime?: Date;
-  status?: "PENDING" | "CONFIRMED" | "CANCELLED" | "COMPLETED";
+  status?:
+    | "PENDING"
+    | "CONFIRMED"
+    | "BOOKED"
+    | "CANCELLED"
+    | "COMPLETED"
+    | "NO_SHOW";
   notes?: string;
 }) {
   const { hashPassword } = await import("../utils/auth");

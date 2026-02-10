@@ -1055,15 +1055,44 @@ export async function updateAppointment(
   const finalStatus =
     status ?? (existingAppointment.status as AppointmentStatus);
 
-  if (status !== undefined) {
+  // Status transition rules. Terminal states: no further transitions allowed.
+  // Allowed: PENDING/CONFIRMED/BOOKED → CANCELLED; PENDING → CONFIRMED when now ≤ end; CONFIRMED/BOOKED → COMPLETED when now ≥ start.
+  const TERMINAL_STATUSES: AppointmentStatus[] = [
+    AppointmentStatus.CANCELLED,
+    AppointmentStatus.COMPLETED,
+    AppointmentStatus.NO_SHOW,
+  ];
+  const currentStatus = existingAppointment.status as AppointmentStatus;
+
+  if (status !== undefined && status !== currentStatus) {
+    if (TERMINAL_STATUSES.includes(currentStatus)) {
+      throw createValidationError(
+        `Appointment is already ${currentStatus}; no further changes allowed.`
+      );
+    }
+
     const now = new Date();
-    assertValidStatusTransition({
-      currentStatus: existingAppointment.status as AppointmentStatus,
-      nextStatus: status,
-      appointmentStart: finalStartTime,
-      appointmentEnd: finalEndTime,
-      now,
-    });
+    const startAt = new Date(finalStartTime);
+    const endAt = new Date(finalEndTime);
+
+    if (status === AppointmentStatus.CONFIRMED) {
+      if (now > endAt) {
+        throw createValidationError("Cannot confirm a past appointment.");
+      }
+    }
+
+    if (status === AppointmentStatus.COMPLETED) {
+      if (currentStatus === AppointmentStatus.PENDING) {
+        throw createValidationError(
+          "Cannot complete an unconfirmed appointment."
+        );
+      }
+      if (now < startAt) {
+        throw createValidationError(
+          "Cannot complete an appointment that hasn't started."
+        );
+      }
+    }
   }
 
   // Validate time slot if times are being updated
