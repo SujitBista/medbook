@@ -45,6 +45,7 @@ export async function GET(req: NextRequest) {
     const sortBy = searchParams.get("sortBy");
     const sortOrder = searchParams.get("sortOrder");
     const hasAvailability = searchParams.get("hasAvailability");
+    const includeNoSchedule = searchParams.get("includeNoSchedule");
 
     // Build query string
     const queryParams = new URLSearchParams();
@@ -60,6 +61,9 @@ export async function GET(req: NextRequest) {
     // Default to true: only show doctors with availability (public endpoint)
     // Allow override via query parameter for admin/edge cases
     queryParams.append("hasAvailability", hasAvailability ?? "true");
+    if (includeNoSchedule) {
+      queryParams.append("includeNoSchedule", includeNoSchedule);
+    }
 
     const queryString = queryParams.toString();
     const url = `${env.apiUrl}/doctors${queryString ? `?${queryString}` : ""}`;
