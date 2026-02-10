@@ -38,11 +38,12 @@ export default async function Home() {
         <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 sm:py-16 lg:py-20">
           <div className="text-center">
             <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl md:text-6xl lg:text-7xl">
-              Find & Book the Right Doctor — At the Right Time
+              Book an Appointment with the Right Doctor
             </h1>
             <p className="mt-5 text-lg leading-8 text-gray-700 sm:text-xl max-w-3xl mx-auto font-medium">
-              Book appointments, manage records, and get doctor guidance +
-              health awareness to avoid unnecessary treatment.
+              Consult our clinic&apos;s trusted doctors at a time that suits
+              you. Not sure which doctor to see? Start with our General
+              Physician for proper guidance.
             </p>
 
             {/* Primary CTA: search (Find & Book Doctor) is the main action; no standalone Book Now to avoid competing CTAs */}
@@ -90,7 +91,7 @@ export default async function Home() {
                     Choose a specialty
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                    Search or browse
+                    Search or browse our doctors
                   </p>
                 </div>
                 <div className="relative flex flex-col items-center">
@@ -123,7 +124,7 @@ export default async function Home() {
                     Pick a doctor
                   </p>
                   <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">
-                    View profile
+                    View our doctor&apos;s profile
                   </p>
                 </div>
                 <div className="relative flex flex-col items-center">
@@ -196,7 +197,7 @@ export default async function Home() {
 
               {/* Trust reassurance line */}
               <p className="mt-8 text-xs sm:text-sm text-gray-400 text-center leading-relaxed">
-                Secure booking. No hidden charges. Verified hospitals only.
+                Secure booking. No hidden charges.
               </p>
             </div>
 

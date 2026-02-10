@@ -29,7 +29,7 @@ describe("HeroSearch", () => {
       )
     ).toBeInTheDocument();
     expect(
-      screen.getByPlaceholderText("City/Area (e.g., Biratnagar)")
+      screen.getByPlaceholderText("Department / Doctor (optional)")
     ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Find & Book Doctor/i })
@@ -53,7 +53,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const locationInput = screen.getByPlaceholderText(
-      "City/Area (e.g., Biratnagar)"
+      "Department / Doctor (optional)"
     );
     await user.type(locationInput, "New York");
 
@@ -68,7 +68,7 @@ describe("HeroSearch", () => {
       "Try: General Physician, Dentist, Skin, Child"
     );
     const locationInput = screen.getByPlaceholderText(
-      "City/Area (e.g., Biratnagar)"
+      "Department / Doctor (optional)"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
@@ -105,7 +105,7 @@ describe("HeroSearch", () => {
     render(<HeroSearch />);
 
     const locationInput = screen.getByPlaceholderText(
-      "City/Area (e.g., Biratnagar)"
+      "Department / Doctor (optional)"
     );
     const submitButton = screen.getByRole("button", {
       name: /Find & Book Doctor/i,
