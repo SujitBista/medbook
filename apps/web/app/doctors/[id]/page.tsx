@@ -28,6 +28,7 @@ import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import { AuthStatus } from "@/app/components/AuthStatus";
 import { AdminBookingBlockedCard } from "./components/AdminBookingBlockedCard";
 import { GuestCTA } from "./components/GuestCTA";
+import { getWindowCta } from "./utils/window-cta";
 
 // Doctor Avatar Component with fallback
 function DoctorAvatar({
@@ -1159,16 +1160,15 @@ export default function DoctorDetailPage() {
                     <>
                       <ul className="space-y-3">
                         {capacityWindows.map((w) => {
-                          const patientButtonLabel = !w.isBookable
-                            ? w.disabledReasonCode === "FULL"
-                              ? "Full"
-                              : w.disabledReasonCode === "PAST"
-                                ? "Closed"
-                                : w.disabledReasonCode ===
-                                    "PAYMENT_NOT_CONFIGURED"
-                                  ? "Unavailable"
-                                  : "Unavailable"
-                            : "Pay & Book";
+                          const isClosed = w.disabledReasonCode === "PAST";
+                          const isFull = w.disabledReasonCode === "FULL";
+                          const cta = getWindowCta({
+                            isClosed,
+                            isFull,
+                            role,
+                            isBookable: w.isBookable,
+                          });
+                          const callbackUrl = `/doctors/${doctorId}`;
                           return (
                             <li
                               key={w.id}
@@ -1182,19 +1182,29 @@ export default function DoctorDetailPage() {
                                   ? `Capacity ${w.maxPatients} / Booked ${w.confirmedCount} / Remaining ${w.remaining}`
                                   : `Remaining: ${w.remaining} of ${w.maxPatients}`}
                               </span>
-                              {role === "PATIENT" && (
-                                <Button
-                                  variant="primary"
-                                  size="sm"
-                                  onClick={() => handleCapacityPayAndBook(w)}
-                                  disabled={!w.isBookable || booking}
-                                >
-                                  {patientButtonLabel}
-                                </Button>
-                              )}
-                              {w.disabledReason ? (
+                              {cta.showButton &&
+                                (cta.action === "sign-in" ? (
+                                  <GuestCTA
+                                    callbackUrl={callbackUrl}
+                                    className="shrink-0"
+                                  />
+                                ) : (
+                                  <Button
+                                    variant="primary"
+                                    size="sm"
+                                    onClick={() =>
+                                      cta.action === "pay-and-book"
+                                        ? handleCapacityPayAndBook(w)
+                                        : undefined
+                                    }
+                                    disabled={cta.disabled || booking}
+                                  >
+                                    {cta.label}
+                                  </Button>
+                                ))}
+                              {cta.helperText ? (
                                 <p className="w-full text-xs text-gray-500 mt-1">
-                                  {w.disabledReason}
+                                  {cta.helperText}
                                 </p>
                               ) : null}
                             </li>
@@ -1204,14 +1214,6 @@ export default function DoctorDetailPage() {
                       {role === "ADMIN" && (
                         <div className="mt-4">
                           <AdminBookingBlockedCard />
-                        </div>
-                      )}
-                      {role === "GUEST" && (
-                        <div className="mt-4 flex flex-col gap-2">
-                          <p className="text-sm text-gray-600">
-                            Sign in to book an appointment in a time window.
-                          </p>
-                          <GuestCTA callbackUrl={`/doctors/${doctorId}`} />
                         </div>
                       )}
                     </>
