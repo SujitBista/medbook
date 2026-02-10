@@ -110,6 +110,7 @@ export type TabType =
   | "doctors"
   | "departments"
   | "schedule-management"
+  | "capacity-schedules"
   | "exceptions"
   | "appointments"
   | "commissions"

@@ -65,6 +65,12 @@ const navItems: NavItem[] = [
     icon: ClockIcon,
   },
   {
+    id: "capacity-schedules",
+    label: "Capacity Schedules",
+    href: "/admin?tab=capacity-schedules",
+    icon: CalendarDaysIcon,
+  },
+  {
     id: "exceptions",
     label: "Special Availability",
     href: "/admin?tab=exceptions",

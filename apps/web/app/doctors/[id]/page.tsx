@@ -4,14 +4,22 @@ import { useState, useMemo, useEffect, useRef } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { Button, Card } from "@medbook/ui";
-import { Doctor, Appointment, CreateAppointmentInput } from "@medbook/types";
+import {
+  Doctor,
+  Appointment,
+  CreateAppointmentInput,
+  Slot,
+  SlotStatus,
+  type ScheduleWithCapacity,
+} from "@medbook/types";
 import {
   TimeSlotSelector,
   BookingForm,
   AppointmentConfirmation,
   TimeSlot,
 } from "@/components/features/appointment";
-import { Slot, SlotStatus } from "@medbook/types";
+import { PaymentForm } from "@/components/features/payment/PaymentForm";
+import { StripeProvider } from "@/components/features/payment/StripeProvider";
 import {
   parseBookingConfirmParams,
   buildBookingConfirmCallbackUrl,
@@ -182,6 +190,25 @@ export default function DoctorDetailPage() {
   const [clientSecret, setClientSecret] = useState<string | undefined>();
   const [creatingPaymentIntent, setCreatingPaymentIntent] = useState(false);
 
+  // Capacity-based booking (schedule windows)
+  const [capacityDate, setCapacityDate] = useState<string>(() => {
+    const d = new Date();
+    return d.toISOString().slice(0, 10);
+  });
+  const [capacityWindows, setCapacityWindows] = useState<
+    ScheduleWithCapacity[]
+  >([]);
+  const [capacityLoading, setCapacityLoading] = useState(false);
+  const [selectedSchedule, setSelectedSchedule] =
+    useState<ScheduleWithCapacity | null>(null);
+  const [capacityStart, setCapacityStart] = useState<{
+    clientSecret: string;
+    appointmentId: string;
+  } | null>(null);
+  const [capacityResult, setCapacityResult] = useState<
+    { status: "CONFIRMED"; queueNumber: number } | { status: "OVERFLOW" } | null
+  >(null);
+
   // Build slots API URL
   const slotsUrl = useMemo(() => {
     if (!doctorId) return null;
@@ -225,6 +252,33 @@ export default function DoctorDetailPage() {
     // Refresh interval: check for new slots every 30 seconds
     refreshInterval: 30000,
   });
+
+  // Fetch capacity windows for selected date
+  useEffect(() => {
+    if (!doctorId || !capacityDate) return;
+    let cancelled = false;
+    setCapacityLoading(true);
+    fetch(
+      `/api/availability/windows?doctorId=${encodeURIComponent(doctorId)}&date=${encodeURIComponent(capacityDate)}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (!cancelled && data.success && Array.isArray(data.data)) {
+          setCapacityWindows(data.data);
+        } else if (!cancelled) {
+          setCapacityWindows([]);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setCapacityWindows([]);
+      })
+      .finally(() => {
+        if (!cancelled) setCapacityLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId, capacityDate]);
 
   // Fetch commission settings to get appointment price
   useEffect(() => {
@@ -726,6 +780,77 @@ export default function DoctorDetailPage() {
     }
   };
 
+  const handleCapacityPayAndBook = async (window: ScheduleWithCapacity) => {
+    if (session?.user?.role === "ADMIN") {
+      setError("Admins cannot book. Use the admin dashboard.");
+      return;
+    }
+    if (!session?.user?.id) {
+      router.push(
+        `/login?callbackUrl=${encodeURIComponent(`/doctors/${doctorId}`)}`
+      );
+      return;
+    }
+    setError(null);
+    setSelectedSchedule(window);
+    try {
+      const res = await fetch("/api/bookings/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ scheduleId: window.id }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(
+          data.error?.message || "Failed to start booking. Please try again."
+        );
+      }
+      setCapacityStart({
+        clientSecret: data.data.clientSecret,
+        appointmentId: data.data.appointmentId,
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to start booking.");
+    }
+  };
+
+  const handleCapacityPaymentSuccess = async (piId: string) => {
+    if (!capacityStart) return;
+    const { appointmentId } = capacityStart;
+    const maxAttempts = 30;
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((r) => setTimeout(r, 2000));
+      const res = await fetch(`/api/appointments/${appointmentId}`);
+      const data = await res.json();
+      if (!res.ok || !data.success) continue;
+      const app = data.data as Appointment;
+      if (app.status === "CONFIRMED" && app.queueNumber != null) {
+        setCapacityResult({
+          status: "CONFIRMED",
+          queueNumber: app.queueNumber,
+        });
+        setCapacityStart(null);
+        setSelectedSchedule(null);
+        return;
+      }
+      if (app.status === "OVERFLOW") {
+        setCapacityResult({ status: "OVERFLOW" });
+        setCapacityStart(null);
+        setSelectedSchedule(null);
+        return;
+      }
+    }
+    setError(
+      "Confirmation is taking longer than expected. Check your appointments."
+    );
+  };
+
+  const resetCapacityFlow = () => {
+    setCapacityStart(null);
+    setCapacityResult(null);
+    setSelectedSchedule(null);
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -906,6 +1031,110 @@ export default function DoctorDetailPage() {
 
           {/* Booking Section */}
           <div className="lg:col-span-2">
+            {/* Capacity-based booking result */}
+            {capacityResult && (
+              <Card className="mb-6">
+                <div className="p-6 text-center">
+                  {capacityResult.status === "CONFIRMED" ? (
+                    <>
+                      <p className="text-lg font-semibold text-green-700 mb-2">
+                        Payment successful. Your token number is #
+                        {capacityResult.queueNumber}
+                      </p>
+                      <p className="text-gray-600 text-sm mb-4">
+                        Please arrive at the clinic and show this number.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-lg font-semibold text-amber-700 mb-2">
+                        Payment received, but the schedule became full
+                      </p>
+                      <p className="text-gray-600 text-sm mb-4">
+                        A refund will be processed. Please choose another time
+                        or contact the clinic.
+                      </p>
+                    </>
+                  )}
+                  <Button variant="primary" onClick={resetCapacityFlow}>
+                    Book another time
+                  </Button>
+                </div>
+              </Card>
+            )}
+
+            {/* Capacity: Pay with Stripe (after start booking) */}
+            {!capacityResult && capacityStart && selectedSchedule && (
+              <Card className="mb-6" title="Complete payment">
+                <div className="p-6">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Window: {selectedSchedule.startTime}–
+                    {selectedSchedule.endTime} • Pay & confirm your token
+                  </p>
+                  <StripeProvider clientSecret={capacityStart.clientSecret}>
+                    <PaymentForm
+                      amount={appointmentPrice ?? 0}
+                      paymentIntentId={
+                        capacityStart.clientSecret.split("_secret_")[0] ?? ""
+                      }
+                      clientSecret={capacityStart.clientSecret}
+                      onSuccess={handleCapacityPaymentSuccess}
+                      onError={setError}
+                      onCancel={resetCapacityFlow}
+                    />
+                  </StripeProvider>
+                </div>
+              </Card>
+            )}
+
+            {/* Capacity: Choose time window (main booking UI) */}
+            {!capacityResult && !capacityStart && (
+              <Card className="mb-6" title="Choose a time window">
+                <div className="p-6">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={capacityDate}
+                    onChange={(e) => setCapacityDate(e.target.value)}
+                    className="mb-4 w-full rounded border border-gray-300 px-3 py-2"
+                  />
+                  {capacityLoading ? (
+                    <p className="text-gray-500">Loading windows...</p>
+                  ) : capacityWindows.length === 0 ? (
+                    <p className="text-gray-500">
+                      No capacity windows for this date. Try another date.
+                    </p>
+                  ) : (
+                    <ul className="space-y-3">
+                      {capacityWindows.map((w) => (
+                        <li
+                          key={w.id}
+                          className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3"
+                        >
+                          <span className="font-medium text-gray-900">
+                            {w.startTime}–{w.endTime}
+                          </span>
+                          <span className="text-sm text-gray-600">
+                            Remaining tokens: {w.remaining}/{w.maxPatients}
+                          </span>
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleCapacityPayAndBook(w)}
+                            disabled={w.remaining <= 0 || booking}
+                          >
+                            Pay & Book
+                          </Button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </Card>
+            )}
+
             {bookedAppointment ? (
               <AppointmentConfirmation
                 appointment={bookedAppointment}
