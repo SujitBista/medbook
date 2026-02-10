@@ -27,8 +27,13 @@ export function HeroSearch() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     const params = new URLSearchParams();
-    if (searchTerm) params.append("search", searchTerm);
-    if (location) params.append("location", location);
+    const specialtyOrKeyword = searchTerm.trim();
+    const departmentOrDoctor = location.trim();
+    if (specialtyOrKeyword) {
+      params.set("specialty", specialtyOrKeyword);
+      params.set("q", specialtyOrKeyword);
+    }
+    if (departmentOrDoctor) params.set("doctor", departmentOrDoctor);
     const query = params.toString();
     router.push(query ? `/doctors?${query}` : "/doctors");
   };

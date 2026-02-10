@@ -20,12 +20,14 @@ vi.mock("next-auth/react", () => ({
 
 // Mock next/navigation
 const mockPush = vi.fn();
+let mockSearchParams = new URLSearchParams();
 vi.mock("next/navigation", () => ({
   useRouter: vi.fn(() => ({
     push: mockPush,
     replace: vi.fn(),
     refresh: vi.fn(),
   })),
+  useSearchParams: vi.fn(() => mockSearchParams),
 }));
 
 // Mock next/link
@@ -177,6 +179,7 @@ describe("DoctorsPage", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
     (useSession as any).mockReturnValue({
       data: mockSession,
       status: "authenticated",
@@ -215,6 +218,48 @@ describe("DoctorsPage", () => {
       await waitFor(() => {
         expect(screen.getByText("Find Your Doctor")).toBeInTheDocument();
       });
+    });
+
+    it("prefills filters from URL params and passes them to API (deep link)", async () => {
+      mockSearchParams = new URLSearchParams({
+        specialty: "Cardiology",
+        q: "Cardiology",
+        doctor: "Smith",
+      });
+      setupFetchMock({
+        ok: true,
+        json: async () => ({
+          success: true,
+          data: mockDoctors,
+          pagination: {
+            page: 1,
+            limit: 12,
+            total: 3,
+            totalPages: 1,
+          },
+        }),
+      });
+
+      render(<DoctorsPage />);
+
+      await waitFor(() => {
+        const fetchCalls = (global.fetch as any).mock.calls;
+        const doctorsApiCall = fetchCalls.find(
+          (call: any[]) =>
+            call[0] &&
+            typeof call[0] === "string" &&
+            call[0].includes("/api/doctors") &&
+            call[0].includes("specialization=Cardiology") &&
+            call[0].includes("search=")
+        );
+        expect(doctorsApiCall).toBeDefined();
+        const url = doctorsApiCall[0];
+        expect(url).toContain("Cardiology");
+        expect(url).toContain("Smith");
+      });
+
+      // Search input prefilled from URL (q + doctor)
+      expect(screen.getByDisplayValue("Cardiology Smith")).toBeInTheDocument();
     });
 
     it("should display search form", async () => {
