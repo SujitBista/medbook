@@ -37,17 +37,40 @@ Located in `packages/db/.env`
 
 ### `DATABASE_URL` (Required)
 
-PostgreSQL connection string for Prisma.
+PostgreSQL connection string for Prisma (used at runtime).
 
 **Format:** `postgresql://user:password@host:port/database`
 
-**Example:**
+**Examples:**
 
 ```bash
+# Local
 DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
+
+# Supabase (direct) - from Dashboard → Settings → Database → Connection string
+DATABASE_URL=postgresql://postgres.[ref]:[password]@db.[ref].supabase.co:5432/postgres
 ```
 
-**Used by:** `packages/db` (Prisma)
+**Used by:** `packages/db` (Prisma), `apps/api`
+
+**See also:** [Supabase setup](docs/SUPABASE_SETUP.md) for using Supabase as the database.
+
+---
+
+### `DIRECT_DATABASE_URL` (Required)
+
+Direct PostgreSQL connection URL used by Prisma for **migrations** and introspection. When using a connection pooler (e.g. Supabase Transaction pooler), set this to the **direct** database URL so migrations run correctly.
+
+- **No pooler:** Set to the same value as `DATABASE_URL`.
+- **Supabase pooler:** Set to the **Direct** connection URI from Supabase Dashboard → Settings → Database.
+
+**Example (same as DATABASE_URL when not pooling):**
+
+```bash
+DIRECT_DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
+```
+
+**Used by:** `packages/db` (Prisma schema `directUrl`)
 
 ---
 
@@ -280,6 +303,7 @@ NEXT_PUBLIC_API_URL=https://api.medbook.com/api/v1
 ```bash
 # packages/db/.env
 DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
+DIRECT_DATABASE_URL=postgresql://postgres:password@localhost:5432/medbook
 
 # apps/api/.env
 NODE_ENV=development
@@ -298,6 +322,7 @@ NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
 ```bash
 # packages/db/.env
 DATABASE_URL=postgresql://user:password@prod-db-host:5432/medbook
+DIRECT_DATABASE_URL=postgresql://user:password@prod-db-host:5432/medbook
 
 # apps/api/.env
 NODE_ENV=production
@@ -349,9 +374,10 @@ If you're getting CORS errors:
 
 If Prisma can't connect:
 
-1. Verify `DATABASE_URL` format is correct
-2. Check database is running and accessible
+1. Verify `DATABASE_URL` and `DIRECT_DATABASE_URL` format is correct (both must be set; use the same value if not using a pooler).
+2. Check database is running and accessible.
 3. Test connection: `psql $DATABASE_URL`
+4. For Supabase: see [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md#troubleshooting).
 
 ---
 
