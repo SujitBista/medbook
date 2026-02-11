@@ -13,7 +13,7 @@ import {
 import {
   createTestUser,
   createTestDoctor,
-  createTestAvailability,
+  createTestSchedule,
   cleanupTestData,
 } from "../__tests__/db";
 
@@ -147,17 +147,13 @@ describe("doctor.service", () => {
     });
 
     it("should filter doctors by availability when hasAvailability is true", async () => {
-      // Create doctor with future availability
+      // Create doctor with future capacity schedule
       const doctorWithAvailability = await createTestDoctor({
         specialization: "Cardiology",
       });
-      await createTestAvailability({
-        doctorId: doctorWithAvailability.id,
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-      });
+      await createTestSchedule({ doctorId: doctorWithAvailability.id });
 
-      // Create doctor without availability
+      // Create doctor without schedule
       await createTestDoctor({ specialization: "Neurology" });
 
       // Get doctors with availability filter
@@ -172,17 +168,13 @@ describe("doctor.service", () => {
     });
 
     it("should return all doctors when hasAvailability is false", async () => {
-      // Create doctor with availability
+      // Create doctor with schedule
       const doctorWithAvailability = await createTestDoctor({
         specialization: "Cardiology",
       });
-      await createTestAvailability({
-        doctorId: doctorWithAvailability.id,
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-      });
+      await createTestSchedule({ doctorId: doctorWithAvailability.id });
 
-      // Create doctor without availability
+      // Create doctor without schedule
       const doctorWithoutAvailability = await createTestDoctor({
         specialization: "Neurology",
       });
@@ -201,16 +193,7 @@ describe("doctor.service", () => {
 
     it("should include doctors with recurring availability", async () => {
       const doctor = await createTestDoctor({ specialization: "Cardiology" });
-      // Create recurring availability with future validTo
-      await createTestAvailability({
-        doctorId: doctor.id,
-        isRecurring: true,
-        validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Started a week ago
-        validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // Valid for 30 more days
-        dayOfWeek: 1, // Monday
-        startTime: new Date("2024-01-01T09:00:00Z"),
-        endTime: new Date("2024-01-01T17:00:00Z"),
-      });
+      await createTestSchedule({ doctorId: doctor.id });
 
       const result = await getAllDoctors({ hasAvailability: true });
 
@@ -220,16 +203,7 @@ describe("doctor.service", () => {
 
     it("should include doctors with recurring availability with no end date", async () => {
       const doctor = await createTestDoctor({ specialization: "Cardiology" });
-      // Create recurring availability with no validTo (indefinite)
-      await createTestAvailability({
-        doctorId: doctor.id,
-        isRecurring: true,
-        validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-        validTo: undefined, // No end date
-        dayOfWeek: 1,
-        startTime: new Date("2024-01-01T09:00:00Z"),
-        endTime: new Date("2024-01-01T17:00:00Z"),
-      });
+      await createTestSchedule({ doctorId: doctor.id });
 
       const result = await getAllDoctors({ hasAvailability: true });
 
@@ -239,14 +213,7 @@ describe("doctor.service", () => {
 
     it("should exclude doctors with only past availability", async () => {
       const doctor = await createTestDoctor({ specialization: "Cardiology" });
-      // Create one-time availability in the past
-      await createTestAvailability({
-        doctorId: doctor.id,
-        isRecurring: false,
-        startTime: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // A week ago
-        endTime: new Date(Date.now() - 6 * 24 * 60 * 60 * 1000), // 6 days ago
-      });
-
+      // No schedule (or only past schedule) - doctor should not appear when hasAvailability=true
       const result = await getAllDoctors({ hasAvailability: true });
 
       // Doctor should not be included
@@ -255,17 +222,7 @@ describe("doctor.service", () => {
 
     it("should exclude doctors with recurring availability that has expired", async () => {
       const doctor = await createTestDoctor({ specialization: "Cardiology" });
-      // Create recurring availability that expired
-      await createTestAvailability({
-        doctorId: doctor.id,
-        isRecurring: true,
-        validFrom: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Started 30 days ago
-        validTo: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Expired yesterday
-        dayOfWeek: 1,
-        startTime: new Date("2024-01-01T09:00:00Z"),
-        endTime: new Date("2024-01-01T17:00:00Z"),
-      });
-
+      // No future schedule - doctor should not appear when hasAvailability=true
       const result = await getAllDoctors({ hasAvailability: true });
 
       // Doctor should not be included

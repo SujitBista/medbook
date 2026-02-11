@@ -12,7 +12,7 @@ import {
   cleanupTestData,
   createTestUser,
   createTestDoctor,
-  createTestAvailability,
+  createTestSchedule,
 } from "../__tests__/db";
 import { UserRole } from "@medbook/types";
 
@@ -40,17 +40,9 @@ describe("GET /api/v1/doctors", () => {
       specialization: "Neurology",
       bio: "Brain specialist",
     });
-    // Create availability for doctors (public endpoint filters by availability by default)
-    await createTestAvailability({
-      doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    // Public endpoint filters by capacity schedule by default
+    await createTestSchedule({ doctorId: doctor1.id });
+    await createTestSchedule({ doctorId: doctor2.id });
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
 
@@ -65,16 +57,12 @@ describe("GET /api/v1/doctors", () => {
   });
 
   it("should paginate doctors correctly", async () => {
-    // Create multiple doctors with availability
+    // Create multiple doctors with capacity schedule
     for (let i = 0; i < 5; i++) {
       const doctor = await createTestDoctor({
         specialization: `Specialty${i}`,
       });
-      await createTestAvailability({
-        doctorId: doctor.id,
-        startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-        endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-      });
+      await createTestSchedule({ doctorId: doctor.id });
       createdDoctorIds.push(doctor.id);
       createdUserIds.push(doctor.userId);
     }
@@ -100,17 +88,8 @@ describe("GET /api/v1/doctors", () => {
     const doctor2 = await createTestDoctor({
       specialization: "Neurology",
     });
-    // Create availability for doctors (public endpoint filters by availability by default)
-    await createTestAvailability({
-      doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor1.id });
+    await createTestSchedule({ doctorId: doctor2.id });
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
 
@@ -163,13 +142,9 @@ describe("GET /api/v1/doctors", () => {
     const doctorWithAvailability = await createTestDoctor({
       specialization: "Cardiology",
     });
-    await createTestAvailability({
-      doctorId: doctorWithAvailability.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000), // Tomorrow
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctorWithAvailability.id });
 
-    // Create doctor without availability
+    // Create doctor without schedule
     await createTestDoctor({ specialization: "Neurology" });
 
     // Public endpoint should default to filtering by availability
@@ -191,13 +166,9 @@ describe("GET /api/v1/doctors", () => {
     const doctorWithAvailability = await createTestDoctor({
       specialization: "Cardiology",
     });
-    await createTestAvailability({
-      doctorId: doctorWithAvailability.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctorWithAvailability.id });
 
-    // Create doctor without availability
+    // Create doctor without schedule
     const doctorWithoutAvailability = await createTestDoctor({
       specialization: "Neurology",
     });
@@ -224,16 +195,8 @@ describe("GET /api/v1/doctors", () => {
 
   it("should include doctors with recurring availability", async () => {
     const doctor = await createTestDoctor({ specialization: "Cardiology" });
-    // Create recurring availability with future validTo
-    await createTestAvailability({
-      doctorId: doctor.id,
-      isRecurring: true,
-      validFrom: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
-      validTo: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      dayOfWeek: 1,
-      startTime: new Date("2024-01-01T09:00:00Z"),
-      endTime: new Date("2024-01-01T17:00:00Z"),
-    });
+    // Create capacity schedule so doctor appears when hasAvailability=true
+    await createTestSchedule({ doctorId: doctor.id });
 
     const response = await agent.get("/api/v1/doctors").expect(200);
 
@@ -630,10 +593,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user1.id,
       specialization: "Cardiology",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const user2 = await createTestUser({
@@ -645,11 +606,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user2.id,
       specialization: "Neurology",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(user1.id, user2.id);
@@ -676,10 +633,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user1.id,
       specialization: "Cardiology",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const user2 = await createTestUser({
@@ -691,11 +646,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user2.id,
       specialization: "Neurology",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(user1.id, user2.id);
@@ -718,10 +669,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "New York",
       state: "NY",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const doctor2 = await createTestDoctor({
@@ -729,11 +678,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "Los Angeles",
       state: "CA",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
@@ -759,10 +704,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "New York",
       state: "NY",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const doctor2 = await createTestDoctor({
@@ -770,11 +713,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "Los Angeles",
       state: "CA",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
@@ -804,10 +743,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user1.id,
       specialization: "Cardiology",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const user2 = await createTestUser({
@@ -819,11 +756,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       userId: user2.id,
       specialization: "Neurology",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(user1.id, user2.id);
@@ -849,20 +782,14 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
     const doctor1 = await createTestDoctor({
       specialization: "Cardiology",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const doctor2 = await createTestDoctor({
       specialization: "Neurology",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
@@ -894,21 +821,15 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       specialization: "Cardiology",
       yearsOfExperience: 5,
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const doctor2 = await createTestDoctor({
       specialization: "Neurology",
       yearsOfExperience: 15,
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(doctor1.userId, doctor2.userId);
@@ -973,10 +894,8 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "New York",
       state: "NY",
     });
-    await createTestAvailability({
+    await createTestSchedule({
       doctorId: doctor1.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
     });
 
     const user2 = await createTestUser({
@@ -990,11 +909,7 @@ describe("GET /api/v1/doctors - Enhanced Search and Filtering (Feature 5.3)", ()
       city: "New York",
       state: "NY",
     });
-    await createTestAvailability({
-      doctorId: doctor2.id,
-      startTime: new Date(Date.now() + 24 * 60 * 60 * 1000),
-      endTime: new Date(Date.now() + 25 * 60 * 60 * 1000),
-    });
+    await createTestSchedule({ doctorId: doctor2.id });
 
     createdDoctorIds.push(doctor1.id, doctor2.id);
     createdUserIds.push(user1.id, user2.id);
