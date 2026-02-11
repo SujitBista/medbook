@@ -81,7 +81,8 @@ In your Render service dashboard, go to **"Environment"** and add these variable
 
 - `NODE_ENV` = `production`
 - `PORT` = `10000` (or let Render auto-assign)
-- `DATABASE_URL` = Your PostgreSQL connection string
+- `DATABASE_URL` = Your PostgreSQL connection string (local, Render Postgres, **Supabase**, or any PostgreSQL host). For Supabase, see [Supabase setup](docs/SUPABASE_SETUP.md).
+- `DIRECT_DATABASE_URL` = Same as `DATABASE_URL` unless you use a connection pooler (e.g. Supabase Transaction pooler). For Supabase pooler, set this to the **Direct** connection URI so migrations run in the Release Command.
 - `JWT_SECRET` = Generate with: `openssl rand -base64 32`
 - `API_URL` = Your Render service URL (e.g., `https://medbook-api.onrender.com`)
 

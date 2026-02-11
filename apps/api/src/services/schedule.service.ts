@@ -3,7 +3,7 @@
  * Handles schedule windows (date + startTime + endTime + maxPatients)
  */
 
-import { query, withTransaction } from "@app/db";
+import { query } from "@app/db";
 import type {
   Schedule,
   CreateScheduleInput,
@@ -60,11 +60,20 @@ export async function createSchedule(
     throw createValidationError("startTime must be before endTime");
   }
 
-  const dateOnly = new Date(date);
+  // Store as pure DATE: parse YYYY-MM-DD and normalize to UTC midnight
+  // to avoid timezone shifts (e.g. new Date("2026-02-10").setHours in local TZ)
+  const match = String(date)
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw createValidationError("Invalid date format. Use YYYY-MM-DD");
+  }
+  const dateOnly = new Date(
+    `${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`
+  );
   if (isNaN(dateOnly.getTime())) {
     throw createValidationError("Invalid date format. Use YYYY-MM-DD");
   }
-  dateOnly.setHours(0, 0, 0, 0);
 
   const existing = await query<
     { id: string; startTime: string; endTime: string }[]
@@ -152,20 +161,23 @@ export async function getSchedules(queryInput: {
   }
 
   if (queryInput.date) {
-    const d = new Date(queryInput.date);
-    d.setHours(0, 0, 0, 0);
-    where.date = d;
+    const m = String(queryInput.date)
+      .trim()
+      .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if (m) where.date = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`);
   } else if (queryInput.startDate || queryInput.endDate) {
     const cond: { gte?: Date; lte?: Date } = {};
     if (queryInput.startDate) {
-      const d = new Date(queryInput.startDate);
-      d.setHours(0, 0, 0, 0);
-      cond.gte = d;
+      const m = String(queryInput.startDate)
+        .trim()
+        .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) cond.gte = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`);
     }
     if (queryInput.endDate) {
-      const d = new Date(queryInput.endDate);
-      d.setHours(23, 59, 59, 999);
-      cond.lte = d;
+      const m = String(queryInput.endDate)
+        .trim()
+        .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+      if (m) cond.lte = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`);
     }
     if (Object.keys(cond).length) where.date = cond;
   }
@@ -208,7 +220,11 @@ export async function getDoctorSchedules(
   doctorId: string,
   date: string
 ): Promise<Schedule[]> {
-  return getSchedules({ doctorId, date });
+  const m = String(date)
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return [];
+  return getSchedules({ doctorId, date: `${m[1]}-${m[2]}-${m[3]}` });
 }
 
 /**
@@ -221,10 +237,10 @@ export async function getDoctorIdsWithScheduleInRange(
   endDate: Date
 ): Promise<Set<string>> {
   if (doctorIds.length === 0) return new Set();
-  const start = new Date(startDate);
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(endDate);
-  end.setHours(23, 59, 59, 999);
+  const startStr = `${startDate.getFullYear()}-${String(startDate.getMonth() + 1).padStart(2, "0")}-${String(startDate.getDate()).padStart(2, "0")}`;
+  const endStr = `${endDate.getFullYear()}-${String(endDate.getMonth() + 1).padStart(2, "0")}-${String(endDate.getDate()).padStart(2, "0")}`;
+  const start = new Date(`${startStr}T00:00:00.000Z`);
+  const end = new Date(`${endStr}T00:00:00.000Z`);
   const rows = await query<{ doctorId: string }[]>((prisma) =>
     prisma.schedule.findMany({
       where: {
@@ -236,6 +252,61 @@ export async function getDoctorIdsWithScheduleInRange(
     })
   );
   return new Set(rows.map((r) => r.doctorId));
+}
+
+/**
+ * Today's calendar date (YYYY-MM-DD) in server's local timezone, as a Date for DB comparison.
+ * schedule.date is stored as DATE; we compare against local "today" so clinics in any timezone
+ * see correct upcoming schedules (fixes "No doctors found" when UTC today != local today).
+ */
+function todayLocalForDb(): Date {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, "0");
+  const d = String(now.getDate()).padStart(2, "0");
+  return new Date(`${y}-${m}-${d}T00:00:00.000Z`);
+}
+
+/**
+ * End datetime of a schedule in server's local timezone.
+ * schedule.date (DATE) comes from DB as UTC midnight; endTime (HH:mm) is local clinic time.
+ * Uses local date + local time for "has the window ended?" so timezone doesn't wrongly exclude today's slots.
+ */
+function scheduleEndDateTimeLocal(schedule: {
+  date: Date;
+  endTime: string;
+}): Date {
+  const [endH, endM] = schedule.endTime.split(":").map(Number);
+  const y = schedule.date.getUTCFullYear();
+  const m = schedule.date.getUTCMonth();
+  const d = schedule.date.getUTCDate();
+  return new Date(y, m, d, endH ?? 0, endM ?? 0, 0, 0);
+}
+
+/**
+ * Returns doctor IDs that have at least one capacity schedule window that has not yet ended.
+ * Upcoming = schedule.date > todayLocal OR (schedule.date === todayLocal AND endTime > now).
+ * Uses local date/time so clinics in any timezone see correct results.
+ */
+export async function getDoctorIdsWithFutureSchedule(): Promise<Set<string>> {
+  const now = new Date();
+  const today = todayLocalForDb();
+  const rows = await query<{ doctorId: string; date: Date; endTime: string }[]>(
+    (prisma) =>
+      prisma.schedule.findMany({
+        where: { date: { gte: today } },
+        select: { doctorId: true, date: true, endTime: true },
+      })
+  );
+  const doctorIds = new Set<string>();
+  for (const row of rows) {
+    const endAt = scheduleEndDateTimeLocal({
+      date: row.date,
+      endTime: row.endTime,
+    });
+    if (endAt > now) doctorIds.add(row.doctorId);
+  }
+  return doctorIds;
 }
 
 /**
@@ -291,11 +362,105 @@ export async function countConfirmedForSchedule(
   return result._count.id;
 }
 
+/** Same as scheduleEndDateTimeLocal: date + endTime as local time for "has ended?" check. */
 function scheduleEndDateTime(schedule: { date: Date; endTime: string }): Date {
-  const [endH, endM] = schedule.endTime.split(":").map(Number);
-  const end = new Date(schedule.date);
-  end.setHours(endH ?? 0, endM ?? 0, 0, 0);
-  return end;
+  return scheduleEndDateTimeLocal(schedule);
+}
+
+export interface NextUpcomingSchedule {
+  date: Date;
+  startTime: string;
+  endTime: string;
+  remaining: number;
+  scheduleId: string;
+}
+
+/**
+ * Returns the next upcoming capacity schedule per doctor (earliest by date then startTime).
+ * Used for doctors list "Next available" and for default booking date.
+ * Uses local date/time for correct timezone handling.
+ */
+export async function getNextUpcomingScheduleByDoctorIds(
+  doctorIds: string[]
+): Promise<Map<string, NextUpcomingSchedule>> {
+  if (doctorIds.length === 0) return new Map();
+  const now = new Date();
+  const today = todayLocalForDb();
+
+  const rows = await query<
+    {
+      id: string;
+      doctorId: string;
+      date: Date;
+      startTime: string;
+      endTime: string;
+      maxPatients: number;
+    }[]
+  >((prisma) =>
+    prisma.schedule.findMany({
+      where: { doctorId: { in: doctorIds }, date: { gte: today } },
+      orderBy: [{ date: "asc" }, { startTime: "asc" }],
+    })
+  );
+
+  const result = new Map<string, NextUpcomingSchedule>();
+  const seen = new Set<string>();
+
+  for (const row of rows) {
+    if (seen.has(row.doctorId)) continue;
+    const endAt = scheduleEndDateTimeLocal({
+      date: row.date,
+      endTime: row.endTime,
+    });
+    if (endAt <= now) continue;
+    const confirmedCount = await countConfirmedForSchedule(row.id);
+    const remaining = Math.max(0, row.maxPatients - confirmedCount);
+    seen.add(row.doctorId);
+    result.set(row.doctorId, {
+      date: row.date,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      remaining,
+      scheduleId: row.id,
+    });
+  }
+  return result;
+}
+
+/**
+ * Returns distinct schedule dates (YYYY-MM-DD) for a doctor that have at least one
+ * upcoming (not yet ended) window. Used to default the booking page date picker.
+ */
+export async function getUpcomingScheduleDates(
+  doctorId: string
+): Promise<string[]> {
+  const now = new Date();
+  const today = todayLocalForDb();
+
+  const rows = await query<{ date: Date; endTime: string }[]>((prisma) =>
+    prisma.schedule.findMany({
+      where: { doctorId, date: { gte: today } },
+      select: { date: true, endTime: true },
+      orderBy: { date: "asc" },
+    })
+  );
+
+  const dates: string[] = [];
+  let lastDate = "";
+
+  for (const row of rows) {
+    const endAt = scheduleEndDateTimeLocal({
+      date: row.date,
+      endTime: row.endTime,
+    });
+    if (endAt <= now) continue;
+    const dateStr = row.date.toISOString().slice(0, 10);
+    if (dateStr !== lastDate) {
+      dates.push(dateStr);
+      lastDate = dateStr;
+    }
+  }
+  return dates;
 }
 
 function disabledReasonMessage(code: ScheduleDisabledReasonCode): string {
@@ -321,11 +486,16 @@ export async function getAvailabilityWindows(
   doctorId: string,
   date: string
 ): Promise<ScheduleWithCapacity[]> {
-  const d = new Date(date);
+  const m = String(date)
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) {
+    throw createValidationError("Invalid date. Use YYYY-MM-DD");
+  }
+  const d = new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00.000Z`);
   if (isNaN(d.getTime())) {
     throw createValidationError("Invalid date. Use YYYY-MM-DD");
   }
-  d.setHours(0, 0, 0, 0);
 
   const schedules = await query<
     {

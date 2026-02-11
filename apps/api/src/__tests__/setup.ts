@@ -22,6 +22,8 @@ const defaultTestDbUrl =
   "postgresql://postgres:postgres@localhost:5432/medbook_test";
 process.env.TEST_DATABASE_URL = defaultTestDbUrl;
 process.env.DATABASE_URL = defaultTestDbUrl;
+process.env.DIRECT_DATABASE_URL =
+  process.env.DIRECT_DATABASE_URL || defaultTestDbUrl;
 process.env.PGUSER = process.env.PGUSER || "postgres";
 process.env.PGPASSWORD = process.env.PGPASSWORD || "postgres";
 process.env.PGHOST = process.env.PGHOST || "localhost";

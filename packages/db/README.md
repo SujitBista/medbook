@@ -10,11 +10,14 @@ This package contains the Prisma schema, migrations, and database client for the
    pnpm install
    ```
 
-2. Set up environment variables:
+2. Set up environment variables in `packages/db/.env` (copy from `.env.example`):
 
    ```bash
    DATABASE_URL=postgresql://user:password@localhost:5432/medbook
+   DIRECT_DATABASE_URL=postgresql://user:password@localhost:5432/medbook
    ```
+
+   Use the same value for both unless you use a connection pooler (e.g. [Supabase](https://supabase.com)); see [Supabase setup](../../docs/SUPABASE_SETUP.md).
 
 3. Generate Prisma Client:
    ```bash

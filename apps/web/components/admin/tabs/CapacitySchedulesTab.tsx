@@ -186,16 +186,20 @@ export function CapacitySchedulesTab({
             <p className="text-gray-500">No schedules found.</p>
           ) : (
             <ul className="space-y-2">
-              {schedules.map((s) => (
-                <li
-                  key={s.id}
-                  className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
-                >
-                  <span>
-                    {s.date} {s.startTime}–{s.endTime} • max {s.maxPatients}
-                  </span>
-                </li>
-              ))}
+              {schedules.map((s) => {
+                const dateDisplay = String(s.date).slice(0, 10);
+                return (
+                  <li
+                    key={s.id}
+                    className="flex items-center justify-between rounded border border-gray-200 bg-gray-50 px-3 py-2 text-sm"
+                  >
+                    <span>
+                      {dateDisplay} • {s.startTime}–{s.endTime} • max{" "}
+                      {s.maxPatients}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

@@ -99,11 +99,16 @@ openssl rand -base64 32
 2. Copy the `Internal Database URL` or `External Database URL`
 3. Set it as an environment variable in your backend deployment
 
-### Option 3: Supabase/Neon/Other Managed PostgreSQL
+### Option 3: Supabase (recommended)
 
-1. Create a new database instance
-2. Copy the connection string
-3. Set it as an environment variable in your backend deployment
+1. Create a project in [Supabase](https://supabase.com) and get the connection string from **Settings → Database**.
+2. Set `DATABASE_URL` and `DIRECT_DATABASE_URL` in your backend deployment (use the same value for both unless you use the Transaction pooler; see [Supabase setup](docs/SUPABASE_SETUP.md)).
+
+### Option 4: Neon / Other managed PostgreSQL
+
+1. Create a new database instance.
+2. Copy the connection string.
+3. Set `DATABASE_URL` and `DIRECT_DATABASE_URL` (same value if not using a pooler) in your backend deployment.
 
 ### Running Migrations
 

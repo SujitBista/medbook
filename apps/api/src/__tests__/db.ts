@@ -11,12 +11,13 @@ import { query, withTransaction } from "@app/db";
  * Handles errors gracefully to prevent cleanup failures from breaking tests
  *
  * Deletion order (reverse of dependencies):
- * 1. Appointments (references slots, availabilities, doctors, users)
+ * 1. Appointments (references slots, availabilities, schedules, doctors, users)
  * 2. Slots (references doctors, availabilities)
  * 3. SlotTemplates (references doctors)
- * 4. Availabilities (references doctors)
- * 5. Doctors (references users)
- * 6. Users
+ * 4. Schedules (references doctors)
+ * 5. Availabilities (references doctors)
+ * 6. Doctors (references users)
+ * 7. Users
  */
 export async function cleanupTestData(): Promise<void> {
   try {
@@ -131,6 +132,32 @@ export async function cleanupTestData(): Promise<void> {
           "[cleanupTestData] Failed to delete slot templates:",
           error
         );
+      }
+
+      try {
+        // Delete schedules (has foreign key to doctors)
+        await prisma.schedule.deleteMany({
+          where: {
+            OR: [
+              {
+                doctor: {
+                  user: {
+                    email: { startsWith: "test-" },
+                  },
+                },
+              },
+              {
+                doctor: {
+                  user: {
+                    email: { endsWith: "@example.com" },
+                  },
+                },
+              },
+            ],
+          },
+        });
+      } catch (error) {
+        console.warn("[cleanupTestData] Failed to delete schedules:", error);
       }
 
       try {
@@ -538,6 +565,66 @@ export async function createTestDepartment(overrides?: {
     })
   );
   return department;
+}
+
+/**
+ * Creates a test capacity schedule in the database.
+ * Used so GET /api/v1/doctors (hasAvailability=true) returns the doctor.
+ * doctorId is required. date defaults to tomorrow; startTime/endTime to "09:00"/"17:00".
+ */
+export async function createTestSchedule(overrides: {
+  doctorId: string;
+  date?: Date;
+  startTime?: string;
+  endTime?: string;
+  maxPatients?: number;
+}): Promise<{
+  id: string;
+  doctorId: string;
+  date: Date;
+  startTime: string;
+  endTime: string;
+  maxPatients: number;
+}> {
+  const doctor = await query((prisma) =>
+    prisma.doctor.findUnique({
+      where: { id: overrides.doctorId },
+      select: { id: true },
+    })
+  );
+  if (!doctor) {
+    throw new Error(
+      `Doctor with ID ${overrides.doctorId} not found. Cannot create schedule.`
+    );
+  }
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const date =
+    overrides.date ??
+    new Date(tomorrow.getFullYear(), tomorrow.getMonth(), tomorrow.getDate());
+  const startTime = overrides.startTime ?? "09:00";
+  const endTime = overrides.endTime ?? "17:00";
+  const maxPatients = overrides.maxPatients ?? 10;
+
+  const schedule = await query((prisma) =>
+    prisma.schedule.create({
+      data: {
+        doctorId: overrides.doctorId,
+        date,
+        startTime,
+        endTime,
+        maxPatients,
+      },
+    })
+  );
+  return {
+    id: schedule.id,
+    doctorId: schedule.doctorId,
+    date: schedule.date,
+    startTime: schedule.startTime,
+    endTime: schedule.endTime,
+    maxPatients: schedule.maxPatients,
+  };
 }
 
 /**

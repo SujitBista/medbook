@@ -664,8 +664,11 @@ describe("DoctorsPage", () => {
 
       await waitFor(() => {
         expect(screen.getByText("No doctors found")).toBeInTheDocument();
+        // Updated text to match the new UI with "Show all doctors" feature
         expect(
-          screen.getByText("No doctors are currently available.")
+          screen.getByText(
+            /No doctors have upcoming schedules.*Try "Show all doctors"/i
+          )
         ).toBeInTheDocument();
       });
     });

@@ -35,6 +35,14 @@ export interface Doctor {
   hasSchedule?: boolean;
   /** Present when includeNoSchedule=true: earliest future slot start time, null if no schedule */
   nextAvailableSlotAt?: Date | null;
+  /** Next upcoming capacity schedule date (YYYY-MM-DD); for list "Next available" and booking default */
+  nextScheduleDate?: string;
+  /** Next upcoming capacity schedule window start time (HH:mm) */
+  nextScheduleStartTime?: string;
+  /** Next upcoming capacity schedule window end time (HH:mm) */
+  nextScheduleEndTime?: string;
+  /** Remaining bookable tokens for that next schedule */
+  remainingTokens?: number;
 }
 
 export interface CreateDoctorInput {
