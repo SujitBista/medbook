@@ -11,7 +11,10 @@ import {
   updateAvailability,
   deleteAvailability,
 } from "../services/availability.service";
-import { getAvailabilityWindows } from "../services/schedule.service";
+import {
+  getAvailabilityWindows,
+  getUpcomingScheduleDates,
+} from "../services/schedule.service";
 import {
   CreateAvailabilityInput,
   UpdateAvailabilityInput,
@@ -45,6 +48,37 @@ export async function getAvailabilityWindowsHandler(
     res.status(200).json({
       success: true,
       data: windows,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Get upcoming schedule dates for a doctor (capacity schedules; for booking page default date)
+ * GET /api/v1/availability/upcoming-dates?doctorId=
+ */
+export async function getUpcomingScheduleDatesHandler(
+  req: Request,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const doctorId = req.query.doctorId as string | undefined;
+
+    if (!doctorId) {
+      const error = createValidationError(
+        "doctorId query parameter is required"
+      );
+      next(error);
+      return;
+    }
+
+    const dates = await getUpcomingScheduleDates(doctorId);
+
+    res.status(200).json({
+      success: true,
+      data: dates,
     });
   } catch (error) {
     next(error);

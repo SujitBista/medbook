@@ -131,6 +131,24 @@ function searchTermToSlug(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
+/** Format YYYY-MM-DD for display (e.g. "Feb 10, 2026" or "Tomorrow") */
+function formatScheduleDate(dateStr: string): string {
+  const d = new Date(dateStr + "T12:00:00");
+  if (isNaN(d.getTime())) return dateStr;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  d.setHours(0, 0, 0, 0);
+  if (d.getTime() === today.getTime()) return "Today";
+  if (d.getTime() === tomorrow.getTime()) return "Tomorrow";
+  return d.toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 /** Parse URL search params: prefer q, department, doctorId; support legacy params */
 function getFiltersFromSearchParams(searchParams: URLSearchParams | null): {
   q: string;
@@ -511,7 +529,9 @@ function DoctorsPageContent() {
                   <p className="mt-2 text-sm text-gray-600">
                     {searchTerm || specializationFilter || doctorIdFilter
                       ? "Try adjusting your search filters."
-                      : "No doctors are currently available."}
+                      : showAllDoctors
+                        ? "No doctors are currently available."
+                        : 'No doctors have upcoming schedules. Try "Show all doctors".'}
                   </p>
                   {(searchTerm || specializationFilter || doctorIdFilter) && (
                     <Button
@@ -528,6 +548,22 @@ function DoctorsPageContent() {
                       Clear filters
                     </Button>
                   )}
+                  {!showAllDoctors &&
+                    !searchTerm &&
+                    !specializationFilter &&
+                    !doctorIdFilter && (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => {
+                          setShowAllDoctors(true);
+                          setPagination((prev) => ({ ...prev, page: 1 }));
+                        }}
+                        className="mt-4"
+                      >
+                        Show all doctors
+                      </Button>
+                    )}
                 </div>
               </Card>
             ) : (
@@ -582,6 +618,39 @@ function DoctorsPageContent() {
                                   {doctor.specialization}
                                 </p>
                               )}
+                              {doctor.nextScheduleDate &&
+                                (doctor.nextScheduleStartTime != null ||
+                                  doctor.nextScheduleEndTime != null) && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    Next available:{" "}
+                                    {formatScheduleDate(
+                                      doctor.nextScheduleDate
+                                    )}{" "}
+                                    {[
+                                      doctor.nextScheduleStartTime,
+                                      doctor.nextScheduleEndTime,
+                                    ]
+                                      .filter(Boolean)
+                                      .join("–")}
+                                    {doctor.remainingTokens != null &&
+                                      doctor.remainingTokens >= 0 && (
+                                        <span className="text-gray-500">
+                                          {" "}
+                                          ({doctor.remainingTokens} spots left)
+                                        </span>
+                                      )}
+                                  </p>
+                                )}
+                              {doctor.nextScheduleDate &&
+                                !doctor.nextScheduleStartTime &&
+                                !doctor.nextScheduleEndTime && (
+                                  <p className="text-xs text-gray-600 mt-1">
+                                    Next available:{" "}
+                                    {formatScheduleDate(
+                                      doctor.nextScheduleDate
+                                    )}
+                                  </p>
+                                )}
                               {doctor.yearsOfExperience && (
                                 <p className="text-xs text-gray-500 mt-1">
                                   {doctor.yearsOfExperience}{" "}

@@ -205,7 +205,7 @@ export default function DoctorDetailPage() {
   // Capacity-based booking (schedule windows)
   const [capacityDate, setCapacityDate] = useState<string>(() => {
     const d = new Date();
-    return d.toISOString().slice(0, 10);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
   });
   const [capacityWindows, setCapacityWindows] = useState<
     ScheduleWithCapacity[]
@@ -265,6 +265,27 @@ export default function DoctorDetailPage() {
     // Refresh interval: check for new slots every 30 seconds
     refreshInterval: 30000,
   });
+
+  // Default capacity date to earliest upcoming schedule when opening doctor profile
+  useEffect(() => {
+    if (!doctorId) return;
+    let cancelled = false;
+    fetch(
+      `/api/availability/upcoming-dates?doctorId=${encodeURIComponent(doctorId)}`
+    )
+      .then((res) => res.json())
+      .then((data) => {
+        if (cancelled || !data.success || !Array.isArray(data.data)) return;
+        const dates = data.data as string[];
+        if (dates.length > 0) {
+          setCapacityDate(dates[0]);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [doctorId]);
 
   // Fetch capacity windows for selected date
   useEffect(() => {

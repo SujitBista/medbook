@@ -15,7 +15,11 @@ import {
   getDepartmentBySlug,
   searchDepartmentsByQuery,
 } from "./department.service";
-import { getDoctorIdsWithScheduleInRange } from "./schedule.service";
+import {
+  getDoctorIdsWithScheduleInRange,
+  getDoctorIdsWithFutureSchedule,
+  getNextUpcomingScheduleByDoctorIds,
+} from "./schedule.service";
 
 /**
  * Gets doctor by ID
@@ -274,68 +278,16 @@ export async function getAllDoctors(options?: {
     };
   }
 
-  // Filter by availability if requested
-  // This checks for doctors who have actual bookable slots (not just availabilities)
-  // A doctor is considered available only if they have slots that can be booked
-  // (accounting for minimum slot duration requirement from their slot template)
+  // Filter by availability: when showAll=false (default), return only doctors with at least one
+  // upcoming capacity schedule. No dependency on Slot or Availability tables for discovery.
+  // Root cause of "No doctors found" with capacity-only: previously we required slots/availabilities
+  // OR capacity; now we use only capacity schedules (Schedule table) for default listing.
+  let doctorIdsWithFutureSchedule: Set<string> = new Set();
   if (hasAvailability) {
+    doctorIdsWithFutureSchedule = await getDoctorIdsWithFutureSchedule();
+    // Restrict to doctors who have an upcoming capacity schedule (id in set; empty set => no doctors)
     searchConditions.push({
-      OR: [
-        // Has available slots (status = AVAILABLE, startTime >= now)
-        {
-          slots: {
-            some: {
-              AND: [
-                { status: "AVAILABLE" },
-                { startTime: { gte: now } },
-                // Only include slots with valid availabilities
-                { availability: { isNot: null } },
-              ],
-            },
-          },
-        },
-        // Has availabilities that might be able to generate valid slots
-        // (we'll filter by actual slot template duration in post-processing)
-        {
-          AND: [
-            {
-              availabilities: {
-                some: {
-                  OR: [
-                    // One-time availability: endTime must be in the future
-                    {
-                      AND: [{ isRecurring: false }, { endTime: { gt: now } }],
-                    },
-                    // Recurring availability: must be active
-                    {
-                      AND: [
-                        { isRecurring: true },
-                        {
-                          OR: [
-                            { validFrom: null },
-                            { validFrom: { lte: now } },
-                          ],
-                        },
-                        {
-                          OR: [{ validTo: null }, { validTo: { gt: now } }],
-                        },
-                      ],
-                    },
-                  ],
-                },
-              },
-            },
-            // Ensure no existing available slots (so we know slots need to be generated)
-            {
-              slots: {
-                none: {
-                  AND: [{ status: "AVAILABLE" }, { startTime: { gte: now } }],
-                },
-              },
-            },
-          ],
-        },
-      ],
+      id: { in: Array.from(doctorIdsWithFutureSchedule) },
     });
   }
 
@@ -387,159 +339,30 @@ export async function getAllDoctors(options?: {
     },
   };
 
-  // If filtering by availability, include slotTemplate, slots, and availabilities.
-  // When includeNoSchedule we use capacity-based schedules (getDoctorIdsWithScheduleInRange) instead.
-  if (hasAvailability) {
-    includeOptions.slotTemplate = {
-      select: {
-        durationMinutes: true,
-      },
-    };
-    includeOptions.slots = {
-      where: {
-        status: "AVAILABLE",
-        startTime: { gte: now },
-        availability: { isNot: null },
-      },
-      select: {
-        id: true,
-        status: true,
-        startTime: true,
-        availabilityId: true,
-      },
-    };
-    includeOptions.availabilities = {
-      where: {
-        OR: [
-          {
-            AND: [{ isRecurring: false }, { endTime: { gt: now } }],
-          },
-          {
-            AND: [
-              { isRecurring: true },
-              {
-                OR: [{ validFrom: null }, { validFrom: { lte: now } }],
-              },
-              {
-                OR: [{ validTo: null }, { validTo: { gt: now } }],
-              },
-            ],
-          },
-        ],
-      },
-      select: {
-        id: true,
-        isRecurring: true,
-        startTime: true,
-        endTime: true,
-        validFrom: true,
-        validTo: true,
-      },
-    };
-  }
-
-  // When filtering by availability, we need to fetch all doctors first,
-  // filter them, then paginate. This is because availability filtering
-  // requires checking slot template durations which can't be done at DB level.
+  // When filtering by availability we use only capacity schedules (no Slot/Availability includes needed).
+  // Standard pagination at DB level since filter is id IN (doctorIdsWithFutureSchedule).
   let doctors: Prisma.DoctorGetPayload<{
     include: typeof includeOptions;
   }>[];
   let total: number;
 
   try {
-    if (hasAvailability) {
-      // Fetch all doctors that match the base criteria
-      const allDoctors = await query<
+    [doctors, total] = await Promise.all([
+      query<
         Prisma.DoctorGetPayload<{
           include: typeof includeOptions;
         }>[]
       >((prisma) =>
         prisma.doctor.findMany({
           where,
+          skip,
+          take: limit,
           include: includeOptions,
           orderBy,
         })
-      );
-
-      // Post-filter: Filter doctors based on actual slot template duration
-      // This ensures doctors only appear if they have enough time for at least one slot
-      const filteredDoctors = allDoctors.filter((doctor) => {
-        // If doctor has available slots, include them
-        if (
-          doctor.slots &&
-          Array.isArray(doctor.slots) &&
-          doctor.slots.length > 0
-        ) {
-          return true;
-        }
-
-        // Otherwise, check if availabilities can generate valid slots
-        // Get slot template duration (default to 30 if not set)
-        const slotDurationMinutes = doctor.slotTemplate?.durationMinutes ?? 30;
-        const minSlotDurationMs = slotDurationMinutes * 60 * 1000;
-        const minSlotEndTime = new Date(now.getTime() + minSlotDurationMs);
-
-        // Check if any availability can generate a valid slot
-        if (
-          !doctor.availabilities ||
-          !Array.isArray(doctor.availabilities) ||
-          doctor.availabilities.length === 0
-        ) {
-          return false;
-        }
-
-        for (const availability of doctor.availabilities) {
-          if (!availability.isRecurring) {
-            // One-time: check if endTime is far enough in the future
-            if (new Date(availability.endTime) >= minSlotEndTime) {
-              return true;
-            }
-          } else {
-            // Recurring: check if validTo is far enough in the future
-            // and the time window itself has enough duration
-            const hasValidTimeRange =
-              !availability.validTo ||
-              new Date(availability.validTo) >= minSlotEndTime;
-
-            if (hasValidTimeRange) {
-              // Check if the time window itself has enough duration
-              const availStart = new Date(availability.startTime);
-              const availEnd = new Date(availability.endTime);
-              const availDurationMs = availEnd.getTime() - availStart.getTime();
-              if (availDurationMs >= minSlotDurationMs) {
-                return true;
-              }
-            }
-          }
-        }
-
-        return false;
-      });
-
-      // Calculate total from filtered results
-      total = filteredDoctors.length;
-
-      // Apply pagination to filtered results
-      doctors = filteredDoctors.slice(skip, skip + limit);
-    } else {
-      // When not filtering by availability, use standard pagination
-      [doctors, total] = await Promise.all([
-        query<
-          Prisma.DoctorGetPayload<{
-            include: typeof includeOptions;
-          }>[]
-        >((prisma) =>
-          prisma.doctor.findMany({
-            where,
-            skip,
-            take: limit,
-            include: includeOptions,
-            orderBy,
-          })
-        ),
-        query<number>((prisma) => prisma.doctor.count({ where })),
-      ]);
-    }
+      ),
+      query<number>((prisma) => prisma.doctor.count({ where })),
+    ]);
   } catch (error) {
     logger.error("Error in getAllDoctors query", {
       error: error instanceof Error ? error.message : String(error),
@@ -571,17 +394,41 @@ export async function getAllDoctors(options?: {
     );
   }
 
+  // Next upcoming capacity schedule per doctor (for "Next available" and booking default date)
+  const nextSchedules =
+    doctors.length > 0
+      ? await getNextUpcomingScheduleByDoctorIds(doctors.map((d) => d.id))
+      : new Map();
+
   return {
     doctors: doctors.map((doctor) => {
       const base = mapDoctorRowToDoctor(doctor);
+      const next = nextSchedules.get(doctor.id);
+      const nextScheduleDate = next
+        ? next.date.toISOString().slice(0, 10)
+        : undefined;
+      const nextScheduleStartTime = next?.startTime;
+      const nextScheduleEndTime = next?.endTime;
+      const remainingTokens = next?.remaining;
+
       if (includeNoSchedule) {
         return {
           ...base,
           hasSchedule: doctorIdsWithSchedules.has(doctor.id),
           nextAvailableSlotAt: undefined,
+          nextScheduleDate,
+          nextScheduleStartTime,
+          nextScheduleEndTime,
+          remainingTokens,
         };
       }
-      return base;
+      return {
+        ...base,
+        nextScheduleDate,
+        nextScheduleStartTime,
+        nextScheduleEndTime,
+        remainingTokens,
+      };
     }),
     pagination: {
       page,

@@ -12,6 +12,7 @@ import {
   updateAvailabilitySlot,
   deleteAvailabilitySlot,
   getAvailabilityWindowsHandler,
+  getUpcomingScheduleDatesHandler,
 } from "../controllers/availability.controller";
 
 const router: IRouter = Router();
@@ -21,6 +22,12 @@ const router: IRouter = Router();
  * Get capacity windows for a doctor on a date (public)
  */
 router.get("/windows", getAvailabilityWindowsHandler);
+
+/**
+ * GET /api/v1/availability/upcoming-dates?doctorId=
+ * Get upcoming schedule dates (YYYY-MM-DD) for capacity booking (public)
+ */
+router.get("/upcoming-dates", getUpcomingScheduleDatesHandler);
 
 /**
  * GET /api/v1/availability/:id
