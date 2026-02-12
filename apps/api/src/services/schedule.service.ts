@@ -93,6 +93,9 @@ export async function createSchedule(
     );
   }
 
+  const trimmedStart = startTime.trim();
+  const trimmedEnd = endTime.trim();
+
   const existing = await query<
     { id: string; startTime: string; endTime: string }[]
   >((prisma) =>
@@ -104,6 +107,22 @@ export async function createSchedule(
       select: { id: true, startTime: true, endTime: true },
     })
   );
+
+  // Reject exact duplicate (same doctor, date, start time, end time) with 409
+  const isDuplicate = existing.some(
+    (ex) => ex.startTime === trimmedStart && ex.endTime === trimmedEnd
+  );
+  if (isDuplicate) {
+    logger.warn("Duplicate schedule rejected", {
+      doctorId,
+      date,
+      startTime: trimmedStart,
+      endTime: trimmedEnd,
+    });
+    throw createConflictError(
+      "A schedule for this doctor, date, and time window already exists."
+    );
+  }
 
   for (const ex of existing) {
     if (timesOverlap(startTime, endTime, ex.startTime, ex.endTime)) {
@@ -133,8 +152,8 @@ export async function createSchedule(
       data: {
         doctorId,
         date: dateOnly,
-        startTime: startTime.trim(),
-        endTime: endTime.trim(),
+        startTime: trimmedStart,
+        endTime: trimmedEnd,
         maxPatients,
         createdById: createdById ?? null,
       },

@@ -30,6 +30,29 @@ describe("schedule.service", () => {
     doctorBId = doctorB.id;
   });
 
+  it("should reject exact duplicate schedule (same doctor, date, startTime, endTime) with 409", async () => {
+    await createSchedule({
+      doctorId: doctorAId,
+      date,
+      startTime: "09:00",
+      endTime: "12:00",
+      maxPatients: 10,
+    });
+
+    await expect(
+      createSchedule({
+        doctorId: doctorAId,
+        date,
+        startTime: "09:00",
+        endTime: "12:00",
+        maxPatients: 15,
+      })
+    ).rejects.toMatchObject({
+      statusCode: 409,
+      message: expect.stringContaining("already exists"),
+    });
+  });
+
   it("should reject overlapping schedule for same doctor on same date", async () => {
     await createSchedule({
       doctorId: doctorAId,

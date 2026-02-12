@@ -75,11 +75,13 @@ export function CapacitySchedulesTab({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     if (!doctorId || !date || !startTime || !endTime) {
       onError("Please fill doctor, date, start time, and end time.");
       return;
     }
     setSubmitting(true);
+    onError("");
     try {
       const res = await fetch("/api/admin/schedules", {
         method: "POST",
