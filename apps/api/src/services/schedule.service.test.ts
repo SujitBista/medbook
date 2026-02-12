@@ -5,7 +5,12 @@
  */
 
 import { describe, it, expect, beforeEach } from "vitest";
-import { createSchedule, getAvailabilityWindows } from "./schedule.service";
+import {
+  createSchedule,
+  updateSchedule,
+  deleteSchedule,
+  getAvailabilityWindows,
+} from "./schedule.service";
 import {
   createTestDoctor,
   createTestUser,
@@ -48,6 +53,22 @@ describe("schedule.service", () => {
     });
   });
 
+  it("should reject schedule when end date/time is in the past", async () => {
+    const pastDate = "2020-01-01";
+    await expect(
+      createSchedule({
+        doctorId: doctorAId,
+        date: pastDate,
+        startTime: "09:00",
+        endTime: "12:00",
+        maxPatients: 10,
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("past"),
+    });
+  });
+
   it("should allow same time window for different doctors", async () => {
     const s1 = await createSchedule({
       doctorId: doctorAId,
@@ -68,6 +89,51 @@ describe("schedule.service", () => {
     expect(s2.id).toBeDefined();
     expect(s1.doctorId).toBe(doctorAId);
     expect(s2.doctorId).toBe(doctorBId);
+  });
+
+  it("should update schedule and reject past date on update", async () => {
+    const s = await createSchedule({
+      doctorId: doctorAId,
+      date,
+      startTime: "09:00",
+      endTime: "12:00",
+      maxPatients: 10,
+    });
+    const updated = await updateSchedule(s.id, {
+      date: "2026-02-16",
+      startTime: "10:00",
+      endTime: "14:00",
+      maxPatients: 20,
+    });
+    expect(updated.id).toBe(s.id);
+    expect(updated.startTime).toBe("10:00");
+    expect(updated.endTime).toBe("14:00");
+    expect(updated.maxPatients).toBe(20);
+
+    await expect(
+      updateSchedule(s.id, {
+        date: "2020-01-01",
+        startTime: "09:00",
+        endTime: "12:00",
+        maxPatients: 10,
+      })
+    ).rejects.toMatchObject({
+      statusCode: 400,
+      message: expect.stringContaining("past"),
+    });
+  });
+
+  it("should delete schedule", async () => {
+    const s = await createSchedule({
+      doctorId: doctorAId,
+      date,
+      startTime: "09:00",
+      endTime: "12:00",
+      maxPatients: 10,
+    });
+    await deleteSchedule(s.id);
+    const windows = await getAvailabilityWindows(doctorAId, date);
+    expect(windows).toHaveLength(0);
   });
 
   it("should return availability windows with confirmedCount, remaining, isBookable, disabledReason", async () => {

@@ -22,6 +22,13 @@ export interface CreateScheduleInput {
   maxPatients: number;
 }
 
+export interface UpdateScheduleInput {
+  date: string; // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string; // HH:mm
+  maxPatients: number;
+}
+
 /** Reason code when the schedule window is not bookable (backend-derived) */
 export type ScheduleDisabledReasonCode =
   | "FULL"
