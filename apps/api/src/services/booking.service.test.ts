@@ -11,6 +11,7 @@ import { query } from "@app/db";
 import {
   createTestDoctor,
   createTestUser,
+  createTestSchedule,
   cleanupTestData,
 } from "../__tests__/db";
 import type { DoctorCommissionSettings } from "@medbook/types";
@@ -121,10 +122,11 @@ describe("booking.service", () => {
     });
 
     it("should reject schedule in the past with 400", async () => {
-      const pastDate = "2020-01-01";
-      const pastSchedule = await createSchedule({
+      // Use createTestSchedule (Prisma directly) so we can create a past-dated schedule;
+      // createSchedule() rejects past dates.
+      const pastSchedule = await createTestSchedule({
         doctorId,
-        date: pastDate,
+        date: new Date("2020-01-01T00:00:00.000Z"),
         startTime: "09:00",
         endTime: "10:00",
         maxPatients: 5,
