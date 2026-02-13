@@ -72,11 +72,13 @@ function LoginForm() {
 
       if (result?.error) {
         console.error("[Login] Sign in error:", result.error);
-        // Show the actual error message if available, otherwise show generic message
-        const errorMessage =
-          result.error === "CredentialsSignin"
-            ? "Invalid email or password"
-            : result.error || "Invalid email or password";
+        // Never show raw "CredentialsSignin" to the user; show a clear message
+        const raw = String(result.error);
+        const isCredentialsSignin =
+          raw === "CredentialsSignin" || raw.includes("CredentialsSignin");
+        const errorMessage = isCredentialsSignin
+          ? "Invalid email or password. Please check and try again."
+          : raw || "Invalid email or password. Please check and try again.";
         showError(errorMessage);
         setIsLoading(false);
       } else if (result?.ok) {

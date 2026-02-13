@@ -158,8 +158,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
               isCorsError,
             });
 
-            // Return null to trigger CredentialsSignin, but log the actual error
-            return null;
+            // Throw with API message so the client shows a user-friendly message
+            // instead of the generic "CredentialsSignin" string
+            const apiMessage =
+              errorData?.error?.message ??
+              errorData?.message ??
+              (response.status === 401
+                ? "Invalid email or password"
+                : `Login failed (${response.status})`);
+            throw new Error(apiMessage);
           }
 
           let data;
