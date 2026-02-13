@@ -16,6 +16,7 @@ function LoginForm() {
     email?: string;
     password?: string;
   }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -59,6 +60,7 @@ function LoginForm() {
 
     setIsLoading(true);
     setErrors({});
+    setFormError(null);
 
     try {
       console.log("[Login] Attempting sign in with:", { email });
@@ -70,22 +72,24 @@ function LoginForm() {
 
       console.log("[Login] Sign in result:", JSON.stringify(result, null, 2));
 
+      const invalidCredsMessage =
+        "Invalid email or password. Please check and try again.";
+
       if (result?.error) {
         console.error("[Login] Sign in error:", result.error);
-        // Show the actual error message if available, otherwise show generic message
-        const errorMessage =
-          result.error === "CredentialsSignin"
-            ? "Invalid email or password"
-            : result.error || "Invalid email or password";
+        const raw = String(result.error);
+        const isCredentialsSignin =
+          raw === "CredentialsSignin" || raw.includes("CredentialsSignin");
+        const errorMessage = isCredentialsSignin
+          ? invalidCredsMessage
+          : raw || invalidCredsMessage;
+        setFormError(errorMessage);
         showError(errorMessage);
         setIsLoading(false);
       } else if (result?.ok) {
         console.log("[Login] Sign in successful, redirecting...");
         showSuccess("Sign in successful! Redirecting...");
-        // Redirect to callbackUrl if provided, otherwise to dashboard
-        // Validate callbackUrl to prevent open redirect vulnerability
         const callbackUrl = searchParams.get("callbackUrl") || "/dashboard";
-        // Only allow same-origin paths starting with "/"
         const isValidCallback =
           callbackUrl.startsWith("/") && !callbackUrl.startsWith("//");
         const safeCallbackUrl = isValidCallback ? callbackUrl : "/dashboard";
@@ -94,15 +98,17 @@ function LoginForm() {
           router.refresh();
         }, 500);
       } else {
+        // result null, undefined, or { ok: false } without error (e.g. some NextAuth/network cases)
         console.warn("[Login] Unexpected sign in result:", result);
-        showError("Invalid email or password");
+        setFormError(invalidCredsMessage);
+        showError(invalidCredsMessage);
         setIsLoading(false);
       }
     } catch (error) {
       console.error("[Login] Exception caught:", error);
-      // Provide more specific error messages
       const errorMessage =
         "The service is temporarily unavailable. Please try again later.";
+      setFormError(errorMessage);
       showError(errorMessage);
       setIsLoading(false);
     }
@@ -112,6 +118,14 @@ function LoginForm() {
     <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-12">
       <div className="w-full max-w-md">
         <Card title="Sign In">
+          {formError && (
+            <div
+              role="alert"
+              className="mb-4 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-800"
+            >
+              {formError}
+            </div>
+          )}
           <form
             onSubmit={handleSubmit}
             className="space-y-4"
@@ -124,10 +138,10 @@ function LoginForm() {
               value={email}
               onChange={(e) => {
                 setEmail(e.target.value);
-                // Clear error when user starts typing
                 if (errors.email) {
                   setErrors((prev) => ({ ...prev, email: undefined }));
                 }
+                if (formError) setFormError(null);
               }}
               error={errors.email}
               disabled={isLoading}
@@ -144,10 +158,10 @@ function LoginForm() {
               value={password}
               onChange={(e) => {
                 setPassword(e.target.value);
-                // Clear error when user starts typing
                 if (errors.password) {
                   setErrors((prev) => ({ ...prev, password: undefined }));
                 }
+                if (formError) setFormError(null);
               }}
               error={errors.password}
               disabled={isLoading}
