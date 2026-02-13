@@ -30,6 +30,8 @@ import {
   getSchedulingException,
   createScheduleHandler,
   getSchedulesHandler,
+  updateScheduleHandler,
+  deleteScheduleHandler,
   createManualBookingHandler,
   listDepartments,
   getDepartment,
@@ -181,6 +183,18 @@ router.post("/schedules", createScheduleHandler);
  * List schedules (query: doctorId, date, startDate, endDate)
  */
 router.get("/schedules", getSchedulesHandler);
+
+/**
+ * PATCH /api/v1/admin/schedules/:id
+ * Update capacity schedule
+ */
+router.patch("/schedules/:id", updateScheduleHandler);
+
+/**
+ * DELETE /api/v1/admin/schedules/:id
+ * Delete capacity schedule
+ */
+router.delete("/schedules/:id", deleteScheduleHandler);
 
 /**
  * POST /api/v1/admin/bookings/manual

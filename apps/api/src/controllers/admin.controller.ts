@@ -40,7 +40,12 @@ import {
   deleteScheduleException,
   getScheduleExceptionById,
 } from "../services/exception.service";
-import { createSchedule, getSchedules } from "../services/schedule.service";
+import {
+  createSchedule,
+  getSchedules,
+  updateSchedule,
+  deleteSchedule,
+} from "../services/schedule.service";
 import { createManualBooking } from "../services/booking.service";
 import {
   getAllDepartments,
@@ -915,6 +920,66 @@ export async function getSchedulesHandler(
       success: true,
       data: schedules,
     });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Update a capacity schedule (admin only)
+ * PATCH /api/v1/admin/schedules/:id
+ */
+export async function updateScheduleHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const scheduleId = req.params.id;
+    const { date, startTime, endTime, maxPatients } = req.body;
+
+    if (!scheduleId || !date || !startTime || !endTime || maxPatients == null) {
+      const error = createValidationError(
+        "date, startTime, endTime, and maxPatients are required"
+      );
+      next(error);
+      return;
+    }
+
+    const schedule = await updateSchedule(scheduleId, {
+      date: String(date),
+      startTime: String(startTime),
+      endTime: String(endTime),
+      maxPatients: Number(maxPatients),
+    });
+
+    res.status(200).json({
+      success: true,
+      data: schedule,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+/**
+ * Delete a capacity schedule (admin only)
+ * DELETE /api/v1/admin/schedules/:id
+ */
+export async function deleteScheduleHandler(
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  try {
+    const scheduleId = req.params.id;
+    if (!scheduleId) {
+      const error = createValidationError("Schedule ID is required");
+      next(error);
+      return;
+    }
+    await deleteSchedule(scheduleId);
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

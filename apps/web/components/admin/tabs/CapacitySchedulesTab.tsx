@@ -20,6 +20,10 @@ interface CapacitySchedulesTabProps {
   onSuccess: (message: string) => void;
 }
 
+function scheduleDisplayDate(s: Schedule): string {
+  return String(s.date).slice(0, 10);
+}
+
 export function CapacitySchedulesTab({
   doctors,
   onError,
@@ -33,6 +37,13 @@ export function CapacitySchedulesTab({
   const [schedules, setSchedules] = useState<Schedule[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState<Schedule | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editStartTime, setEditStartTime] = useState("09:00");
+  const [editEndTime, setEditEndTime] = useState("12:00");
+  const [editMaxPatients, setEditMaxPatients] = useState(15);
+  const [editSubmitting, setEditSubmitting] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const fetchSchedules = useCallback(async () => {
     if (!doctorId) {
@@ -64,11 +75,13 @@ export function CapacitySchedulesTab({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitting) return;
     if (!doctorId || !date || !startTime || !endTime) {
       onError("Please fill doctor, date, start time, and end time.");
       return;
     }
     setSubmitting(true);
+    onError("");
     try {
       const res = await fetch("/api/admin/schedules", {
         method: "POST",
@@ -93,6 +106,83 @@ export function CapacitySchedulesTab({
       onError("Failed to create schedule");
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const openEdit = (s: Schedule) => {
+    setEditingSchedule(s);
+    setEditDate(scheduleDisplayDate(s));
+    setEditStartTime(s.startTime);
+    setEditEndTime(s.endTime);
+    setEditMaxPatients(s.maxPatients);
+  };
+
+  const closeEditModal = () => {
+    setEditingSchedule(null);
+    setEditSubmitting(false);
+  };
+
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingSchedule) return;
+    if (!editDate || !editStartTime || !editEndTime) {
+      onError("Please fill date, start time, and end time.");
+      return;
+    }
+    setEditSubmitting(true);
+    onError("");
+    try {
+      const res = await fetch(`/api/admin/schedules/${editingSchedule.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          date: editDate,
+          startTime: editStartTime,
+          endTime: editEndTime,
+          maxPatients: Number(editMaxPatients) || 15,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onError(data.error?.message || "Failed to update schedule");
+        return;
+      }
+      onSuccess("Schedule updated.");
+      closeEditModal();
+      fetchSchedules();
+    } catch {
+      onError("Failed to update schedule");
+    } finally {
+      setEditSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (s: Schedule) => {
+    const dateDisplay = scheduleDisplayDate(s);
+    if (
+      !confirm(
+        `Delete this schedule? ${dateDisplay} • ${s.startTime}–${s.endTime} • max ${s.maxPatients}. This cannot be undone.`
+      )
+    ) {
+      return;
+    }
+    setDeletingId(s.id);
+    onError("");
+    try {
+      const res = await fetch(`/api/admin/schedules/${s.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        onError(data.error?.message || "Failed to delete schedule");
+        return;
+      }
+      onSuccess("Schedule deleted.");
+      fetchSchedules();
+    } catch {
+      onError("Failed to delete schedule");
+    } finally {
+      setDeletingId(null);
     }
   };
 
@@ -187,7 +277,7 @@ export function CapacitySchedulesTab({
           ) : (
             <ul className="space-y-2">
               {schedules.map((s) => {
-                const dateDisplay = String(s.date).slice(0, 10);
+                const dateDisplay = scheduleDisplayDate(s);
                 return (
                   <li
                     key={s.id}
@@ -197,6 +287,23 @@ export function CapacitySchedulesTab({
                       {dateDisplay} • {s.startTime}–{s.endTime} • max{" "}
                       {s.maxPatients}
                     </span>
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(s)}
+                        className="text-primary-600 hover:text-primary-800 font-medium"
+                      >
+                        Edit
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(s)}
+                        disabled={deletingId === s.id}
+                        className="text-red-600 hover:text-red-800 font-medium disabled:opacity-50"
+                      >
+                        {deletingId === s.id ? "Deleting…" : "Delete"}
+                      </button>
+                    </div>
                   </li>
                 );
               })}
@@ -204,6 +311,91 @@ export function CapacitySchedulesTab({
           )}
         </div>
       </Card>
+
+      {editingSchedule && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Edit schedule
+            </h3>
+            <p className="mt-1 text-sm text-gray-500">
+              {scheduleDisplayDate(editingSchedule)} •{" "}
+              {editingSchedule.startTime}–{editingSchedule.endTime}
+            </p>
+            <form onSubmit={handleEditSubmit} className="mt-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date
+                </label>
+                <input
+                  type="date"
+                  value={editDate}
+                  onChange={(e) => setEditDate(e.target.value)}
+                  className="w-full rounded border border-gray-300 px-3 py-2"
+                  required
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Start time
+                  </label>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-3 py-2"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    End time
+                  </label>
+                  <input
+                    type="time"
+                    value={editEndTime}
+                    onChange={(e) => setEditEndTime(e.target.value)}
+                    className="w-full rounded border border-gray-300 px-3 py-2"
+                    required
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Max patients
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editMaxPatients}
+                  onChange={(e) =>
+                    setEditMaxPatients(Number(e.target.value) || 15)
+                  }
+                  className="w-full rounded border border-gray-300 px-3 py-2"
+                />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={closeEditModal}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? "Saving…" : "Update schedule"}
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

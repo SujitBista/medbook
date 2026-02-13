@@ -7,6 +7,7 @@ import { query } from "@app/db";
 import type {
   Schedule,
   CreateScheduleInput,
+  UpdateScheduleInput,
   ScheduleWithCapacity,
   ScheduleDisabledReasonCode,
 } from "@medbook/types";
@@ -75,6 +76,26 @@ export async function createSchedule(
     throw createValidationError("Invalid date format. Use YYYY-MM-DD");
   }
 
+  // Reject past date/time: schedule end (date + endTime in local time) must be in the future
+  const endMinutes = parseTimeToMinutes(endTime);
+  const scheduleEndLocal = new Date(
+    dateOnly.getUTCFullYear(),
+    dateOnly.getUTCMonth(),
+    dateOnly.getUTCDate(),
+    Math.floor(endMinutes / 60),
+    endMinutes % 60,
+    0,
+    0
+  );
+  if (scheduleEndLocal <= new Date()) {
+    throw createValidationError(
+      "Cannot create a capacity schedule for a past date or time. The schedule end must be in the future."
+    );
+  }
+
+  const trimmedStart = startTime.trim();
+  const trimmedEnd = endTime.trim();
+
   const existing = await query<
     { id: string; startTime: string; endTime: string }[]
   >((prisma) =>
@@ -86,6 +107,22 @@ export async function createSchedule(
       select: { id: true, startTime: true, endTime: true },
     })
   );
+
+  // Reject exact duplicate (same doctor, date, start time, end time) with 409
+  const isDuplicate = existing.some(
+    (ex) => ex.startTime === trimmedStart && ex.endTime === trimmedEnd
+  );
+  if (isDuplicate) {
+    logger.warn("Duplicate schedule rejected", {
+      doctorId,
+      date,
+      startTime: trimmedStart,
+      endTime: trimmedEnd,
+    });
+    throw createConflictError(
+      "A schedule for this doctor, date, and time window already exists."
+    );
+  }
 
   for (const ex of existing) {
     if (timesOverlap(startTime, endTime, ex.startTime, ex.endTime)) {
@@ -115,8 +152,8 @@ export async function createSchedule(
       data: {
         doctorId,
         date: dateOnly,
-        startTime: startTime.trim(),
-        endTime: endTime.trim(),
+        startTime: trimmedStart,
+        endTime: trimmedEnd,
         maxPatients,
         createdById: createdById ?? null,
       },
@@ -143,6 +180,143 @@ export async function createSchedule(
     createdById: schedule.createdById ?? undefined,
     createdAt: schedule.createdAt,
   };
+}
+
+/**
+ * Update a schedule window (capacity-based).
+ * Rejects overlapping windows for the same doctor on the same date (excluding this schedule).
+ * Rejects past date/time.
+ */
+export async function updateSchedule(
+  scheduleId: string,
+  input: UpdateScheduleInput
+): Promise<Schedule> {
+  const existing = await getScheduleById(scheduleId);
+  const { date, startTime, endTime, maxPatients } = input;
+
+  if (maxPatients < 1) {
+    throw createValidationError("maxPatients must be at least 1");
+  }
+
+  const startM = parseTimeToMinutes(startTime);
+  const endM = parseTimeToMinutes(endTime);
+  if (startM >= endM) {
+    throw createValidationError("startTime must be before endTime");
+  }
+
+  const match = String(date)
+    .trim()
+    .match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw createValidationError("Invalid date format. Use YYYY-MM-DD");
+  }
+  const dateOnly = new Date(
+    `${match[1]}-${match[2]}-${match[3]}T00:00:00.000Z`
+  );
+  if (isNaN(dateOnly.getTime())) {
+    throw createValidationError("Invalid date format. Use YYYY-MM-DD");
+  }
+
+  const endMinutes = parseTimeToMinutes(endTime);
+  const scheduleEndLocal = new Date(
+    dateOnly.getUTCFullYear(),
+    dateOnly.getUTCMonth(),
+    dateOnly.getUTCDate(),
+    Math.floor(endMinutes / 60),
+    endMinutes % 60,
+    0,
+    0
+  );
+  if (scheduleEndLocal <= new Date()) {
+    throw createValidationError(
+      "Cannot set a capacity schedule to a past date or time. The schedule end must be in the future."
+    );
+  }
+
+  const others = await query<
+    { id: string; startTime: string; endTime: string }[]
+  >((prisma) =>
+    prisma.schedule.findMany({
+      where: {
+        doctorId: existing.doctorId,
+        date: dateOnly,
+        id: { not: scheduleId },
+      },
+      select: { id: true, startTime: true, endTime: true },
+    })
+  );
+
+  for (const ex of others) {
+    if (timesOverlap(startTime, endTime, ex.startTime, ex.endTime)) {
+      logger.warn("Schedule overlap rejected (update)", {
+        scheduleId,
+        doctorId: existing.doctorId,
+        date,
+        new: { startTime, endTime },
+        existing: { startTime: ex.startTime, endTime: ex.endTime },
+      });
+      throw createConflictError(
+        "This time window overlaps with an existing schedule for the same doctor on this date"
+      );
+    }
+  }
+
+  const updated = await query<{
+    id: string;
+    doctorId: string;
+    date: Date;
+    startTime: string;
+    endTime: string;
+    maxPatients: number;
+    createdById: string | null;
+    createdAt: Date;
+  }>((prisma) =>
+    prisma.schedule.update({
+      where: { id: scheduleId },
+      data: {
+        date: dateOnly,
+        startTime: startTime.trim(),
+        endTime: endTime.trim(),
+        maxPatients,
+      },
+    })
+  );
+
+  logger.info("Schedule updated", {
+    event: "schedule-update",
+    scheduleId: updated.id,
+    doctorId: updated.doctorId,
+    date,
+    startTime,
+    endTime,
+    maxPatients,
+  });
+
+  return {
+    id: updated.id,
+    doctorId: updated.doctorId,
+    date: updated.date,
+    startTime: updated.startTime,
+    endTime: updated.endTime,
+    maxPatients: updated.maxPatients,
+    createdById: updated.createdById ?? undefined,
+    createdAt: updated.createdAt,
+  };
+}
+
+/**
+ * Delete a capacity schedule by ID.
+ */
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  const existing = await getScheduleById(scheduleId);
+  await query((prisma) =>
+    prisma.schedule.delete({ where: { id: scheduleId } })
+  );
+  logger.info("Schedule deleted", {
+    event: "schedule-delete",
+    scheduleId,
+    doctorId: existing.doctorId,
+  });
 }
 
 /**
